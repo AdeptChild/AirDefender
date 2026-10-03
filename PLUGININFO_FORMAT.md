@@ -406,13 +406,14 @@ install script can rely on them being present.
 > `dependencies` doesn't cover those releases for you, so dropping the manual
 > install there would silently break them.
 >
-> We expect to encourage plugins to migrate fully onto `dependencies` (and
-> retire the manual installs in `fpp_install.sh`) once **FPP 11 or FPP 12**
-> ships and FPP 8/9 support is no longer a concern for most plugins. There's no
-> need to make that jump today if you still support older releases — declaring
-> `dependencies` now is additive (it helps FPP 10+ users, e.g. with reference
-> counting on uninstall) and doesn't require dropping your existing
-> `fpp_install.sh` installs until you're ready to drop pre-10 support entirely.
+> **FPP 11 requires `dependencies`.** Every dependency of a `versions[]`
+> entry covering FPP 11 must be declared here; ad-hoc installs in
+> `fpp_install.sh` are allowed only for the special cases in
+> `PLUGIN_GUIDELINES.md` §6.2 (e.g. a package from a repository the plugin
+> adds). For FPP 9/10 listings it's recommended now and not yet required.
+> Declaring it today is additive: it helps FPP 10+ users (reference counting
+> on uninstall) and doesn't require dropping your existing `fpp_install.sh`
+> installs, which FPP 9 and older still need until you drop pre-10 support.
 
 **Top-level and per-version, and they combine.** A top-level `dependencies` block
 applies to every entry in `versions[]`. A specific `versions[]` entry may *also*
@@ -447,8 +448,8 @@ installs `libfoo1` there today.
 
 ```json
 "dependencies": {
-    "packages": [ "system-package-name1" ],
-    "python":   [ "requests", "pyserial>=3.5" ],
+    "packages": [ "system-package-name1", "python3-serial" ],
+    "python":   [ "some-pypi-only-package" ],
     "scripts":  [ "Control/script-repository-script1" ],
     "plugins":  [ "fpp-plugin-CoolPlugin1" ]
 }
@@ -459,7 +460,7 @@ They are resolved in this order — **packages → python → scripts → plugin
 | Key | Meaning |
 |-----|---------|
 | `packages` | System (apt) packages. FPP runs `apt-get update` then installs each one, and records that **this plugin** requested it. |
-| `python` | Python (PyPI) packages, installed with `pip install --break-system-packages` straight into FPP's **system** Python (not isolated per plugin, not reference-counted — a package shared by two plugins is just one shared install). Your scripts run against it via the plain `python3` on PATH (see `PLUGIN_GUIDELINES.md` §6.1). `pip` ships by default with FPP. |
+| `python` | Python (PyPI) packages — **only for what Debian doesn't package**: if `python3-<name>` exists on the releases you support, put it in `packages` instead (reference-counted, prebuilt, no pip; see `PLUGIN_GUIDELINES.md` §6.1). Installed with `pip install --break-system-packages` straight into FPP's **system** Python (not isolated per plugin, not reference-counted — a package shared by two plugins is just one shared install). Your scripts run against it via the plain `python3` on PATH (see `PLUGIN_GUIDELINES.md` §6.1). `pip` ships by default with FPP. |
 | `scripts` | Script-repository entries in `"Category/file"` form (the same layout as the **Content Setup → Script Repository** page, backed by `FalconChristmas/fpp-scripts`). Each is downloaded into your scripts directory; note repository scripts may run their own `# InstallAction:` steps on install. |
 | `plugins` | Other FPP plugins, by `repoName`. Each is cloned and installed the same way (its own dependencies resolved too), then its `fpp_install.sh` runs. The name **must exist in [`fpp-data/pluginList.json`](https://github.com/FalconChristmas/fpp-data/blob/master/pluginList.json)** — arbitrary URLs are not accepted here. Dependency chains are cycle-guarded, and an already-installed dependency is left as-is. |
 

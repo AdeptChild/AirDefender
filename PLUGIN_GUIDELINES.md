@@ -27,11 +27,17 @@ behaves like a good guest:
   yourself; ask FPP to do it through the proper flag/API. No `curl … | bash`.
 - **Stay in your lane.** Read and write only inside your plugin directory (plus
   your one log file and anything you declared as a dependency).
-- **`pluginInfo.json`'s `dependencies` block is optional this year.** It only
-  takes effect on FPP 10+ (older FPP silently ignores it), so installing
-  everything yourself from `fpp_install.sh`, as before, is completely fine.
-  Whatever you install — declared or ad hoc — must go through `apt-get`, `npm`,
-  or `pip` — never `curl … | bash`. No `sudo` (your install already runs as root).
+- **Declare your dependencies in `pluginInfo.json`'s `dependencies` block.**
+  It is optional for FPP 9/10 listings this year, but **FPP 11 requires it**:
+  every apt, Python, script and plugin dependency of an FPP 11 `versions[]`
+  entry must be declared there, with ad-hoc installs in `fpp_install.sh` only
+  for the special cases in §6.2. The block takes effect on FPP 10+ (older FPP
+  silently ignores it), so keep installing from `fpp_install.sh` for FPP 9 and
+  older (§6.1). Whatever you install — declared or ad hoc — must go through `apt-get`, `npm`,
+  or `pip` — never `curl … | bash` — and **strongly prefer `apt-get`**: if
+  Debian packages it (`python3-<name>`, `node-<name>`, `lib<module>-perl`),
+  use that instead of `pip`/`npm`/`cpan` (§6.1). No `sudo` (your install
+  already runs as root).
 - **Talk to FPP through its interfaces.** Prefer FPP's PHP helpers and the HTTP
   API over editing FPP's config files or restarting `fppd` by hand.
 - **Make the UI work everywhere.** It must read correctly in **both light and dark
@@ -454,25 +460,65 @@ not `config/` (§14.11).
 
 ### 6. Dependencies
 
-6.1 **Optional this year — not required.** `dependencies` only takes effect on
-FPP 10+ (see the callout below), so using it isn't required for now;
-installing everything yourself from `fpp_install.sh` remains completely fine.
-If you do want to use it: declare apt packages, Python (PyPI) packages,
-script-repository scripts, and other required plugins in the top-level
-`dependencies` block of `pluginInfo.json` (see `PLUGININFO_FORMAT.md`) — apt,
-scripts, and Python deps are all equally optional in 2026, so use whichever
-of them you want and skip the rest. FPP installs whatever you declare before
-your `fpp_install.sh` runs — Python packages via
-`pip install --break-system-packages` (`dependencies.python`), straight into
-FPP's system Python, which your scripts can then use directly via the plain
-`python3` on PATH — no per-plugin venv, no `"$SCRIPT_DIR/.venv/..."`
-indirection. `--break-system-packages` is required on any current PEP 668-managed
-image (Debian/RPi OS Bookworm+ refuses `pip install` outright without it) and is
-safe here: it installs into `/usr/local/lib/python3.x/dist-packages`, which is
-**not** tracked by `dpkg` — apt-installed `python3-*` packages live in
-`/usr/lib/python3/dist-packages` instead, a different directory — so it doesn't
-touch anything apt manages. Prefer this over installing Python packages yourself
-in `fpp_install.sh`. A specific `versions[]` entry may also carry its own
+6.1 **Declare dependencies in `pluginInfo.json` — required from FPP 11.**
+Declare apt packages, Python (PyPI) packages, script-repository scripts, and
+other required plugins in the top-level `dependencies` block of
+`pluginInfo.json` (see `PLUGININFO_FORMAT.md`). FPP installs whatever you
+declare before your `fpp_install.sh` runs.
+- **FPP 9/10 listings, 2026:** recommended, not yet required. Installing from
+  `fpp_install.sh` is still accepted, and reviews will ask for the block as a
+  best-practice item.
+- **FPP 11 and later:** required. Every dependency of a `versions[]` entry
+  that covers FPP 11 must be declared in `dependencies`. `fpp_install.sh` may
+  install packages itself only for the special cases in §6.2. Review treats an
+  undeclared dependency on an FPP 11 entry as a blocker.
+- **FPP 9 and older** ignore the block (see the callout below), so while you
+  support them, also install from `fpp_install.sh`, guarded so it does nothing
+  when the package is already present.
+
+**Strongly prefer Debian packages (`apt-get`) over `pip`, `npm` and `cpan`.**
+If Debian packages the library — `python3-<name>`, `node-<name>`,
+`lib<module>-perl` — declare that in `dependencies.packages` (and install it
+with `apt-get` in `fpp_install.sh` for FPP 9) instead of the language package
+manager. Why:
+- **Reference counting.** apt packages declared in `dependencies.packages` are
+  tracked per plugin and removed only when nothing else needs them (see
+  below). `pip`/`npm -g`/`cpan` installs are shared system-wide with no owner,
+  so there is no safe way to remove them on uninstall, and two plugins can
+  silently fight over versions.
+- **Prebuilt for the device.** Debian ships compiled `armhf`/`arm64` builds.
+  pip falls back to compiling C extensions on the Pi when there's no wheel,
+  which can take many minutes or run out of memory on a 512 MB device.
+- **Matches the OS.** Debian's builds are tested against the system Python
+  and libraries FPP runs on, get security updates through the normal OS
+  update path, and are replayed by FPP after an fppos OS upgrade
+  (`userpackages.json`).
+- **No extra bootstrap.** You don't need to install `python3-pip` first.
+
+Check both releases FPP ships — Bookworm (FPP 9) and Trixie (FPP 10) — with
+`apt-cache policy python3-<name>` on each, or at
+<https://packages.debian.org/>. Debian's version won't be the newest on
+PyPI: write against the API both releases have, rather than pinning an exact
+PyPI version.
+
+Use `pip` (`dependencies.python`) only for something Debian doesn't package
+on a release you support, or where you genuinely need a newer version than
+Debian has; the same goes for `npm` and `cpan`. Then `pip` installs with
+`--break-system-packages` straight into FPP's system Python, which your
+scripts use directly via the plain `python3` on PATH — no per-plugin venv,
+no `"$SCRIPT_DIR/.venv/..."` indirection. `--break-system-packages` is
+required on any current PEP 668-managed image (Debian/RPi OS Bookworm+
+refuses `pip install` outright without it). It is safe there: it installs
+into `/usr/local/lib/python3.x/dist-packages`, which `dpkg` does **not**
+track, while apt-installed `python3-*` packages live in
+`/usr/lib/python3/dist-packages`, a different directory, so pip doesn't
+touch anything apt manages.
+
+**Never `pip uninstall` (or `npm uninstall -g`) in `fpp_uninstall.sh`.**
+Those packages are shared, and another plugin may be importing the one you
+remove. Leave them installed.
+
+A specific `versions[]` entry may also carry its own
 `dependencies`, additional to the top-level ones, for something that differs
 between FPP majors (e.g. a Python package renamed between releases) — see
 `PLUGININFO_FORMAT.md`.
@@ -498,21 +544,37 @@ removal" in `PLUGININFO_FORMAT.md`.
 > upstream to publish a matching wheel. There's no sanctioned "install a
 > different Python version" escape hatch.
 
-> **`dependencies` is FPP 10+ only, today.** FPP 9 and earlier silently ignore
+> **`dependencies` takes effect on FPP 10+.** FPP 9 and earlier silently ignore
 > the whole block. If you still support FPP 9/8/older, keep installing those
-> same things from `scripts/fpp_install.sh` too — `dependencies` is additive
-> for FPP 10+ users, not a replacement, until pre-10 support is dropped.
-> Expect FPP 11/12 to be when a full migration off manual `fpp_install.sh`
-> installs gets encouraged.
+> same things from `scripts/fpp_install.sh` too, guarded so they're no-ops
+> where FPP already installed them. On FPP 10 the block is additive to your
+> installs. **On FPP 11 it is the required way to install dependencies**
+> (§6.1); drop the `fpp_install.sh` installs once you no longer support FPP 9
+> or older.
 
-6.2 **If you need to install something ad-hoc from `fpp_install.sh`** (beyond
-what's declared in `dependencies`), use only the public package managers that
-already ship on the FPP image — `apt-get`, `npm`, `pip`, and `cpan` for Perl
-(prefer `apt-get install lib<module>-perl` when Debian packages the module;
-`cpan` fetches and builds from CPAN mirrors as root, which is slow on a Pi) —
-no `curl|bash` bootstrappers. For Python, use `pip install --break-system-packages`
-(see §6.1 for why this is safe, not a corruption risk) — but prefer declaring it
-in `dependencies.python` (§6.1) over doing this ad hoc at all.
+6.2 **Ad-hoc installs from `fpp_install.sh`.** From FPP 11 these are only for
+special cases that `dependencies` can't express:
+- a package from a package source the plugin adds (an apt repository, a pip
+  `index-url`), which also needs a `systemChanges` entry and the rest of
+  §14.14
+- a build from source when no package exists (e.g. no wheel for FPP's
+  Python, §6.1)
+- the FPP 9-and-older fallback described in §6.1
+
+Say in a comment next to the install why it can't be declared. Whatever you
+install ad hoc, use only the public package managers that
+already ship on the FPP image — `apt-get` first, and `npm`, `pip` or `cpan`
+only for what Debian doesn't package (§6.1). For example, prefer
+`apt-get install python3-flask` over `pip install flask`, and
+`apt-get install lib<module>-perl` over `cpan` (which fetches and builds from
+CPAN mirrors as root and is slow on a Pi). No `curl|bash` bootstrappers.
+Guard each install so an update doesn't re-run it — e.g.
+`python3 -c 'import flask' 2>/dev/null || apt-get install -y python3-flask`
+— and avoid running `apt-get update` and `apt-get install` unconditionally:
+`install` on a package that's already present upgrades it, along with its
+dependencies. When you do need pip, use `pip install --break-system-packages`
+(§6.1 explains why that's safe), and prefer declaring it in
+`dependencies.python` over installing it ad hoc.
 
 > **Don't install another package manager to get your dependency in.** `apt-get`,
 > `npm`, `pip` and `cpan` already ship with FPP — reaching for a different one
@@ -1108,8 +1170,14 @@ identifiers (hashing phone numbers) where the feature allows.
 - [ ] Own config in `config/plugin.<repoName>`, data in `plugindata/`; all writes
       confined to the plugin directory and declared paths.
 - [ ] Whatever `fpp_install.sh` installs uses only `apt-get`/`npm`/`pip`/`cpan`
-      (no `curl|bash`, no installer that isn't already on the image). `pluginInfo.json` `dependencies` is optional this year
-      (FPP 10+ only) - fine to use if you want it, not required.
+      (no `curl|bash`, no installer that isn't already on the image), with
+      Debian `apt` packages (`python3-*`, `node-*`, `lib*-perl`) preferred
+      over `pip`/`npm`/`cpan` wherever Debian packages them; nothing is
+      `pip uninstall`ed on removal.
+- [ ] Dependencies declared in `pluginInfo.json` `dependencies`. Recommended
+      for FPP 9/10 listings this year; **required for any `versions[]` entry
+      covering FPP 11+**, with ad-hoc `fpp_install.sh` installs only for the
+      §6.2 special cases or the FPP 9-and-older fallback.
 - [ ] UI verified in light **and** dark, and on a phone-width screen; no hardcoded
       colors, no fixed-pixel layout.
 - [ ] Heavy plugins declare resource hints as top-level `pluginInfo.json` fields.
