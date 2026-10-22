@@ -1,7 +1,7 @@
 <?php
 
 // Air Defender - ADS-B Aircraft Safety Plugin for FPP
-// Author: Gabe
+// Author: G Hancox
 // Version: 0.2.0
 
 require_once("/opt/fpp/www/common.php");
