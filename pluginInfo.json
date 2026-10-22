@@ -22,6 +22,11 @@
         }
     ],
 
+    "UI": {
+        "DisplayName": "Air Defender",
+        "Page": "index.php"
+    },
+
     "dependencies": {
         "packages": [],
         "python": [],
