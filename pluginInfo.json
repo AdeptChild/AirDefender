@@ -1,54 +1,43 @@
 {
-	"documentation": "https://github.com/FalconChristmas/fpp-plugin-Template/blob/master/PLUGININFO_FORMAT.md",
-	"repoName": "fpp-plugin-Template",
-	"name": "Template Plugin for FPP Plugin developers",
-	"author": "John Doe (jdoe)",
-	"description": "This template plugin is designed to make it easier for plugin authors to create new FPP Plugins.  You can manually clone the git repository or install the Template Plugin and then go to the plugin's config page and use the form to copy the template into a new plugin directory.",
-	"homeURL": "https://github.com/FalconChristmas/fpp-plugin-Template",
-	"srcURL": "https://github.com/FalconChristmas/fpp-plugin-Template.git",
-	"bugURL": "https://github.com/FalconChristmas/fpp-plugin-Template/issues",
-	"iconURL": "https://raw.githubusercontent.com/FalconChristmas/fpp-plugin-Template/master/icon.png",
-	"allowUpdates": 1,
-	"releaseNotesStyle": "gitHistory",
-	"privacy": {
-		"summary": "TEMPLATE TEXT - replace me. Say what this plugin sends, keeps, senses, opens and changes (https://falconchristmas.github.io/fpp-data/plugin_privacy_builder/). If none: Runs on this device only.",
-		"sends": [],
-		"collects": [],
-		"sensors": [],
-		"remoteAccess": "none",
-		"systemChanges": [],
-		"closedCode": false,
-		"other": "TEMPLATE TEXT - replace me (write \"none\" if there is nothing to add)."
-	},
-	"versions": [
-		{
-			"minFPPVersion": "9.0",
-			"maxFPPVersion": "9.99",
-			"branch": "master",
-			"sha": ""
-		},
-		{
-			"minFPPVersion": "10.0",
-			"maxFPPVersion": "0",
-			"branch": "master",
-			"sha": ""
-		}
-	],
-	"dependencies": {
-	    "plugins": [
-			"fpp-plugin-CoolPlugin1",
-			"fpp-plugin-CoolPlugin2"
-		],
-	    "packages": [
-			"system-package-name1",
-			"system-package-name2"
-		],
-		"python": [
-			"python-package-name1"
-		],
-		"scripts": [
-			"Control/script-repository-script1",
-			"PixelOverlay/script-repository-script2"
-		]
-	}
+    "$schema": "https://raw.githubusercontent.com/FalconChristmas/fpp-plugin-Template/master/pluginInfo.schema.json",
+
+    "repoName": "AirDefender",
+    "name": "Air Defender",
+    "author": "Gabe",
+    "description": "Monitors ADS-B aircraft and disables DMX outputs when aircraft are nearby.",
+    "homeURL": "https://github.com/AdeptChild/AirDefender",
+    "srcURL": "https://github.com/AdeptChild/AirDefender.git",
+    "bugURL": "https://github.com/AdeptChild/AirDefender/issues",
+
+    "allowUpdates": 1,
+    "releaseNotesStyle": "gitHistory",
+
+    "versions": [
+        {
+            "minFPPVersion": "10.0",
+            "maxFPPVersion": "0",
+            "branch": "master",
+            "sha": "",
+            "allowUpdates": 1
+        }
+    ],
+
+    "dependencies": {
+        "packages": [],
+        "python": [],
+        "scripts": [],
+        "plugins": []
+    },
+
+    "privacy": {
+        "sendsData": [],
+        "collectsData": [],
+        "cameraMic": [],
+        "remoteAccess": [],
+        "systemChanges": [],
+        "other": [],
+        "thirdParty": [],
+        "reviewed": []
+    }
 }
+
