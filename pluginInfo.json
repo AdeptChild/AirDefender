@@ -3,7 +3,7 @@
 
     "repoName": "AirDefender",
     "name": "Air Defender",
-    "author": "Gabe",
+    "author": "G Hancox",
     "description": "Monitors ADS-B aircraft and disables DMX outputs when aircraft are nearby.",
     "homeURL": "https://github.com/AdeptChild/AirDefender",
     "srcURL": "https://github.com/AdeptChild/AirDefender.git",
