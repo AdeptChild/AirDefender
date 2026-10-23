@@ -16,6 +16,10 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
+// FPP keeps its own global settings in $settings (including Latitude/Longitude).
+// This page reuses the name $settings below, so take a copy before it is overwritten.
+$AirDefender_FppGlobalSettings = (isset($settings) && is_array($settings)) ? $settings : array();
+
 function AirDefender_NormalizeValue($value, $default) {
     if ($value === null || $value === false) {
         return $default;
@@ -40,63 +44,40 @@ function AirDefender_StoredValue($pluginName, $key, $default) {
     return AirDefender_NormalizeValue($value, $default);
 }
 
+function AirDefender_ReadFPPCoordinate($name, $min, $max) {
+    global $AirDefender_FppGlobalSettings;
+
+    $raw = null;
+
+    if (is_array($AirDefender_FppGlobalSettings) && isset($AirDefender_FppGlobalSettings[$name])) {
+        $raw = $AirDefender_FppGlobalSettings[$name];
+    }
+
+    if (($raw === null || trim((string) $raw) === "") && function_exists('ReadSettingFromFile')) {
+        $raw = ReadSettingFromFile($name);
+    }
+
+    if ($raw === null || $raw === false) {
+        return null;
+    }
+
+    $text = trim((string) $raw);
+    if ($text === "" || strtolower($text) === "null" || !is_numeric($text)) {
+        return null;
+    }
+
+    $number = (float) $text;
+    if ($number < $min || $number > $max) {
+        return null;
+    }
+
+    return $number;
+}
+
 function AirDefender_GetFPPDetectedLocation() {
-    $lat = null;
-    $lon = null;
-
-    if (!function_exists("GetSetting")) {
-        return array($lat, $lon);
-    }
-
-    $candidates = array(
-        array('System', 'Latitude'),
-        array('System', 'longitude'),
-        array('Settings', 'Latitude'),
-        array('Settings', 'longitude'),
-        array('Location', 'Latitude'),
-        array('Location', 'Longitude'),
-        array('fpp', 'latitude'),
-        array('fpp', 'longitude'),
-        array('Global', 'latitude'),
-        array('Global', 'longitude'),
-        array('fpp', 'lat'),
-        array('fpp', 'lon'),
-    );
-
-    foreach ($candidates as $candidate) {
-        list($section, $field) = $candidate;
-        $value = GetSetting($section, $field);
-
-        if ($value === null || $value === false) {
-            continue;
-        }
-
-        $text = trim((string) $value);
-        if ($text === "" || strtolower($text) === "null") {
-            continue;
-        }
-
-        if (!is_numeric($text)) {
-            continue;
-        }
-
-        $numericValue = (float) $text;
-        $lowerField = strtolower($field);
-
-        if ($lowerField === 'latitude' || $lowerField === 'lat') {
-            if ($numericValue >= -90 && $numericValue <= 90) {
-                $lat = $numericValue;
-            }
-        } elseif ($lowerField === 'longitude' || $lowerField === 'lon') {
-            if ($numericValue >= -180 && $numericValue <= 180) {
-                $lon = $numericValue;
-            }
-        }
-
-        if ($lat !== null && $lon !== null) {
-            break;
-        }
-    }
+    // FPP stores these as the "Latitude" and "Longitude" settings.
+    $lat = AirDefender_ReadFPPCoordinate('Latitude', -90, 90);
+    $lon = AirDefender_ReadFPPCoordinate('Longitude', -180, 180);
 
     return array($lat, $lon);
 }
