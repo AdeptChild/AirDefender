@@ -1,11 +1,12 @@
 <?php
 require_once("/opt/fpp/www/common.php");
+require_once("/opt/fpp/www/api/lib/limonade.php");
 
-if (!function_exists("GetSetting") || !function_exists("SetSetting") || !function_exists("SaveSettings")) {
+if (!function_exists("GetSetting")) {
     require_once("/opt/fpp/www/api/controllers/settings.php");
 }
 
-if (!function_exists("GetSetting") || !function_exists("SetSetting") || !function_exists("SaveSettings")) {
+if (!function_exists("GetSetting")) {
     echo "<div style='padding:20px;background:#3a1f1f;color:#fff;border-radius:8px;'>";
     echo "<h2 style='margin:0 0 10px 0;'>AirDefender requires the FPP settings API</h2>";
     echo "<p style='margin:0;'>This page is not running inside a valid FPP plugin environment.</p>";
@@ -15,98 +16,179 @@ if (!function_exists("GetSetting") || !function_exists("SetSetting") || !functio
 
 $pluginName = "AirDefender";
 
-// Handle form submission
-if (isset($_POST['saveSettings'])) {
-    $enabled          = isset($_POST["enabled"]) ? (int)$_POST["enabled"] : 0;
-    $safetyMode       = isset($_POST["safetyMode"]) ? (int)$_POST["safetyMode"] : 0;
-    $overrideLocation = isset($_POST["overrideLocation"]) ? (int)$_POST["overrideLocation"] : 0;
-    $latitude         = isset($_POST["latitude"]) ? trim($_POST["latitude"]) : "";
-    $longitude        = isset($_POST["longitude"]) ? trim($_POST["longitude"]) : "";
-    $distanceNM       = isset($_POST["distanceNM"]) ? (int)$_POST["distanceNM"] : 0;
-    $fetchInterval    = isset($_POST["fetchInterval"]) ? (int)$_POST["fetchInterval"] : 0;
-    $dmxOutputs       = isset($_POST["dmxOutputs"]) ? trim($_POST["dmxOutputs"]) : "";
-
-    SetSetting($pluginName, "enabled", $enabled);
-    SetSetting($pluginName, "safetyMode", $safetyMode);
-    SetSetting($pluginName, "overrideLocation", $overrideLocation);
-    SetSetting($pluginName, "latitude", $latitude);
-    SetSetting($pluginName, "longitude", $longitude);
-    SetSetting($pluginName, "distanceNM", $distanceNM);
-    SetSetting($pluginName, "fetchInterval", $fetchInterval);
-    SetSetting($pluginName, "dmxOutputs", $dmxOutputs);
-
-    SaveSettings();
-    echo "<div style='padding:10px;background:#2e7d32;color:white;border-radius:5px;margin-bottom:15px;'>Settings Saved</div>";
+function AirDefender_StoredValue($pluginName, $key, $default) {
+    $value = GetSetting($pluginName, $key);
+    if ($value === null || $value === false || $value === "") {
+        return $default;
+    }
+    return $value;
 }
 
-// Load settings
-$enabled          = GetSetting($pluginName, "enabled");
-$safetyMode       = GetSetting($pluginName, "safetyMode");
-$overrideLocation = GetSetting($pluginName, "overrideLocation");
-$latitude         = GetSetting($pluginName, "latitude");
-$longitude        = GetSetting($pluginName, "longitude");
-$distanceNM       = GetSetting($pluginName, "distanceNM");
-$fetchInterval    = GetSetting($pluginName, "fetchInterval");
-$dmxOutputs       = GetSetting($pluginName, "dmxOutputs");
+function AirDefender_PostBool($key) {
+    if (!isset($_POST[$key])) {
+        return false;
+    }
+
+    $value = $_POST[$key];
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
+}
+
+$settings = array(
+    'enabled' => array(
+        'label' => 'Enable Air Defender',
+        'type' => 'bool',
+        'default' => false,
+    ),
+    'safetyMode' => array(
+        'label' => 'Enable Safety Mode',
+        'type' => 'bool',
+        'default' => false,
+    ),
+    'useFPPLocation' => array(
+        'label' => 'Use FPP Location',
+        'type' => 'bool',
+        'default' => true,
+    ),
+    'overrideLocation' => array(
+        'label' => 'Override Location',
+        'type' => 'bool',
+        'default' => false,
+    ),
+    'latitude' => array(
+        'label' => 'Latitude',
+        'type' => 'string',
+        'default' => '',
+    ),
+    'longitude' => array(
+        'label' => 'Longitude',
+        'type' => 'string',
+        'default' => '',
+    ),
+    'distanceNM' => array(
+        'label' => 'Distance Threshold (NM)',
+        'type' => 'int',
+        'default' => 5,
+    ),
+    'altitudeThresholdFt' => array(
+        'label' => 'Altitude Threshold (ft)',
+        'type' => 'int',
+        'default' => 3000,
+    ),
+    'fetchInterval' => array(
+        'label' => 'ADS-B Fetch Interval (seconds)',
+        'type' => 'int',
+        'default' => 10,
+    ),
+    'adsbSourceUrl' => array(
+        'label' => 'ADS-B JSON URL',
+        'type' => 'string',
+        'default' => '',
+    ),
+    'controllerType' => array(
+        'label' => 'Controller Type',
+        'type' => 'select',
+        'default' => 'falcon',
+        'options' => array('falcon' => 'Falcon', 'kulp' => 'Kulp', 'generic' => 'Generic'),
+    ),
+    'serialPort' => array(
+        'label' => 'Serial Port',
+        'type' => 'string',
+        'default' => '',
+    ),
+    'dmxOutputs' => array(
+        'label' => 'DMX Outputs (comma-separated)',
+        'type' => 'string',
+        'default' => '',
+    ),
+);
+
+$statusMessage = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    foreach ($settings as $key => $config) {
+        if (!isset($_POST[$key])) {
+            continue;
+        }
+
+        $postedValue = $_POST[$key];
+        $finalValue = $config['default'];
+
+        if ($config['type'] === 'bool') {
+            $finalValue = AirDefender_PostBool($key);
+        } elseif ($config['type'] === 'int') {
+            $finalValue = (int) $postedValue;
+        } elseif ($config['type'] === 'select') {
+            $finalValue = (string) $postedValue;
+        } else {
+            $finalValue = trim((string) $postedValue);
+        }
+
+        if (function_exists('SetSetting')) {
+            SetSetting($pluginName, $key, $finalValue);
+        }
+    }
+
+    $statusMessage = "Settings saved.";
+}
+
+foreach ($settings as $key => $config) {
+    $value = AirDefender_StoredValue($pluginName, $key, $config['default']);
+    $settings[$key]['value'] = $value;
+}
 ?>
+
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;">
     <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
-    <p style="color:#ccc;margin-top:8px;">Configure ADS-B safety automation</p>
+    <p style="color:#ccc;margin-top:8px;">Configure the ADS-B safety threshold and controller behavior.</p>
 </div>
 
-<form method="post">
+<?php if ($statusMessage !== ''): ?>
+<div style="background:#264d2d;padding:15px 20px;border-radius:8px;margin-bottom:20px;color:#dff7e6;">
+    <?php echo htmlspecialchars($statusMessage); ?>
+</div>
+<?php endif; ?>
 
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">Enable Plugin</label><br>
-        <select name="enabled" style="padding:5px;margin-top:5px;">
-            <option value="1" <?php echo (!empty($enabled) ? "selected" : ""); ?>>Enabled</option>
-            <option value="0" <?php echo (empty($enabled) ? "selected" : ""); ?>>Disabled</option>
-        </select>
+<form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" style="background:#2a2a2a;padding:20px;border-radius:10px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
+        <?php foreach ($settings as $key => $config): ?>
+            <div style="background:#1f1f1f;padding:12px;border-radius:8px;">
+                <label for="<?php echo htmlspecialchars($key); ?>" style="display:block;color:#d9d9d9;margin-bottom:8px;font-weight:bold;">
+                    <?php echo htmlspecialchars($config['label']); ?>
+                </label>
+
+                <?php if ($config['type'] === 'bool'): ?>
+                    <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                        <option value="1" <?php echo !empty($config['value']) ? 'selected' : ''; ?>>Yes</option>
+                        <option value="0" <?php echo empty($config['value']) ? 'selected' : ''; ?>>No</option>
+                    </select>
+                <?php elseif ($config['type'] === 'select'): ?>
+                    <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                        <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
+                            <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($optionLabel); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <input
+                        type="text"
+                        name="<?php echo htmlspecialchars($key); ?>"
+                        id="<?php echo htmlspecialchars($key); ?>"
+                        value="<?php echo htmlspecialchars((string) $config['value']); ?>"
+                        style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
+                    >
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
     </div>
 
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">Safety Mode</label><br>
-        <select name="safetyMode" style="padding:5px;margin-top:5px;">
-            <option value="1" <?php echo (!empty($safetyMode) ? "selected" : ""); ?>>Active</option>
-            <option value="0" <?php echo (empty($safetyMode) ? "selected" : ""); ?>>Inactive</option>
-        </select>
+    <div style="margin-top:20px;">
+        <button type="submit" style="padding:10px 18px;border-radius:6px;border:none;background:#6cf;color:#111;font-weight:bold;cursor:pointer;">
+            Save Settings
+        </button>
     </div>
-
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">Override Location</label><br>
-        <select name="overrideLocation" style="padding:5px;margin-top:5px;">
-            <option value="1" <?php echo (!empty($overrideLocation) ? "selected" : ""); ?>>Enabled</option>
-            <option value="0" <?php echo (empty($overrideLocation) ? "selected" : ""); ?>>Disabled</option>
-        </select>
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">Latitude</label><br>
-        <input type="text" name="latitude" value="<?php echo htmlspecialchars($latitude ?? ''); ?>" style="width:100%;padding:5px;margin-top:5px;">
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">Longitude</label><br>
-        <input type="text" name="longitude" value="<?php echo htmlspecialchars($longitude ?? ''); ?>" style="width:100%;padding:5px;margin-top:5px;">
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">Distance Threshold (NM)</label><br>
-        <input type="number" name="distanceNM" value="<?php echo htmlspecialchars((string)($distanceNM ?? 0)); ?>" style="width:100%;padding:5px;margin-top:5px;">
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">ADS-B Fetch Interval (seconds)</label><br>
-        <input type="number" name="fetchInterval" value="<?php echo htmlspecialchars((string)($fetchInterval ?? 0)); ?>" style="width:100%;padding:5px;margin-top:5px;">
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-bottom:15px;">
-        <label style="color:#eee;font-size:16px;">DMX Outputs (comma-separated)</label><br>
-        <input type="text" name="dmxOutputs" value="<?php echo htmlspecialchars($dmxOutputs ?? ''); ?>" style="width:100%;padding:5px;margin-top:5px;">
-    </div>
-
-    <button type="submit" name="saveSettings" style="padding:10px 20px;background:#6cf;color:#000;border:none;border-radius:5px;font-size:16px;">
-        Save Settings
-    </button>
-
 </form>
