@@ -4,18 +4,40 @@
     "author": "G Hancox",
     "description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
     "license": "MIT",
-    "homeURL": "https://github.com/YOURNAME/AirDefender",
-    "srcURL": "https://github.com/YOURNAME/AirDefender",
-    "bugURL": "https://github.com/YOURNAME/AirDefender/issues",
+
+    "homeURL": "https://github.com/AdeptChild/AirDefender",
+    "srcURL": "https://github.com/AdeptChild/AirDefender.git",
+    "bugURL": "https://github.com/AdeptChild/AirDefender/issues",
+
     "versions": [
         {
             "version": "1.0.0",
             "sha": "",
-            "branch": "main"
+            "branch": "main",
+            "minFPPVersion": "7.0",
+            "maxFPPVersion": "0",
+            "allowUpdates": 1
         }
     ],
-    "dependencies": [],
-    "privacy": [],
+
+    "dependencies": {
+        "packages": [],
+        "python": [],
+        "scripts": [],
+        "plugins": []
+    },
+
+    "privacy": {
+        "sendsData": [],
+        "collectsData": [],
+        "cameraMic": [],
+        "remoteAccess": [],
+        "systemChanges": [],
+        "other": [],
+        "thirdParty": [],
+        "reviewed": []
+    },
+
     "settings": {
         "enabled": { "type": "bool", "default": false },
         "safetyMode": { "type": "bool", "default": false },
