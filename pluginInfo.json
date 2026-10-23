@@ -23,12 +23,6 @@
         }
     ],
 
-    "UI": {
-        "DisplayName": "Air Defender",
-        "Page": "status.php",
-        "Type": "plugin"
-    },
-
     "dependencies": {
         "packages": [],
         "python": [],
