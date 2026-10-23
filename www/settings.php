@@ -96,12 +96,7 @@ $settings = array(
     'enabled' => array(
         'label' => 'Enable Air Defender',
         'type' => 'bool',
-        'default' => false,
-    ),
-    'safetyMode' => array(
-        'label' => 'Enable Safety Mode',
-        'type' => 'bool',
-        'default' => false,
+        'default' => true,
     ),
     'useFPPLocation' => array(
         'label' => 'Use FPP Location',
@@ -169,7 +164,7 @@ $settings = array(
 );
 
 $settingGroups = array(
-    'Plugin Status' => array('enabled', 'safetyMode'),
+    'Plugin Status' => array('enabled'),
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
     'ADS-B Feed' => array('adsbSource', 'adsbSourceUrl'),
