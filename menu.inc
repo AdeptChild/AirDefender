@@ -2,7 +2,7 @@
 $menuEntries = Array(
     Array(
         'text' => 'Air Defender',
-        'type' => 'status',
+        'type' => 'content',
         'page' => 'status.php',
         'wrap' => 1
     )
@@ -17,3 +17,4 @@ foreach ($menuEntries as $entry)
         $plugin, $entry['page'], $entry['text']);
 }
 ?>
+
