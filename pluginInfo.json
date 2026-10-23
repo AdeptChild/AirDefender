@@ -25,7 +25,8 @@
 
     "UI": {
         "DisplayName": "Air Defender",
-        "Page": "status.php"
+        "Page": "status.php",
+        "Type": "plugin"
     },
 
     "dependencies": {
