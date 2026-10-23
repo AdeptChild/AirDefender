@@ -271,13 +271,13 @@ if ($useFppLocationEnabled) {
                             <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
                                 <label style="flex:1;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:6px 10px;border-radius:6px;font-weight:bold;line-height:1.1;min-width:72px;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <span style="display:block;text-align:center;padding:5px 8px;border-radius:6px;font-weight:bold;line-height:1;font-size:11px;min-width:60px;white-space:nowrap;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         Yes
                                     </span>
                                 </label>
                                 <label style="flex:1;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo !AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:6px 10px;border-radius:6px;font-weight:bold;line-height:1.1;min-width:72px;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <span style="display:block;text-align:center;padding:5px 8px;border-radius:6px;font-weight:bold;line-height:1;font-size:11px;min-width:60px;white-space:nowrap;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         No
                                     </span>
                                 </label>
@@ -343,14 +343,16 @@ if ($useFppLocationEnabled) {
             label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
             label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
             label.style.opacity = '1';
-            label.style.padding = '6px 10px';
+            label.style.padding = '5px 8px';
             label.style.borderRadius = '6px';
             label.style.fontWeight = 'bold';
             label.style.cursor = 'pointer';
-            label.style.lineHeight = '1.1';
-            label.style.minWidth = '72px';
+            label.style.lineHeight = '1';
+            label.style.minWidth = '60px';
+            label.style.fontSize = '11px';
             label.style.display = 'block';
             label.style.textAlign = 'center';
+            label.style.whiteSpace = 'nowrap';
         });
     }
 
