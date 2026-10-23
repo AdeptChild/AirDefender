@@ -1,42 +1,28 @@
 {
-    "Name": "AirDefender",
-    "DisplayName": "Air Defender",
-    "Version": "1.0.0",
-    "Author": "G Hancox",
-    "Description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
-    "License": "MIT",
-    "Type": "Plugin",
-    "Settings": {
-        "enabled": {
-            "type": "bool",
-            "default": false
-        },
-        "safetyMode": {
-            "type": "bool",
-            "default": false
-        },
-        "overrideLocation": {
-            "type": "bool",
-            "default": false
-        },
-        "latitude": {
-            "type": "string",
-            "default": ""
-        },
-        "longitude": {
-            "type": "string",
-            "default": ""
-        },
-        "distanceNM": {
-            "type": "int",
-            "default": 5
-        },
-        "fetchInterval": {
-            "type": "int",
-            "default": 10
+    "name": "AirDefender",
+    "displayName": "Air Defender",
+    "author": "G Hancox",
+    "description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
+    "license": "MIT",
+    "homeURL": "https://github.com/YOURNAME/AirDefender",
+    "srcURL": "https://github.com/YOURNAME/AirDefender",
+    "bugURL": "https://github.com/YOURNAME/AirDefender/issues",
+    "versions": [
+        {
+            "version": "1.0.0",
+            "sha": "",
+            "branch": "main"
         }
+    ],
+    "dependencies": [],
+    "privacy": [],
+    "settings": {
+        "enabled": { "type": "bool", "default": false },
+        "safetyMode": { "type": "bool", "default": false },
+        "overrideLocation": { "type": "bool", "default": false },
+        "latitude": { "type": "string", "default": "" },
+        "longitude": { "type": "string", "default": "" },
+        "distanceNM": { "type": "int", "default": 5 },
+        "fetchInterval": { "type": "int", "default": 10 }
     }
 }
-
-
-
