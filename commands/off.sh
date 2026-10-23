@@ -1,3 +1,2 @@
-#!/bin/sh
-
-echo "Off Script"
+#!/bin/bash
+echo "Air Defender OFF"
