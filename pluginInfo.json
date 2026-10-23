@@ -2,7 +2,7 @@
     "Name": "AirDefender",
     "DisplayName": "Air Defender",
     "Version": "1.0.0",
-    "Author": "Gabe",
+    "Author": "G Hancox",
     "Description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
     "License": "MIT",
     "Type": "Plugin",
@@ -37,5 +37,6 @@
         }
     }
 }
+
 
 
