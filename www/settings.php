@@ -282,6 +282,13 @@ if ($useFppLocationEnabled) {
                                     </span>
                                 </label>
                             </div>
+                            <?php if ($key === 'useFPPLocation'): ?>
+                                <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;">
+                                    <div style="color:#6cf;font-weight:bold;font-size:13px;margin-bottom:4px;">Current FPP Location</div>
+                                    <div style="color:#ccc;font-size:13px;">Latitude: <?php echo $fppLat !== null ? htmlspecialchars((string) $fppLat) : 'Not detected'; ?></div>
+                                    <div style="color:#ccc;font-size:13px;">Longitude: <?php echo $fppLon !== null ? htmlspecialchars((string) $fppLon) : 'Not detected'; ?></div>
+                                </div>
+                            <?php endif; ?>
                         <?php elseif ($config['type'] === 'select'): ?>
                             <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
                                 <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
