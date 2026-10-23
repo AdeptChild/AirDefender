@@ -173,10 +173,20 @@ foreach ($settings as $key => $config) {
                         </label>
 
                         <?php if ($config['type'] === 'bool'): ?>
-                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
-                                <option value="1" <?php echo !empty($config['value']) ? 'selected' : ''; ?>>Yes</option>
-                                <option value="0" <?php echo empty($config['value']) ? 'selected' : ''; ?>>No</option>
-                            </select>
+                            <div style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
+                                <label style="flex:1;display:block;">
+                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo !empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
+                                    <span style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;cursor:pointer;<?php echo !empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#ddd;'; ?>">
+                                        Yes
+                                    </span>
+                                </label>
+                                <label style="flex:1;display:block;">
+                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
+                                    <span style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;cursor:pointer;<?php echo empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#ddd;'; ?>">
+                                        No
+                                    </span>
+                                </label>
+                            </div>
                         <?php elseif ($config['type'] === 'select'): ?>
                             <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
                                 <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
