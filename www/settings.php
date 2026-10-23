@@ -260,7 +260,22 @@ foreach ($settings as $key => $config) {
         });
     }
 
+    function setDefaultOverrideState() {
+        var group = document.querySelector('[data-boolean-group="overrideLocation"]');
+        if (!group) {
+            return;
+        }
+
+        var noRadio = group.querySelector('input[type="radio"][value="0"]');
+        if (noRadio && !noRadio.checked) {
+            noRadio.checked = true;
+        }
+        updateToggleGroup(group);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        setDefaultOverrideState();
+
         document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
             updateToggleGroup(group);
             group.querySelectorAll('input[type="radio"]').forEach(function (radio) {
