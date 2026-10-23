@@ -85,9 +85,16 @@ if (file_exists($logFile)) {
     }
 }
 ?>
-<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;">
-    <h2 style="color:#6cf;margin:0;">Air Defender</h2>
-    <p style="color:#ccc;margin-top:8px;">ADS-B Safety Monitoring Dashboard</p>
+<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <div>
+        <h2 style="color:#6cf;margin:0;">Air Defender</h2>
+        <p style="color:#ccc;margin-top:8px;">ADS-B Safety Monitoring Dashboard</p>
+    </div>
+    <div>
+        <a href="plugin.php?plugin=AirDefender&page=www/settings.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#6cf;color:#111;text-decoration:none;font-weight:bold;">
+            Settings
+        </a>
+    </div>
 </div>
 
 <div style="display:flex;flex-wrap:wrap;">

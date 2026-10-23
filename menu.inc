@@ -1,15 +1,9 @@
 <?php
 $menuEntries = array(
     array(
-        'text' => 'Air Defender Dashboard',
+        'text' => 'Air Defender',
         'type' => 'content',
         'page' => 'www/index.php',
-        'wrap' => 1
-    ),
-    array(
-        'text' => 'Air Defender Settings',
-        'type' => 'content',
-        'page' => 'www/settings.php',
         'wrap' => 1
     )
 );
