@@ -16,14 +16,19 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
-$enabled          = GetSetting($pluginName, "enabled");
-$safetyMode       = GetSetting($pluginName, "safetyMode");
-$overrideLocation = GetSetting($pluginName, "overrideLocation");
-$latitude         = GetSetting($pluginName, "latitude");
-$longitude        = GetSetting($pluginName, "longitude");
-$distanceNM       = GetSetting($pluginName, "distanceNM");
-$fetchInterval    = GetSetting($pluginName, "fetchInterval");
-$dmxOutputs       = GetSetting($pluginName, "dmxOutputs");
+$enabled             = GetSetting($pluginName, "enabled");
+$safetyMode          = GetSetting($pluginName, "safetyMode");
+$useFPPLocation      = GetSetting($pluginName, "useFPPLocation");
+$overrideLocation    = GetSetting($pluginName, "overrideLocation");
+$latitude            = GetSetting($pluginName, "latitude");
+$longitude           = GetSetting($pluginName, "longitude");
+$distanceNM          = GetSetting($pluginName, "distanceNM");
+$altitudeThresholdFt = GetSetting($pluginName, "altitudeThresholdFt");
+$fetchInterval       = GetSetting($pluginName, "fetchInterval");
+$adsbSourceUrl       = GetSetting($pluginName, "adsbSourceUrl");
+$controllerType      = GetSetting($pluginName, "controllerType");
+$serialPort          = GetSetting($pluginName, "serialPort");
+$dmxOutputs          = GetSetting($pluginName, "dmxOutputs");
 
 $logFile = "/home/fpp/media/logs/airdefender.log";
 $lastLog = "No log entries yet.";
@@ -45,32 +50,72 @@ if (file_exists($logFile)) {
         <h3 style="color:<?php echo !empty($enabled) ? '#4caf50' : '#f44336'; ?>;margin:0 0 10px 0;font-size:18px;">
             Plugin Enabled
         </h3>
-        <p style="color:#eee;font-size:16px;margin:0;"><?php echo !empty($enabled) ? "Yes" : "No"; ?></p>
+        <p style="color:#eee;font-size:16px;margin:0;">
+            <?php echo !empty($enabled) ? "Yes" : "No"; ?>
+        </p>
     </div>
 
     <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
         <h3 style="color:<?php echo !empty($safetyMode) ? '#ff9800' : '#888'; ?>;margin:0 0 10px 0;font-size:18px;">
             Safety Mode
         </h3>
-        <p style="color:#eee;font-size:16px;margin:0;"><?php echo !empty($safetyMode) ? "Active" : "Inactive"; ?></p>
+        <p style="color:#eee;font-size:16px;margin:0;">
+            <?php echo !empty($safetyMode) ? "Active" : "Inactive"; ?>
+        </p>
     </div>
 
     <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
         <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Distance Threshold</h3>
-        <p style="color:#eee;font-size:16px;margin:0;"><?php echo isset($distanceNM) ? $distanceNM : 0; ?> NM</p>
+        <p style="color:#eee;font-size:16px;margin:0;">
+            <?php echo isset($distanceNM) ? $distanceNM : 0; ?> NM
+        </p>
     </div>
 
     <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Fetch Interval</h3>
-        <p style="color:#eee;font-size:16px;margin:0;"><?php echo isset($fetchInterval) ? $fetchInterval : 0; ?> sec</p>
+        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Altitude Threshold</h3>
+        <p style="color:#eee;font-size:16px;margin:0;">
+            <?php echo isset($altitudeThresholdFt) ? $altitudeThresholdFt : 3000; ?> ft
+        </p>
+    </div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;margin-top:20px;">
+    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
+        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Location Source</h3>
+        <p style="color:#eee;font-size:16px;margin:0;">
+            <?php echo !empty($useFPPLocation) ? "FPP" : "Manual"; ?>
+        </p>
+    </div>
+
+    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
+        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Controller</h3>
+        <p style="color:#eee;font-size:16px;margin:0;">
+            <?php echo htmlspecialchars((string) $controllerType ?: "falcon"); ?>
+        </p>
+    </div>
+
+    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
+        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Serial Port</h3>
+        <p style="color:#eee;font-size:16px;margin:0;">
+            <?php echo htmlspecialchars((string) $serialPort ?: "Not Selected"); ?>
+        </p>
     </div>
 </div>
 
 <?php if (!empty($overrideLocation)): ?>
 <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
-    <h3 style="color:#6cf;margin:0 0 10px 0;">Override Location</h3>
-    <p style="color:#eee;margin:0;">Latitude: <?php echo $latitude; ?></p>
-    <p style="color:#eee;margin:0;">Longitude: <?php echo $longitude; ?></p>
+    <h3 style="color:#6cf;margin:0 0 10px 0;">Manual Override Location</h3>
+    <p style="color:#eee;margin:0;">Latitude: <?php echo htmlspecialchars((string) $latitude); ?></p>
+    <p style="color:#eee;margin:0;">Longitude: <?php echo htmlspecialchars((string) $longitude); ?></p>
+</div>
+<?php endif; ?>
+
+<?php if (!empty($adsbSourceUrl)): ?>
+<div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
+    <h3 style="color:#6cf;margin:0 0 10px 0;">ADS-B Feed URL</h3>
+    <p style="color:#eee;margin:0;word-break:break-all;">
+        <?php echo htmlspecialchars((string) $adsbSourceUrl); ?>
+    </p>
 </div>
 <?php endif; ?>
 
