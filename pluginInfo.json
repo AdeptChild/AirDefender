@@ -13,7 +13,7 @@
         {
             "version": "1.0.0",
             "sha": "",
-            "branch": "Master",
+            "branch": "master",
             "minFPPVersion": "7.0",
             "maxFPPVersion": "0",
             "allowUpdates": 1
