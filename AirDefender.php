@@ -186,10 +186,11 @@ class AirDefender extends FPPPlugin
     {
         $line = "[" . date("Y-m-d H:i:s") . "] " . $msg . "\n";
         file_put_contents("/home/fpp/media/logs/airdefender.log", $line, FILE_APPEND);
-    }
+}
 }
 
-$plugin = new AirDefender();
-$plugin->Run();
+?>
+
+
 
 
