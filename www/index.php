@@ -40,7 +40,6 @@ if (file_exists($logFile)) {
 </div>
 
 <div style="display:flex;flex-wrap:wrap;">
-
     <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
         <h3 style="color:<?php echo !empty($enabled) ? '#4caf50' : '#f44336'; ?>;margin:0 0 10px 0;font-size:18px;">
             Plugin Enabled
@@ -64,7 +63,6 @@ if (file_exists($logFile)) {
         <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Fetch Interval</h3>
         <p style="color:#eee;font-size:16px;margin:0;"><?php echo isset($fetchInterval) ? $fetchInterval : 0; ?> sec</p>
     </div>
-
 </div>
 
 <?php if (!empty($overrideLocation)): ?>
