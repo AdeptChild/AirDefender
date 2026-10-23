@@ -1,44 +1,40 @@
 {
-    "$schema": "https://raw.githubusercontent.com/FalconChristmas/fpp-plugin-Template/master/pluginInfo.schema.json",
-
-    "repoName": "AirDefender",
-    "pluginVersion": "0.2.0",
-    "name": "Air Defender",
-    "author": "G Hancox",
-    "description": "Monitors ADS-B aircraft and disables DMX outputs when aircraft are nearby.",
-    "homeURL": "https://github.com/AdeptChild/AirDefender",
-    "srcURL": "https://github.com/AdeptChild/AirDefender.git",
-    "bugURL": "https://github.com/AdeptChild/AirDefender/issues",
-
-    "allowUpdates": 1,
-    "releaseNotesStyle": "gitHistory",
-
-    "versions": [
-        {
-            "minFPPVersion": "10.0",
-            "maxFPPVersion": "0",
-            "branch": "master",
-            "sha": "",
-            "allowUpdates": 1
+    "Name": "AirDefender",
+    "DisplayName": "Air Defender",
+    "Version": "1.0.0",
+    "Author": "Gabe",
+    "Description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
+    "License": "MIT",
+    "Type": "Plugin",
+    "Settings": {
+        "enabled": {
+            "type": "bool",
+            "default": false
+        },
+        "safetyMode": {
+            "type": "bool",
+            "default": false
+        },
+        "overrideLocation": {
+            "type": "bool",
+            "default": false
+        },
+        "latitude": {
+            "type": "string",
+            "default": ""
+        },
+        "longitude": {
+            "type": "string",
+            "default": ""
+        },
+        "distanceNM": {
+            "type": "int",
+            "default": 5
+        },
+        "fetchInterval": {
+            "type": "int",
+            "default": 10
         }
-    ],
-
-    "dependencies": {
-        "packages": [],
-        "python": [],
-        "scripts": [],
-        "plugins": []
-    },
-
-    "privacy": {
-        "sendsData": [],
-        "collectsData": [],
-        "cameraMic": [],
-        "remoteAccess": [],
-        "systemChanges": [],
-        "other": [],
-        "thirdParty": [],
-        "reviewed": []
     }
 }
 
