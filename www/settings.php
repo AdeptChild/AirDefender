@@ -16,28 +16,25 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
-function AirDefender_NormalizeValue($value, $default) {
-    if ($value === null || $value === false) {
+function AirDefender_StoredValue($pluginName, $key, $default) {
+    $value = GetSetting($pluginName, $key);
+    if ($value === null || $value === false || $value === "") {
         return $default;
     }
-
-    if (is_array($value)) {
-        return $default;
-    }
-
-    if (is_string($value)) {
-        $trimmed = trim($value);
-        if ($trimmed === "" || $trimmed === "[]" || strtolower($trimmed) === "null") {
-            return $default;
-        }
-    }
-
     return $value;
 }
 
-function AirDefender_StoredValue($pluginName, $key, $default) {
-    $value = GetSetting($pluginName, $key);
-    return AirDefender_NormalizeValue($value, $default);
+function AirDefender_PostBool($key) {
+    if (!isset($_POST[$key])) {
+        return false;
+    }
+
+    $value = $_POST[$key];
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
 }
 
 function AirDefender_GetFPPDetectedLocation() {
@@ -67,30 +64,15 @@ function AirDefender_GetFPPDetectedLocation() {
         list($section, $field) = $candidate;
         $value = GetSetting($section, $field);
 
-        if ($value === null || $value === false) {
+        if ($value === null || $value === false || $value === "" || trim((string) $value) === "" || strtolower(trim((string) $value)) === "null") {
             continue;
         }
 
-        $text = trim((string) $value);
-        if ($text === "" || strtolower($text) === "null") {
-            continue;
-        }
-
-        if (!is_numeric($text)) {
-            continue;
-        }
-
-        $numericValue = (float) $text;
         $lowerField = strtolower($field);
-
         if ($lowerField === 'latitude' || $lowerField === 'lat') {
-            if ($numericValue >= -90 && $numericValue <= 90) {
-                $lat = $numericValue;
-            }
+            $lat = (float) $value;
         } elseif ($lowerField === 'longitude' || $lowerField === 'lon') {
-            if ($numericValue >= -180 && $numericValue <= 180) {
-                $lon = $numericValue;
-            }
+            $lon = (float) $value;
         }
 
         if ($lat !== null && $lon !== null) {
@@ -99,35 +81,6 @@ function AirDefender_GetFPPDetectedLocation() {
     }
 
     return array($lat, $lon);
-}
-
-function AirDefender_PostBool($key) {
-    if (!isset($_POST[$key])) {
-        return false;
-    }
-
-    $value = $_POST[$key];
-    if (is_bool($value)) {
-        return $value;
-    }
-
-    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on', 'y'), true);
-}
-
-function AirDefender_IsTruthy($value) {
-    if (is_bool($value)) {
-        return $value;
-    }
-
-    if (is_int($value) || is_float($value)) {
-        return $value != 0;
-    }
-
-    if (is_string($value)) {
-        return in_array(strtolower(trim($value)), array('1', 'true', 'yes', 'on', 'y'), true);
-    }
-
-    return !empty($value);
 }
 
 $settings = array(
@@ -231,7 +184,7 @@ foreach ($settings as $key => $config) {
     $settings[$key]['value'] = $value;
 }
 
-$useFppLocationEnabled = AirDefender_IsTruthy($settings['useFPPLocation']['value']);
+$useFppLocationEnabled = !empty($settings['useFPPLocation']['value']);
 list($fppLat, $fppLon) = AirDefender_GetFPPDetectedLocation();
 
 if ($useFppLocationEnabled) {
@@ -270,28 +223,41 @@ if ($useFppLocationEnabled) {
                         <?php if ($config['type'] === 'bool'): ?>
                             <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
                                 <label style="flex:1;display:block;cursor:pointer;">
-                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:6px 10px;border-radius:6px;font-weight:bold;cursor:pointer;line-height:1.1;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo !empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
+                                    <span class="toggle-option <?php echo !empty($config['value']) ? 'active' : 'inactive'; ?>" style="display:block;text-align:center;padding:6px 10px;border-radius:6px;font-weight:bold;line-height:1.1;<?php echo !empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         Yes
                                     </span>
                                 </label>
                                 <label style="flex:1;display:block;cursor:pointer;">
-                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo !AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:6px 10px;border-radius:6px;font-weight:bold;cursor:pointer;line-height:1.1;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
+                                    <span class="toggle-option <?php echo empty($config['value']) ? 'active' : 'inactive'; ?>" style="display:block;text-align:center;padding:6px 10px;border-radius:6px;font-weight:bold;line-height:1.1;<?php echo empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         No
                                     </span>
                                 </label>
                             </div>
+                        <?php elseif ($config['type'] === 'select'): ?>
+                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                                <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
+                                    <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($optionLabel); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         <?php else: ?>
                             <?php
                                 $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
 
-                                if ($key === 'latitude' && $useFppLocationEnabled && $fppLat !== null) {
-                                    $fieldValue = (string) $fppLat;
+                                $fieldFppValue = '';
+
+                                if ($key === 'latitude' && $fppLat !== null) {
+                                    $fieldFppValue = (string) $fppLat;
+                                }
+                                if ($key === 'longitude' && $fppLon !== null) {
+                                    $fieldFppValue = (string) $fppLon;
                                 }
 
-                                if ($key === 'longitude' && $useFppLocationEnabled && $fppLon !== null) {
-                                    $fieldValue = (string) $fppLon;
+                                if ($useFppLocationEnabled && $fieldFppValue !== '') {
+                                    $fieldValue = $fieldFppValue;
                                 }
                             ?>
                             <input
@@ -299,7 +265,7 @@ if ($useFppLocationEnabled) {
                                 name="<?php echo htmlspecialchars($key); ?>"
                                 id="<?php echo htmlspecialchars($key); ?>"
                                 value="<?php echo htmlspecialchars($fieldValue); ?>"
-                                data-fpp-value="<?php echo htmlspecialchars($key === 'latitude' ? ($fppLat !== null ? (string) $fppLat : '') : ($fppLon !== null ? (string) $fppLon : '')); ?>"
+                                data-fpp-value="<?php echo htmlspecialchars($fieldFppValue); ?>"
                                 <?php if ($key === 'latitude' || $key === 'longitude') { ?>
                                     <?php if ($useFppLocationEnabled): ?>
                                         disabled
@@ -326,7 +292,7 @@ if ($useFppLocationEnabled) {
 
 <script>
 (function () {
-    function updateToggleVisuals(group) {
+    function updateToggleGroup(group) {
         if (!group) {
             return;
         }
@@ -338,19 +304,14 @@ if ($useFppLocationEnabled) {
                 return;
             }
 
-            var selected = radio.checked;
-            label.style.background = selected ? '#6cf' : '#202020';
-            label.style.color = selected ? '#111' : '#bbb';
-            label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
-            label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
+            var isActive = radio.checked;
+            label.style.background = isActive ? '#6cf' : '#202020';
+            label.style.color = isActive ? '#111' : '#bbb';
+            label.style.boxShadow = isActive ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
             label.style.opacity = '1';
             label.style.padding = '6px 10px';
             label.style.borderRadius = '6px';
-            label.style.fontWeight = 'bold';
-            label.style.cursor = 'pointer';
             label.style.lineHeight = '1.1';
-            label.style.display = 'block';
-            label.style.textAlign = 'center';
             label.style.minWidth = '72px';
         });
     }
@@ -361,8 +322,7 @@ if ($useFppLocationEnabled) {
             return;
         }
 
-        var yesRadio = group.querySelector('input[type="radio"][value="1"]');
-        var useFpp = yesRadio && yesRadio.checked;
+        var useFpp = group.querySelector('input[type="radio"][value="1"]').checked;
 
         ['latitude', 'longitude'].forEach(function (id) {
             var input = document.getElementById(id);
@@ -378,20 +338,19 @@ if ($useFppLocationEnabled) {
             }
 
             input.disabled = useFpp;
+            input.style.opacity = useFpp ? '0.45' : '1';
+            input.style.cursor = useFpp ? 'not-allowed' : 'text';
             input.style.background = useFpp ? '#1a1a1a' : '#111';
             input.style.color = useFpp ? '#888' : '#fff';
-            input.style.cursor = useFpp ? 'not-allowed' : 'text';
-            input.style.opacity = useFpp ? '0.45' : '1';
         });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
-            updateToggleVisuals(group);
-
+            updateToggleGroup(group);
             group.querySelectorAll('input[type="radio"]').forEach(function (radio) {
                 radio.addEventListener('change', function () {
-                    updateToggleVisuals(group);
+                    updateToggleGroup(group);
                     if (group.getAttribute('data-boolean-group') === 'useFPPLocation') {
                         updateLocationState();
                     }
