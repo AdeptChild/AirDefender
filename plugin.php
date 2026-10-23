@@ -1,8 +1,5 @@
 <?php
 
-/*
- * Plugin Info
- */
 function AirDefender_PluginInfo() {
     return [
         "name"        => "AirDefender",
@@ -13,19 +10,23 @@ function AirDefender_PluginInfo() {
 }
 
 function AirDefender_Setup() {}
-function AirDefender_Start() {}
-function AirDefender_Stop() {}
 
-/*
- * Page Router
- */
+function AirDefender_Start() {
+    $script = "/home/fpp/media/plugins/AirDefender/scripts/airdefender_loop.php";
+    if (file_exists($script)) {
+        $cmd = "php {$script} >/dev/null 2>&1 &";
+        shell_exec($cmd);
+    }
+}
+
+function AirDefender_Stop() {
+    shell_exec("pkill -f 'airdefender_loop.php' >/dev/null 2>&1 || true");
+}
+
 function AirDefender_Page($page) {
     include($page);
 }
 
-/*
- * Menu Loader
- */
 function AirDefender_Menu() {
     global $plugin, $menu;
 
