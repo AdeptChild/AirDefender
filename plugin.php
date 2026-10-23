@@ -1,11 +1,24 @@
 <?php
 require_once("AirDefender.php");
 
-// Register the plugin with FPP
-$plugin = new AirDefender();
+function AirDefender_PluginInfo() {
+    return [
+        "name" => "AirDefender",
+        "displayName" => "Air Defender",
+        "author" => "G Hancox",
+        "description" => "ADS-B aircraft monitoring and DMX safety automation plugin for FPP."
+    ];
+}
 
-// DO NOT call $plugin->Run() here.
-// The UI must stay responsive.
+function AirDefender_Setup() {
+    // Called when plugin is installed
+}
+
+function AirDefender_Start() {
+    // Called when FPPD starts
+}
+
+function AirDefender_Stop() {
+    // Called when FPPD stops
+}
 ?>
-
-
