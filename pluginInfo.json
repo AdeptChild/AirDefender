@@ -25,7 +25,7 @@
 
     "UI": {
         "DisplayName": "Air Defender",
-        "Page": "index.php"
+        "Page": "status.php"
     },
 
     "dependencies": {
@@ -46,4 +46,5 @@
         "reviewed": []
     }
 }
+
 
