@@ -130,29 +130,6 @@ function AirDefender_IsTruthy($value) {
     return !empty($value);
 }
 
-function AirDefender_ResolveAdsbSource($source, $customUrl) {
-    $source = strtolower((string) $source);
-    $customUrl = trim((string) $customUrl);
-
-    $defaults = array(
-        'piaware' => 'http://localhost:8080/data/aircraft.json',
-        'dump1090' => 'http://localhost:8080/data/aircraft.json',
-        'adsbexchange' => 'https://api.adsbexchange.com/api/aircraft/v2/lat/0/lon/0/dist/100?fDstL=0&fDstU=100',
-        'radarbox' => 'https://api.radarbox.com/v2/aircraft?lat=0&lon=0&distance=50',
-        'opensky' => 'https://opensky-network.org/api/states/all',
-    );
-
-    if ($source === 'custom' && $customUrl !== '') {
-        return $customUrl;
-    }
-
-    if (isset($defaults[$source])) {
-        return $defaults[$source];
-    }
-
-    return $customUrl !== '' ? $customUrl : '';
-}
-
 $settings = array(
     'enabled' => array(
         'label' => 'Enable Air Defender',
@@ -189,28 +166,15 @@ $settings = array(
         'type' => 'int',
         'default' => 10,
     ),
-    'adsbSource' => array(
-        'label' => 'ADS-B Feed Source',
-        'type' => 'select',
-        'default' => 'custom',
-        'options' => array(
-            'custom' => 'Custom URL',
-            'piaware' => 'PiAware / dump1090',
-            'adsbexchange' => 'ADS-B Exchange',
-            'radarbox' => 'RadarBox',
-            'opensky' => 'OpenSky',
-        ),
-    ),
     'adsbSourceUrl' => array(
-        'label' => 'Custom ADS-B JSON URL',
+        'label' => 'ADS-B JSON URL',
         'type' => 'string',
         'default' => '',
     ),
     'controllerType' => array(
         'label' => 'Controller Type',
-        'type' => 'select',
+        'type' => 'string',
         'default' => 'falcon',
-        'options' => array('falcon' => 'Falcon', 'kulp' => 'Kulp', 'generic' => 'Generic'),
     ),
     'serialPort' => array(
         'label' => 'Serial Port',
@@ -228,7 +192,7 @@ $settingGroups = array(
     'Plugin Status' => array('enabled'),
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
-    'ADS-B Feed' => array('adsbSource', 'adsbSourceUrl'),
+    'ADS-B Feed' => array('adsbSourceUrl'),
     'Controller' => array('controllerType', 'serialPort', 'dmxOutputs'),
 );
 
@@ -247,8 +211,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $finalValue = AirDefender_PostBool($key);
         } elseif ($config['type'] === 'int') {
             $finalValue = (int) $postedValue;
-        } elseif ($config['type'] === 'select') {
-            $finalValue = (string) $postedValue;
         } else {
             $finalValue = trim((string) $postedValue);
         }
@@ -256,15 +218,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (function_exists('SetSetting')) {
             SetSetting($pluginName, $key, $finalValue);
         }
-    }
-
-    $source = isset($_POST['adsbSource']) ? (string) $_POST['adsbSource'] : 'custom';
-    $customUrl = isset($_POST['adsbSourceUrl']) ? trim((string) $_POST['adsbSourceUrl']) : '';
-    $resolvedUrl = AirDefender_ResolveAdsbSource($source, $customUrl);
-
-    if (function_exists('SetSetting')) {
-        SetSetting($pluginName, 'adsbSource', $source);
-        SetSetting($pluginName, 'adsbSourceUrl', $resolvedUrl);
     }
 
     $statusMessage = 'Settings saved.';
@@ -326,14 +279,6 @@ if ($useFppLocationEnabled) {
                                     </span>
                                 </label>
                             </div>
-                        <?php elseif ($config['type'] === 'select'): ?>
-                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
-                                <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
-                                    <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($optionLabel); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
                         <?php else: ?>
                             <?php
                                 $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
@@ -367,10 +312,10 @@ if ($useFppLocationEnabled) {
     <?php endforeach; ?>
 
     <div style="margin-top:20px;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;">
-        <button type="submit" style="padding:10px 18px;border-radius:6px;border:none;background:#6cf;color:#111;font-weight:bold;cursor:pointer;">
+        <button type="submit" style="padding:8px 12px;border-radius:6px;border:none;background:#6cf;color:#111;font-weight:bold;cursor:pointer;line-height:1.1;">
             Save Settings
         </button>
-        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:10px 18px;border-radius:6px;background:#444;color:#fff;text-decoration:none;font-weight:bold;">
+        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:8px 12px;border-radius:6px;background:#444;color:#fff;text-decoration:none;font-weight:bold;line-height:1.1;">
             Back to Dashboard
         </a>
     </div>
@@ -391,10 +336,19 @@ if ($useFppLocationEnabled) {
             }
 
             var selected = radio.checked;
-            label.style.background = selected ? '#6cf' : '#202020';
-            label.style.color = selected ? '#111' : '#bbb';
+            label.style.background = selected ? '#6cf' : '#3a3a3a';
+            label.style.color = selected ? '#111' : '#dcdcdc';
+            label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
             label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
             label.style.opacity = '1';
+            label.style.padding = '8px 12px';
+            label.style.borderRadius = '6px';
+            label.style.fontWeight = 'bold';
+            label.style.cursor = 'pointer';
+            label.style.lineHeight = '1.1';
+            label.style.display = 'block';
+            label.style.textAlign = 'center';
+            label.style.minWidth = '80px';
         });
     }
 
