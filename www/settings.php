@@ -64,15 +64,30 @@ function AirDefender_GetFPPDetectedLocation() {
         list($section, $field) = $candidate;
         $value = GetSetting($section, $field);
 
-        if ($value === null || $value === false || $value === "" || trim((string) $value) === "" || strtolower(trim((string) $value)) === "null") {
+        if ($value === null || $value === false) {
             continue;
         }
 
+        $text = trim((string) $value);
+        if ($text === "" || strtolower($text) === "null") {
+            continue;
+        }
+
+        if (!is_numeric($text)) {
+            continue;
+        }
+
+        $numericValue = (float) $text;
         $lowerField = strtolower($field);
+
         if ($lowerField === 'latitude' || $lowerField === 'lat') {
-            $lat = (float) $value;
+            if ($numericValue >= -90 && $numericValue <= 90) {
+                $lat = $numericValue;
+            }
         } elseif ($lowerField === 'longitude' || $lowerField === 'lon') {
-            $lon = (float) $value;
+            if ($numericValue >= -180 && $numericValue <= 180) {
+                $lon = $numericValue;
+            }
         }
 
         if ($lat !== null && $lon !== null) {
