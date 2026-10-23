@@ -6,6 +6,65 @@ if (PHP_SAPI !== 'cli') {
     exit(1);
 }
 
+function airdefender_state_file(): string
+{
+    return "/home/fpp/media/plugins/AirDefender/state.json";
+}
+
+function airdefender_read_state(): array
+{
+    $path = airdefender_state_file();
+    if (!file_exists($path)) {
+        return [
+            'safetyMode' => false,
+            'lastEvent' => 'No events yet.',
+            'lastAircraft' => null,
+            'lastDistanceNm' => null,
+            'lastAltitudeFt' => null,
+            'lastUpdated' => null,
+            'controllerType' => 'falcon',
+            'serialPort' => '',
+        ];
+    }
+
+    $raw = @file_get_contents($path);
+    if ($raw === false || trim($raw) === '') {
+        return [
+            'safetyMode' => false,
+            'lastEvent' => 'No events yet.',
+            'lastAircraft' => null,
+            'lastDistanceNm' => null,
+            'lastAltitudeFt' => null,
+            'lastUpdated' => null,
+            'controllerType' => 'falcon',
+            'serialPort' => '',
+        ];
+    }
+
+    $state = json_decode($raw, true);
+    if (!is_array($state)) {
+        return [
+            'safetyMode' => false,
+            'lastEvent' => 'No events yet.',
+            'lastAircraft' => null,
+            'lastDistanceNm' => null,
+            'lastAltitudeFt' => null,
+            'lastUpdated' => null,
+            'controllerType' => 'falcon',
+            'serialPort' => '',
+        ];
+    }
+
+    return $state;
+}
+
+function airdefender_write_state(array $state): void
+{
+    $path = airdefender_state_file();
+    @mkdir(dirname($path), 0777, true);
+    @file_put_contents($path, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
 function airdefender_get_setting($pluginName, $key, $default = null) {
     if (function_exists('GetSetting')) {
         $value = GetSetting($pluginName, $key);
@@ -177,10 +236,24 @@ if (function_exists('GetSetting')) {
 }
 
 if (!$enabled) {
+    $state = airdefender_read_state();
+    $state['safetyMode'] = false;
+    $state['lastEvent'] = 'Plugin disabled';
+    $state['lastUpdated'] = date('c');
+    $state['controllerType'] = $controllerType;
+    $state['serialPort'] = $serialPort;
+    airdefender_write_state($state);
     exit(0);
 }
 
 if (empty($adsbUrl)) {
+    $state = airdefender_read_state();
+    $state['safetyMode'] = false;
+    $state['lastEvent'] = 'ADS-B URL is empty; waiting for configuration.';
+    $state['lastUpdated'] = date('c');
+    $state['controllerType'] = $controllerType;
+    $state['serialPort'] = $serialPort;
+    airdefender_write_state($state);
     airdefender_log("ADS-B URL is empty; plugin waiting for configuration.");
     exit(0);
 }
@@ -200,6 +273,13 @@ if (!empty($manualOverride) && $manualLat !== '' && $manualLon !== '') {
 }
 
 if ($showLat === null || $showLon === null) {
+    $state = airdefender_read_state();
+    $state['safetyMode'] = false;
+    $state['lastEvent'] = 'No valid location available. Check FPP or manual override.';
+    $state['lastUpdated'] = date('c');
+    $state['controllerType'] = $controllerType;
+    $state['serialPort'] = $serialPort;
+    airdefender_write_state($state);
     airdefender_log("No valid show location available. Check FPP location or manual latitude/longitude.");
     exit(0);
 }
@@ -207,8 +287,16 @@ if ($showLat === null || $showLon === null) {
 $controller = airdefender_make_controller($controllerType, $serialPort, $dmxOutputs);
 
 while (true) {
+    $state = airdefender_read_state();
+    $state['controllerType'] = $controllerType;
+    $state['serialPort'] = $serialPort;
+
     $payload = @file_get_contents($adsbUrl);
     if ($payload === false || $payload === '') {
+        $state['safetyMode'] = false;
+        $state['lastEvent'] = "Unable to retrieve ADS-B feed: {$adsbUrl}";
+        $state['lastUpdated'] = date('c');
+        airdefender_write_state($state);
         airdefender_log("Unable to retrieve ADS-B feed: {$adsbUrl}");
         sleep(max(1, $fetchInterval));
         continue;
@@ -216,6 +304,10 @@ while (true) {
 
     $json = json_decode($payload, true);
     if (!is_array($json)) {
+        $state['safetyMode'] = false;
+        $state['lastEvent'] = 'ADS-B payload is not valid JSON.';
+        $state['lastUpdated'] = date('c');
+        airdefender_write_state($state);
         airdefender_log("ADS-B payload is not valid JSON.");
         sleep(max(1, $fetchInterval));
         continue;
@@ -223,19 +315,43 @@ while (true) {
 
     $aircraft = airdefender_parse_aircraft($json);
     $trigger = airdefender_find_triggering_aircraft($showLat, $showLon, $distanceNm, $altitudeFt, $aircraft);
+    $newMode = $trigger !== null;
 
     if ($trigger !== null) {
         $flight = $trigger['flight'] ?? $trigger['hex'] ?? 'Unknown';
         $distance = airdefender_distance_nm($showLat, $showLon, (float) $trigger['lat'], (float) $trigger['lon']);
         $altitude = $trigger['alt_geom'] ?? $trigger['alt_baro'];
 
-        airdefender_log("Triggered safety mode for {$flight}: {$distance} NM away, {$altitude} ft");
+        $state['safetyMode'] = true;
+        $state['lastAircraft'] = [
+            'flight' => $flight,
+            'lat' => (float) $trigger['lat'],
+            'lon' => (float) $trigger['lon'],
+            'distanceNm' => round($distance, 2),
+            'altitudeFt' => (float) $altitude,
+        ];
+        $state['lastDistanceNm'] = round($distance, 2);
+        $state['lastAltitudeFt'] = (float) $altitude;
+        $state['lastEvent'] = "Triggered safety mode for {$flight}: {$distance} NM away, {$altitude} ft";
+        $state['lastUpdated'] = date('c');
+
+        if ((bool) ($state['safetyMode'] ?? false) !== $newMode) {
+            airdefender_log("Triggered safety mode for {$flight}: {$distance} NM away, {$altitude} ft");
+        }
+
         $controller->activateSafetyMode();
     } else {
-        airdefender_log("Safety mode clear: no aircraft within {$distanceNm} NM and below {$altitudeFt} ft");
+        $state['safetyMode'] = false;
+        $state['lastAircraft'] = null;
+        $state['lastDistanceNm'] = null;
+        $state['lastAltitudeFt'] = null;
+        $state['lastEvent'] = "Safety mode clear: no aircraft within {$distanceNm} NM and below {$altitudeFt} ft";
+        $state['lastUpdated'] = date('c');
+
         $controller->clearSafetyMode();
     }
 
+    airdefender_write_state($state);
     sleep(max(1, $fetchInterval));
 }
 
