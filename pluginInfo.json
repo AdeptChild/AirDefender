@@ -2,6 +2,7 @@
     "$schema": "https://raw.githubusercontent.com/FalconChristmas/fpp-plugin-Template/master/pluginInfo.schema.json",
 
     "repoName": "AirDefender",
+    "pluginVersion": "0.2.0",
     "name": "Air Defender",
     "author": "G Hancox",
     "description": "Monitors ADS-B aircraft and disables DMX outputs when aircraft are nearby.",
