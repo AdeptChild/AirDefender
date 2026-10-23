@@ -16,106 +16,12 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
-function AirDefender_NormalizeValue($value, $default) {
-    if ($value === null || $value === false) {
-        return $default;
-    }
-
-    if (is_array($value)) {
-        return $default;
-    }
-
-    if (is_string($value)) {
-        $trimmed = trim($value);
-        if ($trimmed === "" || $trimmed === "[]" || strtolower($trimmed) === "null") {
-            return $default;
-        }
-    }
-
-    return $value;
-}
-
-function AirDefender_GetFPPLatLon() {
-    $lat = null;
-    $lon = null;
-
-    if (!function_exists('GetSetting')) {
-        return [$lat, $lon];
-    }
-
-    $sections = ['System', 'Settings', 'Location', 'fpp', 'Global', 'FPP'];
-    $fieldNames = ['Latitude', 'latitude', 'lat', 'Longitude', 'longitude', 'lon'];
-
-    foreach ($sections as $section) {
-        foreach ($fieldNames as $field) {
-            if (in_array(strtolower($field), ['latitude', 'lat'], true)) {
-                $value = GetSetting($section, $field);
-                if ($value !== null && $value !== false && $value !== '' && $value !== '[]') {
-                    $normalized = trim((string) $value);
-                    if ($normalized !== '' && strtolower($normalized) !== 'null') {
-                        $lat = (float) $value;
-                    }
-                }
-            } elseif (in_array(strtolower($field), ['longitude', 'lon'], true)) {
-                $value = GetSetting($section, $field);
-                if ($value !== null && $value !== false && $value !== '' && $value !== '[]') {
-                    $normalized = trim((string) $value);
-                    if ($normalized !== '' && strtolower($normalized) !== 'null') {
-                        $lon = (float) $value;
-                    }
-                }
-            }
-
-            if ($lat !== null && $lon !== null) {
-                return [$lat, $lon];
-            }
-        }
-    }
-
-    $legacyCandidates = [
-        ['System', 'Latitude'],
-        ['System', 'longitude'],
-        ['Settings', 'Latitude'],
-        ['Settings', 'longitude'],
-        ['Location', 'Latitude'],
-        ['Location', 'Longitude'],
-        ['fpp', 'latitude'],
-        ['fpp', 'longitude'],
-        ['Global', 'latitude'],
-        ['Global', 'longitude'],
-        ['fpp', 'lat'],
-        ['fpp', 'lon'],
-    ];
-
-    foreach ($legacyCandidates as [$section, $field]) {
-        $value = GetSetting($section, $field);
-        if ($value === null || $value === false || $value === '' || $value === '[]') {
-            continue;
-        }
-
-        $normalized = trim((string) $value);
-        if ($normalized === '' || strtolower($normalized) === 'null') {
-            continue;
-        }
-
-        $lowerField = strtolower($field);
-        if ($lowerField === 'latitude' || $lowerField === 'lat') {
-            $lat = (float) $value;
-        } elseif ($lowerField === 'longitude' || $lowerField === 'lon') {
-            $lon = (float) $value;
-        }
-
-        if ($lat !== null && $lon !== null) {
-            return [$lat, $lon];
-        }
-    }
-
-    return [$lat, $lon];
-}
-
 function AirDefender_StoredValue($pluginName, $key, $default) {
     $value = GetSetting($pluginName, $key);
-    return AirDefender_NormalizeValue($value, $default);
+    if ($value === null || $value === false || $value === "") {
+        return $default;
+    }
+    return $value;
 }
 
 function AirDefender_PostBool($key) {
@@ -128,46 +34,53 @@ function AirDefender_PostBool($key) {
         return $value;
     }
 
-    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on', 'y'), true);
+    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
 }
 
-function AirDefender_IsTruthy($value) {
-    if (is_bool($value)) {
-        return $value;
+function AirDefender_GetFPPDetectedLocation() {
+    $lat = null;
+    $lon = null;
+
+    if (!function_exists("GetSetting")) {
+        return array($lat, $lon);
     }
 
-    if (is_int($value) || is_float($value)) {
-        return $value != 0;
-    }
-
-    if (is_string($value)) {
-        return in_array(strtolower(trim($value)), array('1', 'true', 'yes', 'on', 'y'), true);
-    }
-
-    return !empty($value);
-}
-
-function AirDefender_ResolveAdsbSource($source, $customUrl) {
-    $source = strtolower((string) $source);
-    $customUrl = trim((string) $customUrl);
-
-    $defaults = array(
-        'piaware' => 'http://localhost:8080/data/aircraft.json',
-        'dump1090' => 'http://localhost:8080/data/aircraft.json',
-        'adsbexchange' => 'https://api.adsbexchange.com/api/aircraft/v2/lat/0/lon/0/dist/100?fDstL=0&fDstU=100',
-        'radarbox' => 'https://api.radarbox.com/v2/aircraft?lat=0&lon=0&distance=50',
-        'opensky' => 'https://opensky-network.org/api/states/all',
+    $candidates = array(
+        array('System', 'Latitude'),
+        array('System', 'longitude'),
+        array('Settings', 'Latitude'),
+        array('Settings', 'longitude'),
+        array('Location', 'Latitude'),
+        array('Location', 'Longitude'),
+        array('fpp', 'latitude'),
+        array('fpp', 'longitude'),
+        array('Global', 'latitude'),
+        array('Global', 'longitude'),
+        array('fpp', 'lat'),
+        array('fpp', 'lon'),
     );
 
-    if ($source === 'custom' && $customUrl !== '') {
-        return $customUrl;
+    foreach ($candidates as $candidate) {
+        list($section, $field) = $candidate;
+        $value = GetSetting($section, $field);
+
+        if ($value === null || $value === false || $value === "" || trim((string) $value) === "" || strtolower(trim((string) $value)) === "null") {
+            continue;
+        }
+
+        $lowerField = strtolower($field);
+        if ($lowerField === 'latitude' || $lowerField === 'lat') {
+            $lat = (float) $value;
+        } elseif ($lowerField === 'longitude' || $lowerField === 'lon') {
+            $lon = (float) $value;
+        }
+
+        if ($lat !== null && $lon !== null) {
+            break;
+        }
     }
 
-    if (isset($defaults[$source])) {
-        return $defaults[$source];
-    }
-
-    return $customUrl !== '' ? $customUrl : '';
+    return array($lat, $lon);
 }
 
 $settings = array(
@@ -206,20 +119,8 @@ $settings = array(
         'type' => 'int',
         'default' => 10,
     ),
-    'adsbSource' => array(
-        'label' => 'ADS-B Feed Source',
-        'type' => 'select',
-        'default' => 'custom',
-        'options' => array(
-            'custom' => 'Custom URL',
-            'piaware' => 'PiAware / dump1090',
-            'adsbexchange' => 'ADS-B Exchange',
-            'radarbox' => 'RadarBox',
-            'opensky' => 'OpenSky',
-        ),
-    ),
     'adsbSourceUrl' => array(
-        'label' => 'Custom ADS-B JSON URL',
+        'label' => 'ADS-B JSON URL',
         'type' => 'string',
         'default' => '',
     ),
@@ -245,7 +146,7 @@ $settingGroups = array(
     'Plugin Status' => array('enabled'),
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
-    'ADS-B Feed' => array('adsbSource', 'adsbSourceUrl'),
+    'ADS-B Feed' => array('adsbSourceUrl'),
     'Controller' => array('controllerType', 'serialPort', 'dmxOutputs'),
 );
 
@@ -275,16 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $source = isset($_POST['adsbSource']) ? (string) $_POST['adsbSource'] : 'custom';
-    $customUrl = isset($_POST['adsbSourceUrl']) ? trim((string) $_POST['adsbSourceUrl']) : '';
-    $resolvedUrl = AirDefender_ResolveAdsbSource($source, $customUrl);
-
-    if (function_exists('SetSetting')) {
-        SetSetting($pluginName, 'adsbSource', $source);
-        SetSetting($pluginName, 'adsbSourceUrl', $resolvedUrl);
-    }
-
-    $statusMessage = 'Settings saved.';
+    $statusMessage = "Settings saved.";
 }
 
 foreach ($settings as $key => $config) {
@@ -292,12 +184,17 @@ foreach ($settings as $key => $config) {
     $settings[$key]['value'] = $value;
 }
 
-$useFppLocationEnabled = AirDefender_IsTruthy($settings['useFPPLocation']['value']);
-$fppLatLon = AirDefender_GetFPPLatLon();
-$fppLat = $fppLatLon[0];
-$fppLon = $fppLatLon[1];
-$selectedAdsbSource = isset($settings['adsbSource']['value']) ? (string) $settings['adsbSource']['value'] : 'custom';
-$showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
+$useFppLocationEnabled = !empty($settings['useFPPLocation']['value']);
+list($fppLat, $fppLon) = AirDefender_GetFPPDetectedLocation();
+
+if ($useFppLocationEnabled) {
+    if ($fppLat !== null) {
+        $settings['latitude']['value'] = (string) $fppLat;
+    }
+    if ($fppLon !== null) {
+        $settings['longitude']['value'] = (string) $fppLon;
+    }
+}
 ?>
 
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;">
@@ -324,16 +221,16 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
                         </label>
 
                         <?php if ($config['type'] === 'bool'): ?>
-                            <div style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
-                                <label style="flex:1;display:block;">
-                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;cursor:pointer;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                            <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
+                                <label style="flex:1;display:block;cursor:pointer;">
+                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo !empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
+                                    <span class="toggle-option <?php echo !empty($config['value']) ? 'active' : 'inactive'; ?>" style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;<?php echo !empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         Yes
                                     </span>
                                 </label>
-                                <label style="flex:1;display:block;">
-                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo !AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;cursor:pointer;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                <label style="flex:1;display:block;cursor:pointer;">
+                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
+                                    <span class="toggle-option <?php echo empty($config['value']) ? 'active' : 'inactive'; ?>" style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;<?php echo empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         No
                                     </span>
                                 </label>
@@ -349,11 +246,17 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
                         <?php else: ?>
                             <?php
                                 $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
-                                if ($key === 'latitude' && $useFppLocationEnabled && $fppLat !== null) {
-                                    $fieldValue = (string) $fppLat;
+                                $fieldFppValue = '';
+
+                                if ($key === 'latitude' && $fppLat !== null) {
+                                    $fieldFppValue = (string) $fppLat;
                                 }
-                                if ($key === 'longitude' && $useFppLocationEnabled && $fppLon !== null) {
-                                    $fieldValue = (string) $fppLon;
+                                if ($key === 'longitude' && $fppLon !== null) {
+                                    $fieldFppValue = (string) $fppLon;
+                                }
+
+                                if ($useFppLocationEnabled && $fieldFppValue !== '') {
+                                    $fieldValue = $fieldFppValue;
                                 }
                             ?>
                             <input
@@ -361,6 +264,7 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
                                 name="<?php echo htmlspecialchars($key); ?>"
                                 id="<?php echo htmlspecialchars($key); ?>"
                                 value="<?php echo htmlspecialchars($fieldValue); ?>"
+                                data-fpp-value="<?php echo htmlspecialchars($fieldFppValue); ?>"
                                 <?php if ($key === 'latitude' || $key === 'longitude') { ?>
                                     <?php if ($useFppLocationEnabled): ?>
                                         disabled
@@ -387,13 +291,30 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 
 <script>
 (function () {
-    function updateLocationState() {
-        var group = document.querySelector('input[name="useFPPLocation"][value="1"]');
+    function updateToggleGroup(group) {
         if (!group) {
             return;
         }
 
-        var useFpp = group.checked;
+        var radios = group.querySelectorAll('input[type="radio"]');
+        radios.forEach(function (radio) {
+            var label = radio.nextElementSibling;
+            var isActive = radio.checked;
+            label.style.background = isActive ? '#6cf' : '#202020';
+            label.style.color = isActive ? '#111' : '#bbb';
+            label.style.boxShadow = isActive ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
+            label.style.opacity = '1';
+        });
+    }
+
+    function updateLocationState() {
+        var group = document.querySelector('[data-boolean-group="useFPPLocation"]');
+        if (!group) {
+            return;
+        }
+
+        var useFpp = group.querySelector('input[type="radio"][value="1"]').checked;
+
         ['latitude', 'longitude'].forEach(function (id) {
             var input = document.getElementById(id);
             if (!input) {
@@ -401,24 +322,33 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
             }
 
             if (useFpp) {
-                var fppValue = input.dataset.fppValue || input.value;
-                if (fppValue && fppValue.trim() !== '') {
+                var fppValue = input.getAttribute('data-fpp-value');
+                if (fppValue !== null && fppValue !== '') {
                     input.value = fppValue;
                 }
             }
 
             input.disabled = useFpp;
+            input.style.opacity = useFpp ? '0.45' : '1';
+            input.style.cursor = useFpp ? 'not-allowed' : 'text';
             input.style.background = useFpp ? '#1a1a1a' : '#111';
             input.style.color = useFpp ? '#888' : '#fff';
-            input.style.cursor = useFpp ? 'not-allowed' : 'text';
-            input.style.opacity = useFpp ? '0.45' : '1';
         });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('input[name="useFPPLocation"]').forEach(function (radio) {
-            radio.addEventListener('change', updateLocationState);
+        document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
+            updateToggleGroup(group);
+            group.querySelectorAll('input[type="radio"]').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    updateToggleGroup(group);
+                    if (group.getAttribute('data-boolean-group') === 'useFPPLocation') {
+                        updateLocationState();
+                    }
+                });
+            });
         });
+
         updateLocationState();
     });
 })();
