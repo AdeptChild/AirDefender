@@ -35,6 +35,49 @@ function AirDefender_NormalizeValue($value, $default) {
     return $value;
 }
 
+function AirDefender_GetFPPLatLon() {
+    $lat = null;
+    $lon = null;
+
+    if (function_exists('GetSetting')) {
+        $candidates = [
+            ['System', 'Latitude'],
+            ['System', 'longitude'],
+            ['Settings', 'Latitude'],
+            ['Settings', 'longitude'],
+            ['Location', 'Latitude'],
+            ['Location', 'Longitude'],
+            ['fpp', 'latitude'],
+            ['fpp', 'longitude'],
+            ['Global', 'latitude'],
+            ['Global', 'longitude'],
+            ['fpp', 'lat'],
+            ['fpp', 'lon'],
+        ];
+
+        foreach ($candidates as [$section, $field]) {
+            $value = GetSetting($section, $field);
+            if ($value === null || $value === false || $value === '' || $value === '[]') {
+                continue;
+            }
+
+            $normalized = trim((string) $value);
+            if ($normalized === '' || strtolower($normalized) === 'null') {
+                continue;
+            }
+
+            $lowerField = strtolower($field);
+            if ($lowerField === 'latitude' || $lowerField === 'lat') {
+                $lat = (float) $value;
+            } elseif ($lowerField === 'longitude' || $lowerField === 'lon') {
+                $lon = (float) $value;
+            }
+        }
+    }
+
+    return [$lat, $lon];
+}
+
 function AirDefender_StoredValue($pluginName, $key, $default) {
     $value = GetSetting($pluginName, $key);
     return AirDefender_NormalizeValue($value, $default);
@@ -215,6 +258,9 @@ foreach ($settings as $key => $config) {
 }
 
 $useFppLocationEnabled = AirDefender_IsTruthy($settings['useFPPLocation']['value']);
+$fppLatLon = AirDefender_GetFPPLatLon();
+$fppLat = $fppLatLon[0];
+$fppLon = $fppLatLon[1];
 $selectedAdsbSource = isset($settings['adsbSource']['value']) ? (string) $settings['adsbSource']['value'] : 'custom';
 $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 ?>
@@ -348,11 +394,21 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
                                 <?php endforeach; ?>
                             </select>
                         <?php else: ?>
+                            <?php
+                                $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
+                                if ($key === 'latitude' && $useFppLocationEnabled && $fppLat !== null) {
+                                    $fieldValue = (string) $fppLat;
+                                }
+                                if ($key === 'longitude' && $useFppLocationEnabled && $fppLon !== null) {
+                                    $fieldValue = (string) $fppLon;
+                                }
+                            ?>
                             <input
                                 type="text"
                                 name="<?php echo htmlspecialchars($key); ?>"
                                 id="<?php echo htmlspecialchars($key); ?>"
-                                value="<?php echo htmlspecialchars((string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default'])); ?>"
+                                value="<?php echo htmlspecialchars($fieldValue); ?>"
+                                data-fpp-value="<?php echo htmlspecialchars($key === 'latitude' ? ($fppLat !== null ? (string) $fppLat : '') : ($fppLon !== null ? (string) $fppLon : '')); ?>"
                                 <?php if ($key === 'latitude' || $key === 'longitude') { ?>
                                     <?php if ($useFppLocationEnabled): ?>
                                         disabled
@@ -412,6 +468,13 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
             var input = document.getElementById(id);
             if (!input) {
                 return;
+            }
+
+            if (useFpp) {
+                var fppValue = input.getAttribute('data-fpp-value');
+                if (fppValue !== null && typeof fppValue !== 'undefined') {
+                    input.value = fppValue;
+                }
             }
 
             input.disabled = useFpp;
