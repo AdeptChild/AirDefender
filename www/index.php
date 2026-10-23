@@ -1,4 +1,9 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+echo "DEBUG START<br>";
+require_once("/opt/fpp/www/common.php");
+echo "AFTER COMMON<br>";
 require_once("/opt/fpp/www/common.php");
 
 $pluginName = "AirDefender";
