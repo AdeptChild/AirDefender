@@ -26,37 +26,32 @@ if (file_exists($logFile)) {
 }
 
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Air Defender Status</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #111;
-            color: #eee;
-            padding: 20px;
-        }
-        .card {
-            background: #222;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        h2 {
-            margin-top: 0;
-            color: #6cf;
-        }
-        .label {
-            font-weight: bold;
-            color: #9cf;
-        }
-        .value {
-            color: #fff;
-        }
-    </style>
-</head>
-<body>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #eee;
+        padding: 20px;
+    }
+    .card {
+        background: #222;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    h2 {
+        margin-top: 0;
+        color: #6cf;
+    }
+    .label {
+        font-weight: bold;
+        color: #9cf;
+    }
+    .value {
+        color: #fff;
+    }
+</style>
 
 <div class="card">
     <h2>Air Defender Status</h2>
@@ -99,6 +94,3 @@ if (file_exists($logFile)) {
     <h2>Last Event</h2>
     <p><?php echo $lastLog; ?></p>
 </div>
-
-</body>
-</html>
