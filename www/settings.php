@@ -141,9 +141,16 @@ foreach ($settings as $key => $config) {
 }
 ?>
 
-<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;">
-    <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
-    <p style="color:#ccc;margin-top:8px;">Configure the ADS-B safety threshold and controller behavior.</p>
+<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <div>
+        <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
+        <p style="color:#ccc;margin-top:8px;">Defaults are loaded automatically when no saved value exists.</p>
+    </div>
+    <div>
+        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#6cf;color:#111;text-decoration:none;font-weight:bold;">
+            Back to Dashboard
+        </a>
+    </div>
 </div>
 
 <?php if ($statusMessage !== ''): ?>
@@ -186,9 +193,12 @@ foreach ($settings as $key => $config) {
         <?php endforeach; ?>
     </div>
 
-    <div style="margin-top:20px;">
+    <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
         <button type="submit" style="padding:10px 18px;border-radius:6px;border:none;background:#6cf;color:#111;font-weight:bold;cursor:pointer;">
             Save Settings
         </button>
+        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:10px 18px;border-radius:6px;background:#444;color:#fff;text-decoration:none;font-weight:bold;">
+            Back to Dashboard
+        </a>
     </div>
 </form>
