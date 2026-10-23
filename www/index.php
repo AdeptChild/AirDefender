@@ -99,9 +99,12 @@ if (file_exists($logFile)) {
         <h2 style="color:#6cf;margin:0;">Air Defender</h2>
         <p style="color:#ccc;margin-top:8px;">ADS-B Safety Monitoring Dashboard</p>
     </div>
-    <div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <a href="plugin.php?plugin=AirDefender&page=www/settings.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#6cf;color:#111;text-decoration:none;font-weight:bold;">
             Settings
+        </a>
+        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#444;color:#fff;text-decoration:none;font-weight:bold;">
+            Refresh
         </a>
     </div>
 </div>
