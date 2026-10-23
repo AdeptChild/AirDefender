@@ -1,0 +1,17 @@
+{
+    "schemaVersion": 1,
+    "fields": {
+        "name": "string",
+        "displayName": "string",
+        "author": "string",
+        "description": "string",
+        "license": "string",
+        "homeURL": "string",
+        "srcURL": "string",
+        "bugURL": "string",
+        "versions": "array",
+        "dependencies": "object",
+        "privacy": "object",
+        "settings": "object"
+    }
+}
