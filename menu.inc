@@ -3,12 +3,13 @@ $menuEntries = Array(
     Array(
         'text' => 'Air Defender',
         'type' => 'content',
-        'page' => 'status.php',
+        'page' => 'index.php',
         'wrap' => 1
     )
 );
 
-foreach ($menuEntries as $entry) {
+foreach ($menuEntries as $entry)
+{
     if ($entry['type'] != $menu)
         continue;
 
