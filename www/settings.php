@@ -40,58 +40,6 @@ function AirDefender_StoredValue($pluginName, $key, $default) {
     return AirDefender_NormalizeValue($value, $default);
 }
 
-function AirDefender_PostBool($key) {
-    if (!isset($_POST[$key])) {
-        return false;
-    }
-
-    $value = $_POST[$key];
-    if (is_bool($value)) {
-        return $value;
-    }
-
-    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on', 'y'), true);
-}
-
-function AirDefender_IsTruthy($value) {
-    if (is_bool($value)) {
-        return $value;
-    }
-
-    if (is_int($value) || is_float($value)) {
-        return $value != 0;
-    }
-
-    if (is_string($value)) {
-        return in_array(strtolower(trim($value)), array('1', 'true', 'yes', 'on', 'y'), true);
-    }
-
-    return !empty($value);
-}
-
-function AirDefender_ResolveAdsbSource($source, $customUrl) {
-    $source = strtolower((string) $source);
-    $customUrl = trim((string) $customUrl);
-
-    $defaults = array(
-        'piaware' => 'http://localhost:8080/data/aircraft.json',
-        'dump1090' => 'http://localhost:8080/data/aircraft.json',
-        'adsbexchange' => 'https://api.adsbexchange.com/api/aircraft/v2/lat/0/lon/0/dist/100?fDstL=0&fDstU=100',
-        'radarbox' => 'https://api.radarbox.com/v2/aircraft?lat=0&lon=0&distance=50',
-        'opensky' => 'https://opensky-network.org/api/states/all',
-    );
-
-    if ($source === 'custom' && $customUrl !== '') {
-        return $customUrl;
-    }
-
-    if (isset($defaults[$source])) {
-        return $defaults[$source];
-    }
-
-    return $customUrl !== '' ? $customUrl : '';
-}
-
 function AirDefender_GetFPPDetectedLocation() {
     $lat = null;
     $lon = null;
@@ -153,14 +101,61 @@ function AirDefender_GetFPPDetectedLocation() {
     return array($lat, $lon);
 }
 
+function AirDefender_PostBool($key) {
+    if (!isset($_POST[$key])) {
+        return false;
+    }
+
+    $value = $_POST[$key];
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on', 'y'), true);
+}
+
+function AirDefender_IsTruthy($value) {
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    if (is_int($value) || is_float($value)) {
+        return $value != 0;
+    }
+
+    if (is_string($value)) {
+        return in_array(strtolower(trim($value)), array('1', 'true', 'yes', 'on', 'y'), true);
+    }
+
+    return !empty($value);
+}
+
+function AirDefender_ResolveAdsbSource($source, $customUrl) {
+    $source = strtolower((string) $source);
+    $customUrl = trim((string) $customUrl);
+
+    $defaults = array(
+        'piaware' => 'http://localhost:8080/data/aircraft.json',
+        'dump1090' => 'http://localhost:8080/data/aircraft.json',
+        'adsbexchange' => 'https://api.adsbexchange.com/api/aircraft/v2/lat/0/lon/0/dist/100?fDstL=0&fDstU=100',
+        'radarbox' => 'https://api.radarbox.com/v2/aircraft?lat=0&lon=0&distance=50',
+        'opensky' => 'https://opensky-network.org/api/states/all',
+    );
+
+    if ($source === 'custom' && $customUrl !== '') {
+        return $customUrl;
+    }
+
+    if (isset($defaults[$source])) {
+        return $defaults[$source];
+    }
+
+    return $customUrl !== '' ? $customUrl : '';
+}
+
 $settings = array(
     'enabled' => array(
         'label' => 'Enable Air Defender',
-        'type' => 'bool',
-        'default' => false,
-    ),
-    'safetyMode' => array(
-        'label' => 'Enable Safety Mode',
         'type' => 'bool',
         'default' => false,
     ),
@@ -168,11 +163,6 @@ $settings = array(
         'label' => 'Use FPP Location',
         'type' => 'bool',
         'default' => true,
-    ),
-    'overrideLocation' => array(
-        'label' => 'Override Location',
-        'type' => 'bool',
-        'default' => false,
     ),
     'latitude' => array(
         'label' => 'Latitude',
@@ -235,8 +225,8 @@ $settings = array(
 );
 
 $settingGroups = array(
-    'Plugin Status' => array('enabled', 'safetyMode'),
-    'Location' => array('useFPPLocation', 'overrideLocation', 'latitude', 'longitude'),
+    'Plugin Status' => array('enabled'),
+    'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
     'ADS-B Feed' => array('adsbSource', 'adsbSourceUrl'),
     'Controller' => array('controllerType', 'serialPort', 'dmxOutputs'),
@@ -286,8 +276,6 @@ foreach ($settings as $key => $config) {
 }
 
 $useFppLocationEnabled = AirDefender_IsTruthy($settings['useFPPLocation']['value']);
-$overrideLocationEnabled = AirDefender_IsTruthy($settings['overrideLocation']['value']);
-
 list($fppLat, $fppLon) = AirDefender_GetFPPDetectedLocation();
 
 if ($useFppLocationEnabled) {
@@ -298,96 +286,11 @@ if ($useFppLocationEnabled) {
         $settings['longitude']['value'] = (string) $fppLon;
     }
 }
-
-$selectedAdsbSource = isset($settings['adsbSource']['value']) ? (string) $settings['adsbSource']['value'] : 'custom';
-$showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 ?>
-<style>
-    .ad-toggle-group {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
 
-    .ad-toggle-option {
-        display: inline-block;
-        flex: 1;
-        min-width: 110px;
-        cursor: pointer;
-        transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
-    }
-
-    .ad-toggle-option:hover {
-        transform: translateY(-1px);
-        opacity: 1;
-    }
-
-    .ad-toggle-option input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .ad-toggle-button {
-        display: block;
-        padding: 10px 18px;
-        border-radius: 6px;
-        border: 1px solid rgba(255,255,255,0.12);
-        font-weight: bold;
-        text-align: center;
-        color: #fff;
-        background: #4a4a4a;
-        transition: all 0.12s ease;
-    }
-
-    .ad-toggle-option:hover .ad-toggle-button {
-        box-shadow: 0 0 0 1px rgba(255,255,255,0.15), 0 8px 18px rgba(0,0,0,0.22);
-        filter: brightness(1.12);
-    }
-
-    .ad-toggle-option.is-on .ad-toggle-button {
-        background: #2e7d32;
-        color: #fff;
-        border-color: #3da34a;
-    }
-
-    .ad-toggle-option.is-off .ad-toggle-button {
-        background: #b71c1c;
-        color: #fff;
-        border-color: #d84343;
-    }
-
-    .ad-toggle-option.disabled .ad-toggle-button {
-        background: #3a3a3a;
-        color: #888;
-        border-color: #4a4a4a;
-        cursor: not-allowed;
-        box-shadow: none;
-        filter: none;
-    }
-
-    .ad-toggle-option.is-muted {
-        opacity: 0.5;
-    }
-
-    .ad-input-disabled {
-        background: #1a1a1a !important;
-        color: #888 !important;
-        cursor: not-allowed !important;
-        opacity: 0.45;
-    }
-</style>
-
-<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-    <div>
-        <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
-        <p style="color:#ccc;margin-top:8px;">Saved settings are loaded automatically when you revisit this page.</p>
-    </div>
-    <div>
-        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#6cf;color:#111;text-decoration:none;font-weight:bold;">
-            Dashboard
-        </a>
-    </div>
+<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;">
+    <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
+    <p style="color:#ccc;margin-top:8px;">Configure the ADS-B safety threshold and controller behavior.</p>
 </div>
 
 <?php if ($statusMessage !== ''): ?>
@@ -438,6 +341,7 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
                                 if ($key === 'latitude' && $useFppLocationEnabled && $fppLat !== null) {
                                     $fieldValue = (string) $fppLat;
                                 }
+
                                 if ($key === 'longitude' && $useFppLocationEnabled && $fppLon !== null) {
                                     $fieldValue = (string) $fppLon;
                                 }
@@ -524,21 +428,7 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
         });
     }
 
-    function setDefaultOverrideNo() {
-        var group = document.querySelector('[data-boolean-group="overrideLocation"]');
-        if (!group) {
-            return;
-        }
-
-        var noRadio = group.querySelector('input[type="radio"][value="0"]');
-        if (noRadio && !noRadio.checked) {
-            noRadio.checked = true;
-        }
-    }
-
     document.addEventListener('DOMContentLoaded', function () {
-        setDefaultOverrideNo();
-
         document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
             updateToggleVisuals(group);
 
