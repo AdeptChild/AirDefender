@@ -1,6 +1,6 @@
 <?php
-$menuEntries = Array(
-    Array(
+$menuEntries = array(
+    array(
         'text' => 'Air Defender',
         'type' => 'content',
         'page' => 'index.php',
@@ -13,8 +13,12 @@ foreach ($menuEntries as $entry)
     if ($entry['type'] != $menu)
         continue;
 
-    printf("<li><a href='plugin.php?plugin=%s&page=%s'>%s</a></li>\n",
-        $plugin, $entry['page'], $entry['text']);
+    printf(
+        "<li><a href='plugin.php?plugin=%s&page=%s'>%s</a></li>\n",
+        $plugin,
+        $entry['page'],
+        $entry['text']
+    );
 }
 ?>
 
