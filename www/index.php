@@ -1,6 +1,7 @@
 <?php
 require_once("/opt/fpp/www/common.php");
 require_once("/opt/fpp/www/api/common.php");
+require_once("/opt/fpp/www/api/lib/limonade.php");
 
 if (!function_exists("GetSetting")) {
     require_once("/opt/fpp/www/api/controllers/settings.php");
