@@ -173,16 +173,16 @@ foreach ($settings as $key => $config) {
                         </label>
 
                         <?php if ($config['type'] === 'bool'): ?>
-                            <div style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
-                                <label style="flex:1;display:block;">
+                            <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
+                                <label style="flex:1;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo !empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;cursor:pointer;<?php echo !empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#ddd;'; ?>">
+                                    <span class="toggle-option <?php echo !empty($config['value']) ? 'active' : 'inactive'; ?>" style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;<?php echo !empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         Yes
                                     </span>
                                 </label>
-                                <label style="flex:1;display:block;">
+                                <label style="flex:1;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo empty($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;cursor:pointer;<?php echo empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#ddd;'; ?>">
+                                    <span class="toggle-option <?php echo empty($config['value']) ? 'active' : 'inactive'; ?>" style="display:block;text-align:center;padding:8px 10px;border-radius:6px;font-weight:bold;<?php echo empty($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         No
                                     </span>
                                 </label>
@@ -219,3 +219,61 @@ foreach ($settings as $key => $config) {
         </button>
     </div>
 </form>
+
+<script>
+(function () {
+    function updateToggleGroup(group) {
+        if (!group) {
+            return;
+        }
+
+        var radios = group.querySelectorAll('input[type="radio"]');
+        radios.forEach(function (radio) {
+            var label = radio.nextElementSibling;
+            var isActive = radio.checked;
+            label.style.background = isActive ? '#6cf' : '#202020';
+            label.style.color = isActive ? '#111' : '#bbb';
+            label.style.boxShadow = isActive ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
+            label.style.opacity = '1';
+        });
+    }
+
+    function updateOverrideLocationState() {
+        var group = document.querySelector('[data-boolean-group="overrideLocation"]');
+        if (!group) {
+            return;
+        }
+
+        var overrideYes = group.querySelector('input[type="radio"][value="1"]');
+        var enableInputs = overrideYes && overrideYes.checked;
+
+        ['latitude', 'longitude'].forEach(function (id) {
+            var input = document.getElementById(id);
+            if (!input) {
+                return;
+            }
+            input.disabled = !enableInputs;
+            input.style.opacity = enableInputs ? '1' : '0.45';
+            input.style.cursor = enableInputs ? 'text' : 'not-allowed';
+            input.style.background = enableInputs ? '#111' : '#1a1a1a';
+            input.style.color = enableInputs ? '#fff' : '#888';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
+            updateToggleGroup(group);
+            group.querySelectorAll('input[type="radio"]').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    updateToggleGroup(group);
+                    if (group.getAttribute('data-boolean-group') === 'overrideLocation') {
+                        updateOverrideLocationState();
+                    }
+                });
+            });
+        });
+
+        updateOverrideLocationState();
+    });
+})();
+</script>
