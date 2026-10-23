@@ -8,8 +8,7 @@ $menuEntries = Array(
     )
 );
 
-foreach ($menuEntries as $entry)
-{
+foreach ($menuEntries as $entry) {
     if ($entry['type'] != $menu)
         continue;
 
