@@ -200,7 +200,7 @@ foreach ($settings as $key => $config) {
                                 type="text"
                                 name="<?php echo htmlspecialchars($key); ?>"
                                 id="<?php echo htmlspecialchars($key); ?>"
-                                value="<?php echo htmlspecialchars((string) $config['value']); ?>"
+                                value="<?php echo htmlspecialchars((string) ($config['value'] !== null && $config['value'] !== '' ? $config['value'] : $config['default'])); ?>"
                                 style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
                             >
                         <?php endif; ?>
