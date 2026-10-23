@@ -1,12 +1,10 @@
-[
-{ "name": "Template Plugin On",
-  "script": "on.sh",
-  "args": [
-  ]
-},
-{ "name": "Template Plugin Off",
-  "script": "off.sh",
-  "args": [
-  ]
+{
+    "off": {
+        "name": "Turn Off",
+        "description": "Turns off Air Defender output."
+    },
+    "on": {
+        "name": "Turn On",
+        "description": "Turns on Air Defender output."
+    }
 }
-]
