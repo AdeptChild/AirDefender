@@ -3,7 +3,7 @@ $menuEntries = Array(
     Array(
         'text' => 'Air Defender',
         'type' => 'status',
-        'page' => 'index.php',
+        'page' => 'www/index.php',
         'wrap' => 1
     )
 );
