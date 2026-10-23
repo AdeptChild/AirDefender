@@ -3,7 +3,7 @@ $menuEntries = array(
     array(
         'text' => 'Air Defender',
         'type' => 'content',
-        'page' => 'index.php',
+        'page' => 'www/index.php',
         'wrap' => 1
     )
 );
@@ -21,4 +21,5 @@ foreach ($menuEntries as $entry)
     );
 }
 ?>
+
 
