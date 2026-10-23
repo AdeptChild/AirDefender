@@ -268,20 +268,28 @@ if ($useFppLocationEnabled) {
                         </label>
 
                         <?php if ($config['type'] === 'bool'): ?>
-                            <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
-                                <label style="flex:1;display:block;cursor:pointer;">
+                            <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:inline-flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
+                                <label style="flex:0 0 auto;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:5px 8px;border-radius:6px;font-weight:bold;line-height:1;font-size:11px;min-width:60px;white-space:nowrap;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <span style="display:block;text-align:center;padding:8px 12px;width:100px;box-sizing:border-box;border-radius:6px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         Yes
                                     </span>
                                 </label>
-                                <label style="flex:1;display:block;cursor:pointer;">
+                                <label style="flex:0 0 auto;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo !AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:5px 8px;border-radius:6px;font-weight:bold;line-height:1;font-size:11px;min-width:60px;white-space:nowrap;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <span style="display:block;text-align:center;padding:8px 12px;width:100px;box-sizing:border-box;border-radius:6px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         No
                                     </span>
                                 </label>
                             </div>
+                        <?php elseif ($config['type'] === 'select'): ?>
+                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                                <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
+                                    <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($optionLabel); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         <?php else: ?>
                             <?php
                                 $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
@@ -343,13 +351,13 @@ if ($useFppLocationEnabled) {
             label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
             label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
             label.style.opacity = '1';
-            label.style.padding = '5px 8px';
+            label.style.padding = '8px 12px';
+            label.style.width = '100px';
+            label.style.boxSizing = 'border-box';
             label.style.borderRadius = '6px';
             label.style.fontWeight = 'bold';
             label.style.cursor = 'pointer';
-            label.style.lineHeight = '1';
-            label.style.minWidth = '60px';
-            label.style.fontSize = '11px';
+            label.style.lineHeight = '1.1';
             label.style.display = 'block';
             label.style.textAlign = 'center';
             label.style.whiteSpace = 'nowrap';
