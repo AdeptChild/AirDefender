@@ -1,17 +1,27 @@
 {
     "schemaVersion": 1,
     "fields": {
+        "repoName": "string",
         "name": "string",
-        "displayName": "string",
         "author": "string",
         "description": "string",
         "license": "string",
         "homeURL": "string",
         "srcURL": "string",
         "bugURL": "string",
+        "iconURL": "string",
+        "documentation": "string",
+        "allowUpdates": "integer",
+        "releaseNotesStyle": "string",
+        "minMemoryMB": "integer",
+        "minCpuCores": "integer",
+        "private": "boolean",
+        "version": "string",
+        "requires": "array",
+        "linkName": "string",
+        "delist": "boolean",
         "versions": "array",
         "dependencies": "object",
-        "privacy": "object",
-        "settings": "object"
+        "privacy": "object"
     }
 }
