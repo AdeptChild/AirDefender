@@ -111,6 +111,15 @@ function AirDefender_IsTruthy($value) {
     return !empty($value);
 }
 
+$adsbSourceOptions = array(
+    'https://api.adsb.lol/v2',
+    'https://opensky-network.org/api/states/all',
+    'https://api.airplanes.live/v2/point/40.7128/-74.0060/100',
+    'https://api.adsbexchange.com/v2/lat/40.7128/lon/-74.0060/dist/100',
+    'https://api.radarbox.com/v2/aircraft',
+    'https://data-cloud.flightradar24.com/zones/fcgi/feed.js?bounds=...'
+);
+
 $settings = array(
     'enabled' => array(
         'label' => 'Enable Air Defender',
@@ -289,19 +298,35 @@ if ($useFppLocationEnabled) {
                                     $fieldValue = (string) $fppLon;
                                 }
                             ?>
-                            <input
-                                type="text"
-                                name="<?php echo htmlspecialchars($key); ?>"
-                                id="<?php echo htmlspecialchars($key); ?>"
-                                value="<?php echo htmlspecialchars($fieldValue); ?>"
-                                data-fpp-value="<?php echo htmlspecialchars($key === 'latitude' ? ($fppLat !== null ? (string) $fppLat : '') : ($fppLon !== null ? (string) $fppLon : '')); ?>"
-                                <?php if ($key === 'latitude' || $key === 'longitude') { ?>
-                                    <?php if ($useFppLocationEnabled): ?>
-                                        disabled
-                                    <?php endif; ?>
-                                <?php } ?>
-                                style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo (($key === 'latitude' || $key === 'longitude') && $useFppLocationEnabled) ? 'background:#1a1a1a;color:#888;cursor:not-allowed;opacity:0.45;' : ''; ?>"
-                            >
+                            <?php if ($key === 'adsbSourceUrl'): ?>
+                                <input
+                                    type="text"
+                                    list="adsbSourceUrlList"
+                                    name="<?php echo htmlspecialchars($key); ?>"
+                                    id="<?php echo htmlspecialchars($key); ?>"
+                                    value="<?php echo htmlspecialchars($fieldValue); ?>"
+                                    style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
+                                >
+                                <datalist id="adsbSourceUrlList" style="max-height:180px;overflow-y:auto;display:block;">
+                                    <?php foreach ($adsbSourceOptions as $option): ?>
+                                        <option value="<?php echo htmlspecialchars($option); ?>"></option>
+                                    <?php endforeach; ?>
+                                </datalist>
+                            <?php else: ?>
+                                <input
+                                    type="text"
+                                    name="<?php echo htmlspecialchars($key); ?>"
+                                    id="<?php echo htmlspecialchars($key); ?>"
+                                    value="<?php echo htmlspecialchars($fieldValue); ?>"
+                                    data-fpp-value="<?php echo htmlspecialchars($key === 'latitude' ? ($fppLat !== null ? (string) $fppLat : '') : ($fppLon !== null ? (string) $fppLon : '')); ?>"
+                                    <?php if ($key === 'latitude' || $key === 'longitude') { ?>
+                                        <?php if ($useFppLocationEnabled): ?>
+                                            disabled
+                                        <?php endif; ?>
+                                    <?php } ?>
+                                    style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo (($key === 'latitude' || $key === 'longitude') && $useFppLocationEnabled) ? 'background:#1a1a1a;color:#888;cursor:not-allowed;opacity:0.45;' : ''; ?>"
+                                >
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
