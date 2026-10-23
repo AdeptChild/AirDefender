@@ -5,17 +5,10 @@ $menuEntries = array(
         'type' => 'content',
         'page' => 'www/index.php',
         'wrap' => 1
-    ),
-    array(
-        'text' => 'Air Defender Settings',
-        'type' => 'content',
-        'page' => 'www/settings.php',
-        'wrap' => 1
     )
 );
 
-foreach ($menuEntries as $entry)
-{
+foreach ($menuEntries as $entry) {
     if ($entry['type'] != $menu)
         continue;
 
