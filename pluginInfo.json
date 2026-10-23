@@ -5,9 +5,9 @@
     "description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
     "license": "MIT",
 
-    "homeURL": "https://github.com/AdeptChild/AirDefender",
-    "srcURL": "https://github.com/AdeptChild/AirDefender.git",
-    "bugURL": "https://github.com/AdeptChild/AirDefender/issues",
+    "homeURL": "https://github.com/adeptchild/AirDefender",
+    "srcURL": "https://github.com/adeptchild/AirDefender.git",
+    "bugURL": "https://github.com/adeptchild/AirDefender/issues",
 
     "versions": [
         {
