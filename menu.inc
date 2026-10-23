@@ -21,5 +21,3 @@ foreach ($menuEntries as $entry)
     );
 }
 ?>
-
-
