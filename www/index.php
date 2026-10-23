@@ -1,4 +1,5 @@
 <?php
+require_once("/opt/fpp/www/common.php");
 
 $pluginName = "AirDefender";
 
@@ -20,60 +21,27 @@ if (file_exists($logFile)) {
         $lastLog = end($lines);
     }
 }
-
 ?>
 
-<style>
-.card {
-    background: #222;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-.label { font-weight: bold; color: #9cf; }
-.value { color: #fff; }
-h2 { color: #6cf; }
-</style>
+<div style="background:#222;padding:20px;border-radius:8px;margin-bottom:20px;">
+    <h2 style="color:#6cf;">Air Defender Status</h2>
 
-<div class="card">
-    <h2>Air Defender Status</h2>
-
-    <p><span class="label">Plugin Enabled:</span>
-        <span class="value"><?php echo $enabled ? "Yes" : "No"; ?></span>
-    </p>
-
-    <p><span class="label">Safety Mode:</span>
-        <span class="value"><?php echo $safetyMode ? "Active" : "Inactive"; ?></span>
-    </p>
-
-    <p><span class="label">Override Location:</span>
-        <span class="value"><?php echo $overrideLocation ? "Yes" : "No"; ?></span>
-    </p>
+    <p><strong>Plugin Enabled:</strong> <?php echo $enabled ? "Yes" : "No"; ?></p>
+    <p><strong>Safety Mode:</strong> <?php echo $safetyMode ? "Active" : "Inactive"; ?></p>
+    <p><strong>Override Location:</strong> <?php echo $overrideLocation ? "Yes" : "No"; ?></p>
 
     <?php if ($overrideLocation): ?>
-        <p><span class="label">Latitude:</span>
-            <span class="value"><?php echo $latitude; ?></span>
-        </p>
-        <p><span class="label">Longitude:</span>
-            <span class="value"><?php echo $longitude; ?></span>
-        </p>
+        <p><strong>Latitude:</strong> <?php echo $latitude; ?></p>
+        <p><strong>Longitude:</strong> <?php echo $longitude; ?></p>
     <?php endif; ?>
 
-    <p><span class="label">Distance Threshold:</span>
-        <span class="value"><?php echo $distanceNM; ?> NM</span>
-    </p>
-
-    <p><span class="label">Fetch Interval:</span>
-        <span class="value"><?php echo $fetchInterval; ?> seconds</span>
-    </p>
-
-    <p><span class="label">DMX Outputs:</span>
-        <span class="value"><?php echo $dmxOutputs ? $dmxOutputs : "None"; ?></span>
-    </p>
+    <p><strong>Distance Threshold:</strong> <?php echo $distanceNM; ?> NM</p>
+    <p><strong>Fetch Interval:</strong> <?php echo $fetchInterval; ?> seconds</p>
+    <p><strong>DMX Outputs:</strong> <?php echo $dmxOutputs ? $dmxOutputs : "None"; ?></p>
 </div>
 
-<div class="card">
-    <h2>Last Event</h2>
+<div style="background:#222;padding:20px;border-radius:8px;">
+    <h2 style="color:#6cf;">Last Event</h2>
     <p><?php echo $lastLog; ?></p>
 </div>
 
