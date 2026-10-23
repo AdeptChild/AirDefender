@@ -214,6 +214,75 @@ $selectedAdsbSource = isset($settings['adsbSource']['value']) ? (string) $settin
 $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 ?>
 
+<style>
+    .ad-toggle-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .ad-toggle-option {
+        display: inline-block;
+        flex: 1;
+        min-width: 110px;
+        cursor: pointer;
+        transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .ad-toggle-option:hover {
+        transform: translateY(-1px);
+        opacity: 1;
+    }
+
+    .ad-toggle-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .ad-toggle-button {
+        display: block;
+        padding: 10px 18px;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.12);
+        font-weight: bold;
+        text-align: center;
+        color: #fff;
+        background: #4a4a4a;
+        transition: all 0.12s ease;
+    }
+
+    .ad-toggle-option:hover .ad-toggle-button {
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.15), 0 8px 18px rgba(0,0,0,0.22);
+        filter: brightness(1.12);
+    }
+
+    .ad-toggle-option.is-on .ad-toggle-button {
+        background: #2e7d32;
+        color: #fff;
+        border-color: #3da34a;
+    }
+
+    .ad-toggle-option.is-off .ad-toggle-button {
+        background: #b71c1c;
+        color: #fff;
+        border-color: #d84343;
+    }
+
+    .ad-toggle-option.disabled .ad-toggle-button {
+        background: #3a3a3a;
+        color: #888;
+        border-color: #4a4a4a;
+        cursor: not-allowed;
+        box-shadow: none;
+        filter: none;
+    }
+
+    .ad-toggle-option.is-muted {
+        opacity: 0.5;
+    }
+</style>
+
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
     <div>
         <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
@@ -236,28 +305,28 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
         <div style="background:#1f1f1f;padding:12px;border-radius:8px;">
             <label style="display:block;color:#d9d9d9;margin-bottom:10px;font-weight:bold;">Enable Air Defender</label>
-            <div class="toggle-group" style="display:flex;gap:8px;flex-wrap:wrap;">
-                <label class="toggle-option <?php echo AirDefender_IsTruthy($settings['enabled']['value']) ? 'active-on' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
-                    <input type="radio" name="enabled" value="1" <?php echo AirDefender_IsTruthy($settings['enabled']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
-                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#2e7d32;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">On</span>
+            <div class="ad-toggle-group" data-toggle-group="enabled">
+                <label class="ad-toggle-option is-on" data-toggle-value="1" data-toggle-name="enabled">
+                    <input type="radio" name="enabled" value="1" <?php echo AirDefender_IsTruthy($settings['enabled']['value']) ? 'checked' : ''; ?>>
+                    <span class="ad-toggle-button">On</span>
                 </label>
-                <label class="toggle-option <?php echo !AirDefender_IsTruthy($settings['enabled']['value']) ? 'active-off' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
-                    <input type="radio" name="enabled" value="0" <?php echo !AirDefender_IsTruthy($settings['enabled']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
-                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#b71c1c;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">Off</span>
+                <label class="ad-toggle-option is-off" data-toggle-value="0" data-toggle-name="enabled">
+                    <input type="radio" name="enabled" value="0" <?php echo !AirDefender_IsTruthy($settings['enabled']['value']) ? 'checked' : ''; ?>>
+                    <span class="ad-toggle-button">Off</span>
                 </label>
             </div>
         </div>
 
         <div style="background:#1f1f1f;padding:12px;border-radius:8px;">
             <label style="display:block;color:#d9d9d9;margin-bottom:10px;font-weight:bold;">Enable Safety Mode</label>
-            <div class="toggle-group" style="display:flex;gap:8px;flex-wrap:wrap;">
-                <label class="toggle-option <?php echo AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'active-on' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
-                    <input type="radio" name="safetyMode" value="1" <?php echo AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
-                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#2e7d32;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">On</span>
+            <div class="ad-toggle-group" data-toggle-group="safetyMode">
+                <label class="ad-toggle-option is-on" data-toggle-value="1" data-toggle-name="safetyMode">
+                    <input type="radio" name="safetyMode" value="1" <?php echo AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'checked' : ''; ?>>
+                    <span class="ad-toggle-button">On</span>
                 </label>
-                <label class="toggle-option <?php echo !AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'active-off' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
-                    <input type="radio" name="safetyMode" value="0" <?php echo !AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
-                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#b71c1c;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">Off</span>
+                <label class="ad-toggle-option is-off" data-toggle-value="0" data-toggle-name="safetyMode">
+                    <input type="radio" name="safetyMode" value="0" <?php echo !AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'checked' : ''; ?>>
+                    <span class="ad-toggle-button">Off</span>
                 </label>
             </div>
         </div>
@@ -312,31 +381,38 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 
 <script>
 (function() {
-    var overrideLocation = document.getElementById('overrideLocation');
-    var latitudeField = document.getElementById('latitude');
-    var longitudeField = document.getElementById('longitude');
-    var adsbSource = document.getElementById('adsbSource');
-    var customUrlField = document.getElementById('adsbSourceUrl');
+    function updateToggleGroup(groupName) {
+        var group = document.querySelectorAll('[data-toggle-group="' + groupName + '"] .ad-toggle-option');
+        group.forEach(function(option) {
+            var input = option.querySelector('input');
+            var isChecked = input && input.checked;
+            option.classList.toggle('is-muted', !isChecked);
+            option.classList.toggle('disabled', !isChecked);
+            option.classList.toggle('is-on', input && input.value === '1' && isChecked);
+            option.classList.toggle('is-off', input && input.value === '0' && isChecked);
+        });
+    }
 
     function updateLocationState() {
+        var overrideLocation = document.getElementById('overrideLocation');
         var enabled = overrideLocation && overrideLocation.value === '1';
 
-        if (latitudeField) {
-            latitudeField.disabled = !enabled;
-            latitudeField.style.background = enabled ? '#111' : '#2a2a2a';
-            latitudeField.style.color = enabled ? '#fff' : '#777';
-            latitudeField.style.cursor = enabled ? 'text' : 'not-allowed';
-        }
+        ['latitude', 'longitude'].forEach(function(id) {
+            var field = document.getElementById(id);
+            if (!field) {
+                return;
+            }
 
-        if (longitudeField) {
-            longitudeField.disabled = !enabled;
-            longitudeField.style.background = enabled ? '#111' : '#2a2a2a';
-            longitudeField.style.color = enabled ? '#fff' : '#777';
-            longitudeField.style.cursor = enabled ? 'text' : 'not-allowed';
-        }
+            field.disabled = !enabled;
+            field.style.background = enabled ? '#111' : '#2a2a2a';
+            field.style.color = enabled ? '#fff' : '#777';
+            field.style.cursor = enabled ? 'text' : 'not-allowed';
+        });
     }
 
     function updateAdsbSourceState() {
+        var adsbSource = document.getElementById('adsbSource');
+        var customUrlField = document.getElementById('adsbSourceUrl');
         if (!adsbSource || !customUrlField) {
             return;
         }
@@ -348,13 +424,23 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
         customUrlField.style.color = showCustom ? '#fff' : '#777';
     }
 
-    if (overrideLocation) {
-        overrideLocation.addEventListener('change', updateLocationState);
+    document.querySelectorAll('[data-toggle-group]').forEach(function(group) {
+        var name = group.getAttribute('data-toggle-group');
+        group.querySelectorAll('input[type="radio"]').forEach(function(input) {
+            input.addEventListener('change', function() {
+                updateToggleGroup(name);
+            });
+        });
+        updateToggleGroup(name);
+    });
+
+    if (document.getElementById('overrideLocation')) {
+        document.getElementById('overrideLocation').addEventListener('change', updateLocationState);
         updateLocationState();
     }
 
-    if (adsbSource) {
-        adsbSource.addEventListener('change', updateAdsbSourceState);
+    if (document.getElementById('adsbSource')) {
+        document.getElementById('adsbSource').addEventListener('change', updateAdsbSourceState);
         updateAdsbSourceState();
     }
 })();
