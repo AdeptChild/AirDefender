@@ -1,10 +1,7 @@
 <?php
 
-require_once("/opt/fpp/www/common.php");
-
 $pluginName = "AirDefender";
 
-// Load plugin settings
 $enabled          = GetSetting($pluginName, "enabled");
 $safetyMode       = GetSetting($pluginName, "safetyMode");
 $overrideLocation = GetSetting($pluginName, "overrideLocation");
@@ -14,7 +11,6 @@ $distanceNM       = GetSetting($pluginName, "distanceNM");
 $fetchInterval    = GetSetting($pluginName, "fetchInterval");
 $dmxOutputs       = GetSetting($pluginName, "dmxOutputs");
 
-// Read last log line for status
 $logFile = "/home/fpp/media/logs/airdefender.log";
 $lastLog = "No log entries yet.";
 
@@ -28,29 +24,15 @@ if (file_exists($logFile)) {
 ?>
 
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background: #111;
-        color: #eee;
-        padding: 20px;
-    }
-    .card {
-        background: #222;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-    h2 {
-        margin-top: 0;
-        color: #6cf;
-    }
-    .label {
-        font-weight: bold;
-        color: #9cf;
-    }
-    .value {
-        color: #fff;
-    }
+.card {
+    background: #222;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+.label { font-weight: bold; color: #9cf; }
+.value { color: #fff; }
+h2 { color: #6cf; }
 </style>
 
 <div class="card">
@@ -94,3 +76,4 @@ if (file_exists($logFile)) {
     <h2>Last Event</h2>
     <p><?php echo $lastLog; ?></p>
 </div>
+
