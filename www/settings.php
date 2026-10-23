@@ -46,6 +46,29 @@ function AirDefender_PostBool($key) {
     return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
 }
 
+function AirDefender_ResolvedAdsbUrl($source, $customUrl) {
+    $source = strtolower((string) $source);
+    $customUrl = trim((string) $customUrl);
+
+    $sources = array(
+        'dump1090' => 'http://localhost:8080/data/aircraft.json',
+        'piaware' => 'http://localhost:8080/data/aircraft.json',
+        'adsbexchange' => 'https://api.adsbexchange.com/api/aircraft/v2/lat/0/lon/0/dist/100?fDstL=0&fDstU=100',
+        'radarbox' => 'https://api.radarbox.com/v2/aircraft?lat=0&lon=0&distance=50',
+        'opensky' => 'https://opensky-network.org/api/states/all',
+    );
+
+    if ($source === 'custom' && $customUrl !== '') {
+        return $customUrl;
+    }
+
+    if (isset($sources[$source])) {
+        return $sources[$source];
+    }
+
+    return $customUrl !== '' ? $customUrl : '';
+}
+
 $settings = array(
     'Plugin' => array(
         'enabled' => array(
@@ -99,8 +122,20 @@ $settings = array(
         ),
     ),
     'ADS-B Feed' => array(
+        'adsbSource' => array(
+            'label' => 'ADS-B Feed Source',
+            'type' => 'select',
+            'default' => 'custom',
+            'options' => array(
+                'custom' => 'Custom URL',
+                'piaware' => 'PiAware / dump1090',
+                'adsbexchange' => 'ADS-B Exchange',
+                'radarbox' => 'RadarBox',
+                'opensky' => 'OpenSky',
+            ),
+        ),
         'adsbSourceUrl' => array(
-            'label' => 'ADS-B JSON URL',
+            'label' => 'Custom ADS-B JSON URL',
             'type' => 'string',
             'default' => '',
         ),
@@ -153,7 +188,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $statusMessage = "Settings saved.";
+    $source = isset($_POST['adsbSource']) ? (string) $_POST['adsbSource'] : 'custom';
+    $customValue = isset($_POST['adsbSourceUrl']) ? trim((string) $_POST['adsbSourceUrl']) : '';
+    $resolvedUrl = AirDefender_ResolvedAdsbUrl($source, $customValue);
+
+    if (function_exists('SetSetting')) {
+        SetSetting($pluginName, 'adsbSourceUrl', $resolvedUrl);
+    }
+
+    $statusMessage = 'Settings saved.';
 }
 
 foreach ($settings as $sectionName => $sectionSettings) {
@@ -164,6 +207,8 @@ foreach ($settings as $sectionName => $sectionSettings) {
 }
 
 $overrideEnabled = !empty($settings['Location']['overrideLocation']['value']) ? true : false;
+$selectedAdsbSource = isset($settings['ADS-B Feed']['adsbSource']['value']) ? (string) $settings['ADS-B Feed']['adsbSource']['value'] : 'custom';
+$showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 ?>
 
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
@@ -220,6 +265,8 @@ $overrideEnabled = !empty($settings['Location']['overrideLocation']['value']) ? 
                                 <?php if (($sectionName === 'Location' && in_array($key, array('latitude', 'longitude'), true)) && !$overrideEnabled): ?>
                                     disabled
                                     style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#2a2a2a;color:#777;cursor:not-allowed;"
+                                <?php elseif ($sectionName === 'ADS-B Feed' && $key === 'adsbSourceUrl' && !$showCustomAdsbUrl): ?>
+                                    style="display:none;"
                                 <?php else: ?>
                                     style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
                                 <?php endif; ?>
@@ -246,6 +293,8 @@ $overrideEnabled = !empty($settings['Location']['overrideLocation']['value']) ? 
     var overrideSelect = document.getElementById('overrideLocation');
     var latInput = document.getElementById('latitude');
     var lonInput = document.getElementById('longitude');
+    var adsbSourceSelect = document.getElementById('adsbSource');
+    var customUrlInput = document.getElementById('adsbSourceUrl');
 
     function updateManualLocationState() {
         var enabled = overrideSelect && overrideSelect.value === '1';
@@ -265,9 +314,26 @@ $overrideEnabled = !empty($settings['Location']['overrideLocation']['value']) ? 
         }
     }
 
+    function updateAdsbSourceVisibility() {
+        if (!adsbSourceSelect || !customUrlInput) {
+            return;
+        }
+
+        var visible = adsbSourceSelect.value === 'custom';
+        customUrlInput.style.display = visible ? 'block' : 'none';
+        customUrlInput.disabled = !visible;
+        customUrlInput.style.background = visible ? '#111' : '#2a2a2a';
+        customUrlInput.style.color = visible ? '#fff' : '#777';
+    }
+
     if (overrideSelect) {
         overrideSelect.addEventListener('change', updateManualLocationState);
         updateManualLocationState();
+    }
+
+    if (adsbSourceSelect) {
+        adsbSourceSelect.addEventListener('change', updateAdsbSourceVisibility);
+        updateAdsbSourceVisibility();
     }
 })();
 </script>
