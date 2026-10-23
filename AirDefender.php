@@ -181,15 +181,15 @@ class AirDefender extends FPPPlugin
         }
     }
 
-    // Logging helper
-    private function Log($msg)
-    {
-        $line = "[" . date("Y-m-d H:i:s") . "] " . $msg . "\n";
-        file_put_contents("/home/fpp/media/logs/airdefender.log", $line, FILE_APPEND);
+   // Logging helper
+private function Log($msg) {
+    $line = "[" . date("Y-m-d H:i:s") . "] " . $msg . "\n";
+    file_put_contents("/home/fpp/media/logs/airdefender.log", $line, FILE_APPEND);
 }
 }
 
 ?>
+
 
 
 
