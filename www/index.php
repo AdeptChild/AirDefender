@@ -23,13 +23,11 @@ if (file_exists($logFile)) {
 }
 ?>
 
-<!-- HEADER -->
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;">
     <h2 style="color:#6cf;margin:0;">Air Defender</h2>
     <p style="color:#ccc;margin-top:8px;">ADS‑B Safety Monitoring Dashboard</p>
 </div>
 
-<!-- STATUS CARDS -->
 <div style="display:flex;flex-wrap:wrap;">
 
     <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
@@ -58,7 +56,6 @@ if (file_exists($logFile)) {
 
 </div>
 
-<!-- OVERRIDE LOCATION -->
 <?php if ($overrideLocation): ?>
 <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
     <h3 style="color:#6cf;margin:0 0 10px 0;">Override Location</h3>
@@ -67,10 +64,7 @@ if (file_exists($logFile)) {
 </div>
 <?php endif; ?>
 
-<!-- LAST EVENT LOG -->
 <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
     <h3 style="color:#6cf;margin:0 0 10px 0;">Last Event</h3>
     <p style="color:#eee;margin:0;"><?php echo $lastLog; ?></p>
 </div>
-
-
