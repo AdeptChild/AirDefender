@@ -16,6 +16,15 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
+function AirDefender_Option($key, $default) {
+    global $pluginName;
+    $value = GetSetting($pluginName, $key);
+    if ($value === null || $value === false || $value === "") {
+        return $default;
+    }
+    return $value;
+}
+
 function AirDefender_StateFile() {
     return "/home/fpp/media/plugins/AirDefender/state.json";
 }
@@ -60,18 +69,18 @@ function AirDefender_ReadState() {
     return $data;
 }
 
-$enabled = GetSetting($pluginName, "enabled");
-$safetyMode = GetSetting($pluginName, "safetyMode");
-$useFPPLocation = GetSetting($pluginName, "useFPPLocation");
-$overrideLocation = GetSetting($pluginName, "overrideLocation");
-$latitude = GetSetting($pluginName, "latitude");
-$longitude = GetSetting($pluginName, "longitude");
-$distanceNM = GetSetting($pluginName, "distanceNM");
-$altitudeThresholdFt = GetSetting($pluginName, "altitudeThresholdFt");
-$fetchInterval = GetSetting($pluginName, "fetchInterval");
-$adsbSourceUrl = GetSetting($pluginName, "adsbSourceUrl");
-$controllerType = GetSetting($pluginName, "controllerType");
-$serialPort = GetSetting($pluginName, "serialPort");
+$enabled = AirDefender_Option("enabled", false);
+$safetyMode = AirDefender_Option("safetyMode", false);
+$useFPPLocation = AirDefender_Option("useFPPLocation", true);
+$overrideLocation = AirDefender_Option("overrideLocation", false);
+$latitude = AirDefender_Option("latitude", "");
+$longitude = AirDefender_Option("longitude", "");
+$distanceNM = AirDefender_Option("distanceNM", 5);
+$altitudeThresholdFt = AirDefender_Option("altitudeThresholdFt", 3000);
+$fetchInterval = AirDefender_Option("fetchInterval", 10);
+$adsbSourceUrl = AirDefender_Option("adsbSourceUrl", "");
+$controllerType = AirDefender_Option("controllerType", "falcon");
+$serialPort = AirDefender_Option("serialPort", "");
 
 $state = AirDefender_ReadState();
 $lastLog = isset($state['lastEvent']) ? $state['lastEvent'] : 'No log entries yet.';
@@ -176,8 +185,8 @@ if (file_exists($logFile)) {
     <h3 style="color:#6cf;margin:0 0 10px 0;">Last Affected Aircraft</h3>
     <p style="color:#eee;margin:0;">
         <?php echo htmlspecialchars($lastAircraft['flight'] ?? $lastAircraft['hex'] ?? 'Unknown'); ?>
-        @ <?php echo isset($lastAircraft['distanceNm']) ? $lastAircraft['distanceNm'] : 'n/a'; ?> NM,
-        <?php echo isset($lastAircraft['altitudeFt']) ? $lastAircraft['altitudeFt'] : 'n/a'; ?> ft
+        @ <?php echo isset($lastAircraft['distanceNm']) ? $lastAircraft['distanceNm'] : ($state['lastDistanceNm'] ?? 'n/a'); ?> NM,
+        <?php echo isset($lastAircraft['altitudeFt']) ? $lastAircraft['altitudeFt'] : ($state['lastAltitudeFt'] ?? 'n/a'); ?> ft
     </p>
 </div>
 <?php endif; ?>
