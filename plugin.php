@@ -1,7 +1,5 @@
 <?php
 
-require_once("AirDefender.php");
-
 /*
  * Plugin Info
  */
@@ -14,23 +12,9 @@ function AirDefender_PluginInfo() {
     ];
 }
 
-/*
- * Called when plugin is installed
- */
-function AirDefender_Setup() {
-}
-
-/*
- * Called when FPPD starts
- */
-function AirDefender_Start() {
-}
-
-/*
- * Called when FPPD stops
- */
-function AirDefender_Stop() {
-}
+function AirDefender_Setup() {}
+function AirDefender_Start() {}
+function AirDefender_Stop() {}
 
 /*
  * Page Router
