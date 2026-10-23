@@ -1,6 +1,6 @@
 {
-    "name": "AirDefender",
-    "displayName": "Air Defender",
+    "repoName": "AirDefender",
+    "name": "Air Defender",
     "author": "G Hancox",
     "description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
     "license": "MIT",
@@ -11,12 +11,10 @@
 
     "versions": [
         {
-            "version": "1.0.0",
-            "sha": "",
-            "branch": "master",
-            "minFPPVersion": "7.0",
+            "minFPPVersion": "10.0",
             "maxFPPVersion": "0",
-            "allowUpdates": 1
+            "branch": "master",
+            "sha": ""
         }
     ],
 
@@ -36,15 +34,5 @@
         "other": [],
         "thirdParty": [],
         "reviewed": []
-    },
-
-    "settings": {
-        "enabled": { "type": "bool", "default": false },
-        "safetyMode": { "type": "bool", "default": false },
-        "overrideLocation": { "type": "bool", "default": false },
-        "latitude": { "type": "string", "default": "" },
-        "longitude": { "type": "string", "default": "" },
-        "distanceNM": { "type": "int", "default": 5 },
-        "fetchInterval": { "type": "int", "default": 10 }
     }
 }
