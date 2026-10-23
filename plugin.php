@@ -5,7 +5,7 @@ function AirDefender_PluginInfo() {
     return [
         "name" => "AirDefender",
         "displayName" => "Air Defender",
-        "author" => "G Hancox",
+        "author": "G Hancox",
         "description" => "ADS-B aircraft monitoring and DMX safety automation plugin for FPP."
     ];
 }
@@ -20,5 +20,9 @@ function AirDefender_Start() {
 
 function AirDefender_Stop() {
     // Called when FPPD stops
+}
+
+function AirDefender_Page($page) {
+    include($page);
 }
 ?>
