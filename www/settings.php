@@ -43,16 +43,32 @@ function AirDefender_PostBool($key) {
         return $value;
     }
 
-    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
+    return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on', 'y'), true);
 }
 
-function AirDefender_ResolvedAdsbUrl($source, $customUrl) {
+function AirDefender_IsTruthy($value) {
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    if (is_int($value) || is_float($value)) {
+        return $value != 0;
+    }
+
+    if (is_string($value)) {
+        return in_array(strtolower(trim($value)), array('1', 'true', 'yes', 'on', 'y'), true);
+    }
+
+    return !empty($value);
+}
+
+function AirDefender_ResolveAdsbSource($source, $customUrl) {
     $source = strtolower((string) $source);
     $customUrl = trim((string) $customUrl);
 
-    $sources = array(
-        'dump1090' => 'http://localhost:8080/data/aircraft.json',
+    $defaults = array(
         'piaware' => 'http://localhost:8080/data/aircraft.json',
+        'dump1090' => 'http://localhost:8080/data/aircraft.json',
         'adsbexchange' => 'https://api.adsbexchange.com/api/aircraft/v2/lat/0/lon/0/dist/100?fDstL=0&fDstU=100',
         'radarbox' => 'https://api.radarbox.com/v2/aircraft?lat=0&lon=0&distance=50',
         'opensky' => 'https://opensky-network.org/api/states/all',
@@ -62,163 +78,150 @@ function AirDefender_ResolvedAdsbUrl($source, $customUrl) {
         return $customUrl;
     }
 
-    if (isset($sources[$source])) {
-        return $sources[$source];
+    if (isset($defaults[$source])) {
+        return $defaults[$source];
     }
 
     return $customUrl !== '' ? $customUrl : '';
 }
 
 $settings = array(
-    'Plugin' => array(
-        'enabled' => array(
-            'label' => 'Enable Air Defender',
-            'type' => 'bool',
-            'default' => false,
-        ),
-        'safetyMode' => array(
-            'label' => 'Safety Mode Enabled',
-            'type' => 'bool',
-            'default' => false,
+    'enabled' => array(
+        'label' => 'Enable Air Defender',
+        'type' => 'bool',
+        'default' => false,
+    ),
+    'safetyMode' => array(
+        'label' => 'Enable Safety Mode',
+        'type' => 'bool',
+        'default' => false,
+    ),
+    'useFPPLocation' => array(
+        'label' => 'Use FPP Location',
+        'type' => 'bool',
+        'default' => true,
+    ),
+    'overrideLocation' => array(
+        'label' => 'Override Location',
+        'type' => 'bool',
+        'default' => false,
+    ),
+    'latitude' => array(
+        'label' => 'Latitude',
+        'type' => 'string',
+        'default' => '',
+    ),
+    'longitude' => array(
+        'label' => 'Longitude',
+        'type' => 'string',
+        'default' => '',
+    ),
+    'distanceNM' => array(
+        'label' => 'Distance Threshold (NM)',
+        'type' => 'int',
+        'default' => 5,
+    ),
+    'altitudeThresholdFt' => array(
+        'label' => 'Altitude Threshold (ft)',
+        'type' => 'int',
+        'default' => 3000,
+    ),
+    'fetchInterval' => array(
+        'label' => 'ADS-B Fetch Interval (seconds)',
+        'type' => 'int',
+        'default' => 10,
+    ),
+    'adsbSource' => array(
+        'label' => 'ADS-B Feed Source',
+        'type' => 'select',
+        'default' => 'custom',
+        'options' => array(
+            'custom' => 'Custom URL',
+            'piaware' => 'PiAware / dump1090',
+            'adsbexchange' => 'ADS-B Exchange',
+            'radarbox' => 'RadarBox',
+            'opensky' => 'OpenSky',
         ),
     ),
-    'Location' => array(
-        'useFPPLocation' => array(
-            'label' => 'Use FPP Location',
-            'type' => 'bool',
-            'default' => true,
-        ),
-        'overrideLocation' => array(
-            'label' => 'Use Override Location',
-            'type' => 'bool',
-            'default' => false,
-        ),
-        'latitude' => array(
-            'label' => 'Latitude',
-            'type' => 'string',
-            'default' => '',
-        ),
-        'longitude' => array(
-            'label' => 'Longitude',
-            'type' => 'string',
-            'default' => '',
-        ),
+    'adsbSourceUrl' => array(
+        'label' => 'Custom ADS-B JSON URL',
+        'type' => 'string',
+        'default' => '',
     ),
-    'Detection' => array(
-        'distanceNM' => array(
-            'label' => 'Distance Threshold (NM)',
-            'type' => 'int',
-            'default' => 5,
-        ),
-        'altitudeThresholdFt' => array(
-            'label' => 'Altitude Threshold (ft)',
-            'type' => 'int',
-            'default' => 3000,
-        ),
-        'fetchInterval' => array(
-            'label' => 'ADS-B Fetch Interval (seconds)',
-            'type' => 'int',
-            'default' => 10,
-        ),
+    'controllerType' => array(
+        'label' => 'Controller Type',
+        'type' => 'select',
+        'default' => 'falcon',
+        'options' => array('falcon' => 'Falcon', 'kulp' => 'Kulp', 'generic' => 'Generic'),
     ),
-    'ADS-B Feed' => array(
-        'adsbSource' => array(
-            'label' => 'ADS-B Feed Source',
-            'type' => 'select',
-            'default' => 'custom',
-            'options' => array(
-                'custom' => 'Custom URL',
-                'piaware' => 'PiAware / dump1090',
-                'adsbexchange' => 'ADS-B Exchange',
-                'radarbox' => 'RadarBox',
-                'opensky' => 'OpenSky',
-            ),
-        ),
-        'adsbSourceUrl' => array(
-            'label' => 'Custom ADS-B JSON URL',
-            'type' => 'string',
-            'default' => '',
-        ),
+    'serialPort' => array(
+        'label' => 'Serial Port',
+        'type' => 'string',
+        'default' => '',
     ),
-    'Controller' => array(
-        'controllerType' => array(
-            'label' => 'Controller Type',
-            'type' => 'select',
-            'default' => 'falcon',
-            'options' => array('falcon' => 'Falcon', 'kulp' => 'Kulp', 'generic' => 'Generic'),
-        ),
-        'serialPort' => array(
-            'label' => 'Serial Port',
-            'type' => 'string',
-            'default' => '',
-        ),
-        'dmxOutputs' => array(
-            'label' => 'DMX Outputs (comma-separated)',
-            'type' => 'string',
-            'default' => '',
-        ),
+    'dmxOutputs' => array(
+        'label' => 'DMX Outputs (comma-separated)',
+        'type' => 'string',
+        'default' => '',
     ),
 );
 
 $statusMessage = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    foreach ($settings as $sectionName => $sectionSettings) {
-        foreach ($sectionSettings as $key => $config) {
-            if (!isset($_POST[$key])) {
-                continue;
-            }
+    foreach ($settings as $key => $config) {
+        if (!isset($_POST[$key])) {
+            continue;
+        }
 
-            $postedValue = $_POST[$key];
-            $finalValue = $config['default'];
+        $postedValue = $_POST[$key];
+        $finalValue = $config['default'];
 
-            if ($config['type'] === 'bool') {
-                $finalValue = AirDefender_PostBool($key);
-            } elseif ($config['type'] === 'int') {
-                $finalValue = (int) $postedValue;
-            } elseif ($config['type'] === 'select') {
-                $finalValue = (string) $postedValue;
-            } else {
-                $finalValue = trim((string) $postedValue);
-            }
+        if ($config['type'] === 'bool') {
+            $finalValue = AirDefender_PostBool($key);
+        } elseif ($config['type'] === 'int') {
+            $finalValue = (int) $postedValue;
+        } elseif ($config['type'] === 'select') {
+            $finalValue = (string) $postedValue;
+        } else {
+            $finalValue = trim((string) $postedValue);
+        }
 
-            if (function_exists('SetSetting')) {
-                SetSetting($pluginName, $key, $finalValue);
-            }
+        if (function_exists('SetSetting')) {
+            SetSetting($pluginName, $key, $finalValue);
         }
     }
 
     $source = isset($_POST['adsbSource']) ? (string) $_POST['adsbSource'] : 'custom';
-    $customValue = isset($_POST['adsbSourceUrl']) ? trim((string) $_POST['adsbSourceUrl']) : '';
-    $resolvedUrl = AirDefender_ResolvedAdsbUrl($source, $customValue);
+    $customUrl = isset($_POST['adsbSourceUrl']) ? trim((string) $_POST['adsbSourceUrl']) : '';
+    $resolvedUrl = AirDefender_ResolveAdsbSource($source, $customUrl);
 
     if (function_exists('SetSetting')) {
+        SetSetting($pluginName, 'adsbSource', $source);
         SetSetting($pluginName, 'adsbSourceUrl', $resolvedUrl);
     }
 
     $statusMessage = 'Settings saved.';
 }
 
-foreach ($settings as $sectionName => $sectionSettings) {
-    foreach ($sectionSettings as $key => $config) {
-        $value = AirDefender_StoredValue($pluginName, $key, $config['default']);
-        $settings[$sectionName][$key]['value'] = $value;
-    }
+foreach ($settings as $key => $config) {
+    $value = AirDefender_StoredValue($pluginName, $key, $config['default']);
+    $settings[$key]['value'] = $value;
 }
 
-$overrideEnabled = !empty($settings['Location']['overrideLocation']['value']) ? true : false;
-$selectedAdsbSource = isset($settings['ADS-B Feed']['adsbSource']['value']) ? (string) $settings['ADS-B Feed']['adsbSource']['value'] : 'custom';
+$overrideLocationEnabled = AirDefender_IsTruthy($settings['overrideLocation']['value']);
+$selectedAdsbSource = isset($settings['adsbSource']['value']) ? (string) $settings['adsbSource']['value'] : 'custom';
 $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 ?>
 
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
     <div>
         <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
-        <p style="color:#ccc;margin-top:8px;">Defaults are loaded automatically when no saved value exists.</p>
+        <p style="color:#ccc;margin-top:8px;">Saved settings are loaded automatically when you revisit this page.</p>
     </div>
     <div>
         <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#6cf;color:#111;text-decoration:none;font-weight:bold;">
-            Back to Dashboard
+            Dashboard
         </a>
     </div>
 </div>
@@ -230,53 +233,72 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 <?php endif; ?>
 
 <form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" style="background:#2a2a2a;padding:20px;border-radius:10px;">
-    <?php foreach ($settings as $sectionName => $sectionSettings): ?>
-        <div style="margin-bottom:28px;">
-            <h3 style="color:#6cf;margin:0 0 12px 0;font-size:18px;">
-                <?php echo htmlspecialchars($sectionName); ?>
-            </h3>
-
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
-                <?php foreach ($sectionSettings as $key => $config): ?>
-                    <div style="background:#1f1f1f;padding:12px;border-radius:8px;">
-                        <label for="<?php echo htmlspecialchars($key); ?>" style="display:block;color:#d9d9d9;margin-bottom:8px;font-weight:bold;">
-                            <?php echo htmlspecialchars($config['label']); ?>
-                        </label>
-
-                        <?php if ($config['type'] === 'bool'): ?>
-                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
-                                <option value="1" <?php echo (!empty($config['value']) && (string) $config['value'] !== '0') ? 'selected' : ''; ?>>Yes</option>
-                                <option value="0" <?php echo (empty($config['value']) || (string) $config['value'] === '0') ? 'selected' : ''; ?>>No</option>
-                            </select>
-                        <?php elseif ($config['type'] === 'select'): ?>
-                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
-                                <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
-                                    <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($optionLabel); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        <?php else: ?>
-                            <input
-                                type="text"
-                                name="<?php echo htmlspecialchars($key); ?>"
-                                id="<?php echo htmlspecialchars($key); ?>"
-                                value="<?php echo htmlspecialchars((string) $config['value']); ?>"
-                                <?php if (($sectionName === 'Location' && in_array($key, array('latitude', 'longitude'), true)) && !$overrideEnabled): ?>
-                                    disabled
-                                    style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#2a2a2a;color:#777;cursor:not-allowed;"
-                                <?php elseif ($sectionName === 'ADS-B Feed' && $key === 'adsbSourceUrl' && !$showCustomAdsbUrl): ?>
-                                    style="display:none;"
-                                <?php else: ?>
-                                    style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
-                                <?php endif; ?>
-                            >
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
+        <div style="background:#1f1f1f;padding:12px;border-radius:8px;">
+            <label style="display:block;color:#d9d9d9;margin-bottom:10px;font-weight:bold;">Enable Air Defender</label>
+            <div class="toggle-group" style="display:flex;gap:8px;flex-wrap:wrap;">
+                <label class="toggle-option <?php echo AirDefender_IsTruthy($settings['enabled']['value']) ? 'active-on' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
+                    <input type="radio" name="enabled" value="1" <?php echo AirDefender_IsTruthy($settings['enabled']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
+                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#2e7d32;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">On</span>
+                </label>
+                <label class="toggle-option <?php echo !AirDefender_IsTruthy($settings['enabled']['value']) ? 'active-off' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
+                    <input type="radio" name="enabled" value="0" <?php echo !AirDefender_IsTruthy($settings['enabled']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
+                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#b71c1c;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">Off</span>
+                </label>
             </div>
         </div>
-    <?php endforeach; ?>
+
+        <div style="background:#1f1f1f;padding:12px;border-radius:8px;">
+            <label style="display:block;color:#d9d9d9;margin-bottom:10px;font-weight:bold;">Enable Safety Mode</label>
+            <div class="toggle-group" style="display:flex;gap:8px;flex-wrap:wrap;">
+                <label class="toggle-option <?php echo AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'active-on' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
+                    <input type="radio" name="safetyMode" value="1" <?php echo AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
+                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#2e7d32;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">On</span>
+                </label>
+                <label class="toggle-option <?php echo !AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'active-off' : ''; ?>" style="display:inline-block;flex:1;min-width:110px;">
+                    <input type="radio" name="safetyMode" value="0" <?php echo !AirDefender_IsTruthy($settings['safetyMode']['value']) ? 'checked' : ''; ?> style="position:absolute;opacity:0;pointer-events:none;">
+                    <span style="display:block;padding:10px 18px;border-radius:6px;border:none;background:#b71c1c;color:#fff;font-weight:bold;text-align:center;cursor:pointer;">Off</span>
+                </label>
+            </div>
+        </div>
+
+        <?php foreach ($settings as $key => $config): ?>
+            <?php if (in_array($key, array('enabled', 'safetyMode'), true)) continue; ?>
+            <div style="background:#1f1f1f;padding:12px;border-radius:8px;">
+                <label for="<?php echo htmlspecialchars($key); ?>" style="display:block;color:#d9d9d9;margin-bottom:8px;font-weight:bold;">
+                    <?php echo htmlspecialchars($config['label']); ?>
+                </label>
+
+                <?php if ($config['type'] === 'bool'): ?>
+                    <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                        <option value="1" <?php echo !empty($config['value']) ? 'selected' : ''; ?>>Yes</option>
+                        <option value="0" <?php echo empty($config['value']) ? 'selected' : ''; ?>>No</option>
+                    </select>
+                <?php elseif ($config['type'] === 'select'): ?>
+                    <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                        <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
+                            <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($optionLabel); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <input
+                        type="text"
+                        name="<?php echo htmlspecialchars($key); ?>"
+                        id="<?php echo htmlspecialchars($key); ?>"
+                        value="<?php echo htmlspecialchars((string) $config['value']); ?>"
+                        <?php if ($key === 'latitude' || $key === 'longitude') { ?>
+                            <?php if (!$overrideLocationEnabled): ?>
+                                disabled
+                            <?php endif; ?>
+                        <?php } ?>
+                        style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:<?php echo (($key === 'latitude' || $key === 'longitude') && !$overrideLocationEnabled) ? '#2a2a2a' : '#111'; ?>;color:<?php echo (($key === 'latitude' || $key === 'longitude') && !$overrideLocationEnabled) ? '#777' : '#fff'; ?>;cursor:<?php echo (($key === 'latitude' || $key === 'longitude') && !$overrideLocationEnabled) ? 'not-allowed' : 'text'; ?>;"
+                    >
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
 
     <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
         <button type="submit" style="padding:10px 18px;border-radius:6px;border:none;background:#6cf;color:#111;font-weight:bold;cursor:pointer;">
@@ -290,50 +312,50 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 
 <script>
 (function() {
-    var overrideSelect = document.getElementById('overrideLocation');
-    var latInput = document.getElementById('latitude');
-    var lonInput = document.getElementById('longitude');
-    var adsbSourceSelect = document.getElementById('adsbSource');
-    var customUrlInput = document.getElementById('adsbSourceUrl');
+    var overrideLocation = document.getElementById('overrideLocation');
+    var latitudeField = document.getElementById('latitude');
+    var longitudeField = document.getElementById('longitude');
+    var adsbSource = document.getElementById('adsbSource');
+    var customUrlField = document.getElementById('adsbSourceUrl');
 
-    function updateManualLocationState() {
-        var enabled = overrideSelect && overrideSelect.value === '1';
+    function updateLocationState() {
+        var enabled = overrideLocation && overrideLocation.value === '1';
 
-        if (latInput) {
-            latInput.disabled = !enabled;
-            latInput.style.background = enabled ? '#111' : '#2a2a2a';
-            latInput.style.color = enabled ? '#fff' : '#777';
-            latInput.style.cursor = enabled ? 'text' : 'not-allowed';
+        if (latitudeField) {
+            latitudeField.disabled = !enabled;
+            latitudeField.style.background = enabled ? '#111' : '#2a2a2a';
+            latitudeField.style.color = enabled ? '#fff' : '#777';
+            latitudeField.style.cursor = enabled ? 'text' : 'not-allowed';
         }
 
-        if (lonInput) {
-            lonInput.disabled = !enabled;
-            lonInput.style.background = enabled ? '#111' : '#2a2a2a';
-            lonInput.style.color = enabled ? '#fff' : '#777';
-            lonInput.style.cursor = enabled ? 'text' : 'not-allowed';
+        if (longitudeField) {
+            longitudeField.disabled = !enabled;
+            longitudeField.style.background = enabled ? '#111' : '#2a2a2a';
+            longitudeField.style.color = enabled ? '#fff' : '#777';
+            longitudeField.style.cursor = enabled ? 'text' : 'not-allowed';
         }
     }
 
-    function updateAdsbSourceVisibility() {
-        if (!adsbSourceSelect || !customUrlInput) {
+    function updateAdsbSourceState() {
+        if (!adsbSource || !customUrlField) {
             return;
         }
 
-        var visible = adsbSourceSelect.value === 'custom';
-        customUrlInput.style.display = visible ? 'block' : 'none';
-        customUrlInput.disabled = !visible;
-        customUrlInput.style.background = visible ? '#111' : '#2a2a2a';
-        customUrlInput.style.color = visible ? '#fff' : '#777';
+        var showCustom = adsbSource.value === 'custom';
+        customUrlField.style.display = showCustom ? 'block' : 'none';
+        customUrlField.disabled = !showCustom;
+        customUrlField.style.background = showCustom ? '#111' : '#2a2a2a';
+        customUrlField.style.color = showCustom ? '#fff' : '#777';
     }
 
-    if (overrideSelect) {
-        overrideSelect.addEventListener('change', updateManualLocationState);
-        updateManualLocationState();
+    if (overrideLocation) {
+        overrideLocation.addEventListener('change', updateLocationState);
+        updateLocationState();
     }
 
-    if (adsbSourceSelect) {
-        adsbSourceSelect.addEventListener('change', updateAdsbSourceVisibility);
-        updateAdsbSourceVisibility();
+    if (adsbSource) {
+        adsbSource.addEventListener('change', updateAdsbSourceState);
+        updateAdsbSourceState();
     }
 })();
 </script>
