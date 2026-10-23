@@ -108,11 +108,6 @@ $settings = array(
         'type' => 'bool',
         'default' => true,
     ),
-    'overrideLocation' => array(
-        'label' => 'Override Location',
-        'type' => 'bool',
-        'default' => false,
-    ),
     'latitude' => array(
         'label' => 'Latitude',
         'type' => 'string',
@@ -175,7 +170,7 @@ $settings = array(
 
 $settingGroups = array(
     'Plugin Status' => array('enabled', 'safetyMode'),
-    'Location' => array('useFPPLocation', 'overrideLocation', 'latitude', 'longitude'),
+    'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
     'ADS-B Feed' => array('adsbSource', 'adsbSourceUrl'),
     'Controller' => array('controllerType', 'serialPort', 'dmxOutputs'),
@@ -224,7 +219,7 @@ foreach ($settings as $key => $config) {
     $settings[$key]['value'] = $value;
 }
 
-$overrideLocationEnabled = AirDefender_IsTruthy($settings['overrideLocation']['value']);
+$useFppLocationEnabled = AirDefender_IsTruthy($settings['useFPPLocation']['value']);
 $selectedAdsbSource = isset($settings['adsbSource']['value']) ? (string) $settings['adsbSource']['value'] : 'custom';
 $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
 ?>
@@ -364,11 +359,11 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
                                 id="<?php echo htmlspecialchars($key); ?>"
                                 value="<?php echo htmlspecialchars((string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default'])); ?>"
                                 <?php if ($key === 'latitude' || $key === 'longitude') { ?>
-                                    <?php if (!$overrideLocationEnabled): ?>
+                                    <?php if ($useFppLocationEnabled): ?>
                                         disabled
                                     <?php endif; ?>
                                 <?php } ?>
-                                style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo (($key === 'latitude' || $key === 'longitude') && !$overrideLocationEnabled) ? 'background:#1a1a1a;color:#888;cursor:not-allowed;opacity:0.45;' : ''; ?>"
+                                style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo (($key === 'latitude' || $key === 'longitude') && $useFppLocationEnabled) ? 'background:#1a1a1a;color:#888;cursor:not-allowed;opacity:0.45;' : ''; ?>"
                             >
                         <?php endif; ?>
                     </div>
@@ -409,14 +404,14 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
         });
     }
 
-    function updateOverrideLocationState() {
-        var group = document.querySelector('[data-boolean-group="overrideLocation"]');
+    function updateLocationState() {
+        var group = document.querySelector('[data-boolean-group="useFPPLocation"]');
         if (!group) {
             return;
         }
 
         var yesRadio = group.querySelector('input[type="radio"][value="1"]');
-        var enabled = yesRadio && yesRadio.checked;
+        var useFpp = yesRadio && yesRadio.checked;
 
         ['latitude', 'longitude'].forEach(function (id) {
             var input = document.getElementById(id);
@@ -424,43 +419,29 @@ $showCustomAdsbUrl = ($selectedAdsbSource === 'custom');
                 return;
             }
 
-            input.disabled = !enabled;
-            input.style.background = enabled ? '#111' : '#1a1a1a';
-            input.style.color = enabled ? '#fff' : '#888';
-            input.style.cursor = enabled ? 'text' : 'not-allowed';
-            input.style.opacity = enabled ? '1' : '0.45';
+            input.disabled = useFpp;
+            input.style.background = useFpp ? '#1a1a1a' : '#111';
+            input.style.color = useFpp ? '#888' : '#fff';
+            input.style.cursor = useFpp ? 'not-allowed' : 'text';
+            input.style.opacity = useFpp ? '0.45' : '1';
         });
     }
 
-    function setDefaultOverrideNo() {
-        var group = document.querySelector('[data-boolean-group="overrideLocation"]');
-        if (!group) {
-            return;
-        }
-
-        var noRadio = group.querySelector('input[type="radio"][value="0"]');
-        if (noRadio && !noRadio.checked) {
-            noRadio.checked = true;
-        }
-    }
-
     document.addEventListener('DOMContentLoaded', function () {
-        setDefaultOverrideNo();
-
         document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
             updateToggleVisuals(group);
 
             group.querySelectorAll('input[type="radio"]').forEach(function (radio) {
                 radio.addEventListener('change', function () {
                     updateToggleVisuals(group);
-                    if (group.getAttribute('data-boolean-group') === 'overrideLocation') {
-                        updateOverrideLocationState();
+                    if (group.getAttribute('data-boolean-group') === 'useFPPLocation') {
+                        updateLocationState();
                     }
                 });
             });
         });
 
-        updateOverrideLocationState();
+        updateLocationState();
     });
 })();
 </script>
