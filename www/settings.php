@@ -39,7 +39,7 @@ function AirDefender_NormalizeValue($value, $default) {
 }
 
 function AirDefender_StoredValue($pluginName, $key, $default) {
-    $value = GetSetting($pluginName, $key);
+    $value = function_exists('ReadSettingFromFile') ? ReadSettingFromFile($key, $pluginName) : null;
     return AirDefender_NormalizeValue($value, $default);
 }
 
@@ -232,8 +232,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $finalValue = trim((string) $postedValue);
         }
 
-        if (function_exists('SetSetting')) {
-            SetSetting($pluginName, $key, $finalValue);
+               if (function_exists('WriteSettingToFile')) {
+            $toStore = is_bool($finalValue) ? ($finalValue ? '1' : '0') : $finalValue;
+            WriteSettingToFile($key, $toStore, $pluginName);
         }
     }
 
