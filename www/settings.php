@@ -38,8 +38,47 @@ function AirDefender_NormalizeValue($value, $default) {
     return $value;
 }
 
+function AirDefender_ConfigPath($pluginName) {
+    global $mediaDirectory;
+    $dir = !empty($mediaDirectory) ? $mediaDirectory : '/home/fpp/media';
+    return $dir . '/config/plugin.' . $pluginName;
+}
+
+function AirDefender_LoadAll($pluginName) {
+    $path = AirDefender_ConfigPath($pluginName);
+    $data = array();
+    if (!is_readable($path)) {
+        return $data;
+    }
+    $lines = @file($path, FILE_IGNORE_NEW_LINES);
+    if (!is_array($lines)) {
+        return $data;
+    }
+    foreach ($lines as $line) {
+        $parts = explode('=', $line, 2);
+        if (count($parts) === 2) {
+            $data[trim($parts[0])] = trim(trim($parts[1]), "\"");
+        }
+    }
+    return $data;
+}
+
+function AirDefender_SaveAll($pluginName, $values) {
+    $path = AirDefender_ConfigPath($pluginName);
+    $data = array_merge(AirDefender_LoadAll($pluginName), $values);
+    $out = '';
+    foreach ($data as $k => $v) {
+        $out .= $k . ' = "' . str_replace(array('"', "\n", "\r"), '', (string) $v) . '"' . "\n";
+    }
+    return @file_put_contents($path, $out, LOCK_EX) !== false;
+}
+
 function AirDefender_StoredValue($pluginName, $key, $default) {
-    $value = function_exists('ReadSettingFromFile') ? ReadSettingFromFile($key, $pluginName) : null;
+    static $stored = null;
+    if ($stored === null) {
+        $stored = AirDefender_LoadAll($pluginName);
+    }
+    $value = isset($stored[$key]) ? $stored[$key] : null;
     return AirDefender_NormalizeValue($value, $default);
 }
 
@@ -214,31 +253,31 @@ $settingGroups = array(
 $statusMessage = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $toSave = array();
+
     foreach ($settings as $key => $config) {
         if (!isset($_POST[$key])) {
             continue;
         }
 
         $postedValue = $_POST[$key];
-        $finalValue = $config['default'];
 
         if ($config['type'] === 'bool') {
-            $finalValue = AirDefender_PostBool($key);
+            $toSave[$key] = AirDefender_PostBool($key) ? '1' : '0';
         } elseif ($config['type'] === 'int') {
-            $finalValue = (int) $postedValue;
+            $toSave[$key] = (string) (int) $postedValue;
         } elseif ($config['type'] === 'select') {
-            $finalValue = (string) $postedValue;
+            $toSave[$key] = (string) $postedValue;
         } else {
-            $finalValue = trim((string) $postedValue);
-        }
-
-               if (function_exists('WriteSettingToFile')) {
-            $toStore = is_bool($finalValue) ? ($finalValue ? '1' : '0') : $finalValue;
-            WriteSettingToFile($key, $toStore, $pluginName);
+            $toSave[$key] = trim((string) $postedValue);
         }
     }
 
-    $statusMessage = "Settings saved.";
+    if (AirDefender_SaveAll($pluginName, $toSave)) {
+        $statusMessage = "Settings saved.";
+    } else {
+        $statusMessage = "ERROR: could not write " . AirDefender_ConfigPath($pluginName) . " (check file permissions).";
+    }
 }
 
 foreach ($settings as $key => $config) {
