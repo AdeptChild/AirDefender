@@ -173,10 +173,17 @@ $settings = array(
         'type' => 'int',
         'default' => 10,
     ),
-        'adsbSourceUrl' => array(
+            'adsbSourceUrl' => array(
         'label' => 'ADS-B JSON URL',
-        'type' => 'string',
-        'default' => '',
+        'type' => 'select',
+        'default' => 'https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}',
+        'options' => array(
+            'https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}' => 'airplanes.live (default)',
+            'https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}' => 'adsb.lol',
+            'https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{radius}' => 'adsb.fi',
+            'http://localhost/tar1090/data/aircraft.json' => 'Local receiver (tar1090)',
+            'http://localhost:8080/data/aircraft.json' => 'Local receiver (dump1090-fa)',
+        ),
     ),
     'controllerType' => array(
         'label' => 'Controller Type',
