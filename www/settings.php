@@ -185,21 +185,21 @@ $settings = array(
             'http://localhost:8080/data/aircraft.json' => 'Local receiver (dump1090-fa)',
         ),
     ),
-    'controllerType' => array(
+       'controllerType' => array(
         'label' => 'Controller Type',
         'type' => 'select',
         'default' => 'falcon',
         'options' => array('falcon' => 'Falcon', 'kulp' => 'Kulp', 'generic' => 'Generic'),
     ),
-    'serialPort' => array(
-        'label' => 'Serial Port',
-        'type' => 'string',
-        'default' => '',
+    'blackoutStartChannel' => array(
+        'label' => 'Blackout Start Channel',
+        'type' => 'int',
+        'default' => 82448,
     ),
-    'dmxOutputs' => array(
-        'label' => 'DMX Outputs (comma-separated)',
-        'type' => 'string',
-        'default' => '',
+    'blackoutEndChannel' => array(
+        'label' => 'Blackout End Channel',
+        'type' => 'int',
+        'default' => 82751,
     ),
 );
 
@@ -208,7 +208,7 @@ $settingGroups = array(
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
     'ADS-B Feed' => array('adsbSourceUrl'),
-    'Controller' => array('controllerType', 'serialPort', 'dmxOutputs'),
+        'Controller' => array('controllerType', 'blackoutStartChannel', 'blackoutEndChannel'),
 );
 
 $statusMessage = '';
