@@ -23,7 +23,8 @@ function airdefender_read_state(): array
             'lastAltitudeFt' => null,
             'lastUpdated' => null,
             'controllerType' => 'falcon',
-            'serialPort' => '',
+            'blackoutStartChannel' => 0,
+            'blackoutEndChannel' => 0,
         ];
     }
 
@@ -37,7 +38,8 @@ function airdefender_read_state(): array
             'lastAltitudeFt' => null,
             'lastUpdated' => null,
             'controllerType' => 'falcon',
-            'serialPort' => '',
+            'blackoutStartChannel' => 0,
+            'blackoutEndChannel' => 0,
         ];
     }
 
@@ -51,7 +53,8 @@ function airdefender_read_state(): array
             'lastAltitudeFt' => null,
             'lastUpdated' => null,
             'controllerType' => 'falcon',
-            'serialPort' => '',
+            'blackoutStartChannel' => 0,
+            'blackoutEndChannel' => 0,
         ];
     }
 
@@ -122,37 +125,27 @@ function airdefender_get_fpp_lat_lon() {
     $lat = null;
     $lon = null;
 
-    if (function_exists('GetSetting')) {
-        $candidates = [
-            ['System', 'Latitude'],
-            ['System', 'longitude'],
-            ['Settings', 'Latitude'],
-            ['Settings', 'longitude'],
-            ['Location', 'Latitude'],
-            ['Location', 'Longitude'],
-            ['fpp', 'latitude'],
-            ['fpp', 'longitude'],
-            ['Global', 'latitude'],
-            ['Global', 'longitude'],
-            ['fpp', 'lat'],
-            ['fpp', 'lon'],
-        ];
+    $lines = @file('/home/fpp/media/settings', FILE_IGNORE_NEW_LINES);
+    if (is_array($lines)) {
+        foreach ($lines as $line) {
+            $parts = explode('=', $line, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
 
-        foreach ($candidates as [$section, $field]) {
-            $value = GetSetting($section, $field);
-            if ($value !== null && $value !== false && $value !== '') {
-                if (strtolower($field) === 'latitude' || strtolower($field) === 'lat') {
-                    $lat = (float) $value;
-                } elseif (strtolower($field) === 'longitude' || strtolower($field) === 'lon') {
-                    $lon = (float) $value;
-                }
+            $k = trim($parts[0]);
+            $v = trim(trim($parts[1]), "\"' ");
+
+            if ($k === 'Latitude' && is_numeric($v)) {
+                $lat = (float) $v;
+            } elseif ($k === 'Longitude' && is_numeric($v)) {
+                $lon = (float) $v;
             }
         }
     }
 
     return [$lat, $lon];
 }
-
 function airdefender_distance_nm(float $lat1, float $lon1, float $lat2, float $lon2): float
 {
     $earthRadiusNm = 3440.065;
@@ -223,8 +216,8 @@ function airdefender_find_triggering_aircraft($showLat, $showLon, $distanceNm, $
         }
 
         $altitude = $plane['alt_geom'] ?? $plane['alt_baro'] ?? null;
-        if ($altitude === null) {
-            continue;
+        if (!is_numeric($altitude)) {
+        continue;
         }
 
         $distance = airdefender_distance_nm($showLat, $showLon, (float) $plane['lat'], (float) $plane['lon']);
@@ -267,7 +260,8 @@ if (!$enabled) {
     $state['lastEvent'] = 'Plugin disabled';
     $state['lastUpdated'] = date('c');
     $state['controllerType'] = $controllerType;
-    $state['serialPort'] = $serialPort;
+    $state['blackoutStartChannel'] = $blackoutStartChannel;
+    $state['blackoutEndChannel'] = $blackoutEndChannel;
     airdefender_write_state($state);
     exit(0);
 }
@@ -278,7 +272,8 @@ if (empty($adsbUrl)) {
     $state['lastEvent'] = 'ADS-B URL is empty; waiting for configuration.';
     $state['lastUpdated'] = date('c');
     $state['controllerType'] = $controllerType;
-    $state['serialPort'] = $serialPort;
+    $state['blackoutStartChannel'] = $blackoutStartChannel;
+    $state['blackoutEndChannel'] = $blackoutEndChannel;
     airdefender_write_state($state);
     airdefender_log("ADS-B URL is empty; plugin waiting for configuration.");
     exit(0);
@@ -304,18 +299,26 @@ if ($showLat === null || $showLon === null) {
     $state['lastEvent'] = 'No valid location available. Check FPP or manual override.';
     $state['lastUpdated'] = date('c');
     $state['controllerType'] = $controllerType;
-    $state['serialPort'] = $serialPort;
+    $state['blackoutStartChannel'] = $blackoutStartChannel;
+    $state['blackoutEndChannel'] = $blackoutEndChannel;
     airdefender_write_state($state);
     airdefender_log("No valid show location available. Check FPP location or manual latitude/longitude.");
     exit(0);
 }
+$adsbUrl = str_replace(
+    ['{lat}', '{lon}', '{radius}'],
+    [round($showLat, 5), round($showLon, 5), max(1, (int) ceil($distanceNm))],
+    $adsbUrl
+);
 
-$controller = airdefender_make_controller($controllerType, $serialPort, $dmxOutputs);
+$controller = airdefender_make_controller($controllerType, $blackoutStartChannel, $blackoutEndChannel);
 
 while (true) {
     $state = airdefender_read_state();
+    $wasActive = !empty($state['safetyMode']);
     $state['controllerType'] = $controllerType;
-    $state['serialPort'] = $serialPort;
+    $state['blackoutStartChannel'] = $blackoutStartChannel;
+    $state['blackoutEndChannel'] = $blackoutEndChannel;
 
     $payload = @file_get_contents($adsbUrl);
     if ($payload === false || $payload === '') {
@@ -361,7 +364,7 @@ while (true) {
         $state['lastEvent'] = "Triggered safety mode for {$flight}: {$distance} NM away, {$altitude} ft";
         $state['lastUpdated'] = date('c');
 
-        if ((bool) ($state['safetyMode'] ?? false) !== $newMode) {
+        if (!$wasActive) {
             airdefender_log("Triggered safety mode for {$flight}: {$distance} NM away, {$altitude} ft");
         }
 
