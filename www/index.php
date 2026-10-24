@@ -16,13 +16,43 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
-function AirDefender_Option($key, $default) {
-    global $pluginName;
-    $value = GetSetting($pluginName, $key);
-    if ($value === null || $value === false || $value === "") {
-        return $default;
+function AirDefender_ConfigPath($pluginName) {
+    global $mediaDirectory;
+    $dir = !empty($mediaDirectory) ? $mediaDirectory : '/home/fpp/media';
+    return $dir . '/config/plugin.' . $pluginName;
+}
+
+function AirDefender_LoadAll($pluginName) {
+    $path = AirDefender_ConfigPath($pluginName);
+    $data = array();
+
+    if (!is_readable($path)) {
+        return $data;
     }
-    return $value;
+
+    $lines = @file($path, FILE_IGNORE_NEW_LINES);
+    if (!is_array($lines)) {
+        return $data;
+    }
+
+    foreach ($lines as $line) {
+        $parts = explode('=', $line, 2);
+        if (count($parts) === 2) {
+            $data[trim($parts[0])] = trim(trim($parts[1]), "\"");
+        }
+    }
+
+    return $data;
+}
+
+function AirDefender_StoredValue($pluginName, $key, $default) {
+    static $stored = null;
+    if ($stored === null) {
+        $stored = AirDefender_LoadAll($pluginName);
+    }
+
+    $value = isset($stored[$key]) ? $stored[$key] : null;
+    return $value === null || $value === false || $value === "" ? $default : $value;
 }
 
 function AirDefender_StateFile() {
@@ -69,18 +99,18 @@ function AirDefender_ReadState() {
     return $data;
 }
 
-$enabled = AirDefender_Option("enabled", false);
-$safetyMode = AirDefender_Option("safetyMode", false);
-$useFPPLocation = AirDefender_Option("useFPPLocation", true);
-$overrideLocation = AirDefender_Option("overrideLocation", false);
-$latitude = AirDefender_Option("latitude", "");
-$longitude = AirDefender_Option("longitude", "");
-$distanceNM = AirDefender_Option("distanceNM", 5);
-$altitudeThresholdFt = AirDefender_Option("altitudeThresholdFt", 3000);
-$fetchInterval = AirDefender_Option("fetchInterval", 10);
-$adsbSourceUrl = AirDefender_Option("adsbSourceUrl", "");
-$controllerType = AirDefender_Option("controllerType", "falcon");
-$serialPort = AirDefender_Option("serialPort", "");
+$enabled = AirDefender_StoredValue("AirDefender", "enabled", false);
+$safetyMode = AirDefender_StoredValue("AirDefender", "safetyMode", false);
+$useFPPLocation = AirDefender_StoredValue("AirDefender", "useFPPLocation", true);
+$latitude = AirDefender_StoredValue("AirDefender", "latitude", "");
+$longitude = AirDefender_StoredValue("AirDefender", "longitude", "");
+$distanceNM = AirDefender_StoredValue("AirDefender", "distanceNM", 5);
+$altitudeThresholdFt = AirDefender_StoredValue("AirDefender", "altitudeThresholdFt", 3000);
+$fetchInterval = AirDefender_StoredValue("AirDefender", "fetchInterval", 10);
+$adsbSourceUrl = AirDefender_StoredValue("AirDefender", "adsbSourceUrl", "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}");
+$controllerType = AirDefender_StoredValue("AirDefender", "controllerType", "falcon");
+$blackoutStartChannel = AirDefender_StoredValue("AirDefender", "blackoutStartChannel", 0);
+$blackoutEndChannel = AirDefender_StoredValue("AirDefender", "blackoutEndChannel", 0);
 
 $state = AirDefender_ReadState();
 $lastLog = isset($state['lastEvent']) ? $state['lastEvent'] : 'No log entries yet.';
@@ -159,18 +189,26 @@ if (file_exists($logFile)) {
     </div>
 
     <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Serial Port</h3>
+        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Blackout Range</h3>
         <p style="color:#eee;font-size:16px;margin:0;">
-            <?php echo htmlspecialchars((string) $serialPort ?: "Not Selected"); ?>
+            <?php
+                $start = (int) $blackoutStartChannel;
+                $end = (int) $blackoutEndChannel;
+                if ($start > 0 || $end > 0) {
+                    echo htmlspecialchars((string) $start . " - " . $end);
+                } else {
+                    echo "Not configured";
+                }
+            ?>
         </p>
     </div>
 </div>
 
-<?php if (!empty($overrideLocation)): ?>
+<?php if (!empty($latitude) || !empty($longitude)): ?>
 <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
-    <h3 style="color:#6cf;margin:0 0 10px 0;">Manual Override Location</h3>
-    <p style="color:#eee;margin:0;">Latitude: <?php echo htmlspecialchars((string) $latitude); ?></p>
-    <p style="color:#eee;margin:0;">Longitude: <?php echo htmlspecialchars((string) $longitude); ?></p>
+    <h3 style="color:#6cf;margin:0 0 10px 0;">Location</h3>
+    <p style="color:#eee;margin:0;">Latitude: <?php echo htmlspecialchars((string) $latitude ?: "Not set"); ?></p>
+    <p style="color:#eee;margin:0;">Longitude: <?php echo htmlspecialchars((string) $longitude ?: "Not set"); ?></p>
 </div>
 <?php endif; ?>
 
