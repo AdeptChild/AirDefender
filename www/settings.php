@@ -194,12 +194,12 @@ $settings = array(
     'blackoutStartChannel' => array(
         'label' => 'Blackout Start Channel',
         'type' => 'int',
-        'default' => 82448,
+        'default' => 0,
     ),
     'blackoutEndChannel' => array(
         'label' => 'Blackout End Channel',
         'type' => 'int',
-        'default' => 82751,
+        'default' => 0,
     ),
 );
 
