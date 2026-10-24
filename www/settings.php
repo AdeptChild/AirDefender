@@ -16,6 +16,9 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
+// Snapshot FPP's own global $settings array BEFORE this page defines its own $settings below.
+$AirDefenderFppSettings = (isset($GLOBALS['settings']) && is_array($GLOBALS['settings'])) ? $GLOBALS['settings'] : array();
+
 function AirDefender_NormalizeValue($value, $default) {
     if ($value === null || $value === false) {
         return $default;
@@ -40,63 +43,66 @@ function AirDefender_StoredValue($pluginName, $key, $default) {
     return AirDefender_NormalizeValue($value, $default);
 }
 
-function AirDefender_GetFPPDetectedLocation() {
-    $lat = null;
-    $lon = null;
-
-    if (!function_exists("GetSetting")) {
-        return array($lat, $lon);
+function AirDefender_ParseCoordinate($value, $min, $max) {
+    if ($value === null || $value === false || is_array($value)) {
+        return null;
     }
 
-    $candidates = array(
-        array('System', 'Latitude'),
-        array('System', 'longitude'),
-        array('Settings', 'Latitude'),
-        array('Settings', 'longitude'),
-        array('Location', 'Latitude'),
-        array('Location', 'Longitude'),
-        array('fpp', 'latitude'),
-        array('fpp', 'longitude'),
-        array('Global', 'latitude'),
-        array('Global', 'longitude'),
-        array('fpp', 'lat'),
-        array('fpp', 'lon'),
-    );
+    $text = trim((string) $value);
+    $text = trim($text, "\"' ");
+    if ($text === "" || strtolower($text) === "null" || !is_numeric($text)) {
+        return null;
+    }
 
-    foreach ($candidates as $candidate) {
-        list($section, $field) = $candidate;
-        $value = GetSetting($section, $field);
+    $number = (float) $text;
+    if ($number < $min || $number > $max) {
+        return null;
+    }
 
-        if ($value === null || $value === false) {
+    return $number;
+}
+
+function AirDefender_ReadFPPSettingsFile($name) {
+    $paths = array('/home/fpp/media/settings', '/media/settings');
+    foreach ($paths as $path) {
+        if (!is_readable($path)) {
             continue;
         }
-
-        $text = trim((string) $value);
-        if ($text === "" || strtolower($text) === "null") {
+        $lines = @file($path, FILE_IGNORE_NEW_LINES);
+        if (!is_array($lines)) {
             continue;
         }
-
-        if (!is_numeric($text)) {
-            continue;
-        }
-
-        $numericValue = (float) $text;
-        $lowerField = strtolower($field);
-
-        if ($lowerField === 'latitude' || $lowerField === 'lat') {
-            if ($numericValue >= -90 && $numericValue <= 90) {
-                $lat = $numericValue;
+        foreach ($lines as $line) {
+            $parts = explode('=', $line, 2);
+            if (count($parts) === 2 && trim($parts[0]) === $name) {
+                return trim($parts[1]);
             }
-        } elseif ($lowerField === 'longitude' || $lowerField === 'lon') {
-            if ($numericValue >= -180 && $numericValue <= 180) {
-                $lon = $numericValue;
-            }
-        }
-
-        if ($lat !== null && $lon !== null) {
-            break;
         }
     }
+    return null;
+}
+
+function AirDefender_GetFPPSettingValue($fppSettings, $name) {
+    // 1) FPP's global $settings array (FPP's Location settings use Latitude / Longitude)
+    if (is_array($fppSettings) && isset($fppSettings[$name]) && $fppSettings[$name] !== '') {
+        return $fppSettings[$name];
+    }
+
+    // 2) FPP helper that reads from the settings file
+    if (function_exists('ReadSettingFromFile')) {
+        $value = @ReadSettingFromFile($name);
+        if ($value !== null && $value !== false && $value !== '') {
+            return $value;
+        }
+    }
+
+    // 3) Direct read of the FPP settings file
+    return AirDefender_ReadFPPSettingsFile($name);
+}
+
+function AirDefender_GetFPPDetectedLocation($fppSettings) {
+    $lat = AirDefender_ParseCoordinate(AirDefender_GetFPPSettingValue($fppSettings, 'Latitude'), -90, 90);
+    $lon = AirDefender_ParseCoordinate(AirDefender_GetFPPSettingValue($fppSettings, 'Longitude'), -180, 180);
 
     return array($lat, $lon);
 }
@@ -232,7 +238,7 @@ foreach ($settings as $key => $config) {
 }
 
 $useFppLocationEnabled = AirDefender_IsTruthy($settings['useFPPLocation']['value']);
-list($fppLat, $fppLon) = AirDefender_GetFPPDetectedLocation();
+list($fppLat, $fppLon) = AirDefender_GetFPPDetectedLocation($AirDefenderFppSettings);
 
 if ($useFppLocationEnabled) {
     if ($fppLat !== null) {
@@ -268,20 +274,35 @@ if ($useFppLocationEnabled) {
                         </label>
 
                         <?php if ($config['type'] === 'bool'): ?>
-                            <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
-                                <label style="flex:1;display:block;cursor:pointer;">
+                            <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:inline-flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
+                                <label style="flex:0 0 auto;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:5px 8px;border-radius:6px;font-weight:bold;line-height:1;font-size:11px;min-width:60px;white-space:nowrap;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <span style="display:block;text-align:center;padding:8px 12px;width:100px;box-sizing:border-box;border-radius:6px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         Yes
                                     </span>
                                 </label>
-                                <label style="flex:1;display:block;cursor:pointer;">
+                                <label style="flex:0 0 auto;display:block;cursor:pointer;">
                                     <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo !AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:5px 8px;border-radius:6px;font-weight:bold;line-height:1;font-size:11px;min-width:60px;white-space:nowrap;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                    <span style="display:block;text-align:center;padding:8px 12px;width:100px;box-sizing:border-box;border-radius:6px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
                                         No
                                     </span>
                                 </label>
                             </div>
+                            <?php if ($key === 'useFPPLocation'): ?>
+                                <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;">
+                                    <div style="color:#6cf;font-weight:bold;font-size:13px;margin-bottom:4px;">Current FPP Location</div>
+                                    <div style="color:#ccc;font-size:13px;">Latitude: <?php echo $fppLat !== null ? htmlspecialchars((string) $fppLat) : 'Not detected'; ?></div>
+                                    <div style="color:#ccc;font-size:13px;">Longitude: <?php echo $fppLon !== null ? htmlspecialchars((string) $fppLon) : 'Not detected'; ?></div>
+                                </div>
+                            <?php endif; ?>
+                        <?php elseif ($config['type'] === 'select'): ?>
+                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                                <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
+                                    <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($optionLabel); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         <?php else: ?>
                             <?php
                                 $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
@@ -343,13 +364,13 @@ if ($useFppLocationEnabled) {
             label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
             label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
             label.style.opacity = '1';
-            label.style.padding = '5px 8px';
+            label.style.padding = '8px 12px';
+            label.style.width = '100px';
+            label.style.boxSizing = 'border-box';
             label.style.borderRadius = '6px';
             label.style.fontWeight = 'bold';
             label.style.cursor = 'pointer';
-            label.style.lineHeight = '1';
-            label.style.minWidth = '60px';
-            label.style.fontSize = '11px';
+            label.style.lineHeight = '1.1';
             label.style.display = 'block';
             label.style.textAlign = 'center';
             label.style.whiteSpace = 'nowrap';
