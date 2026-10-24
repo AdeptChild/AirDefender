@@ -16,7 +16,7 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
-// Snapshot FPP's own global $settings array BEFORE this page defines its own $settings below.
+// Snapshot FPP's own global $settings array before this page defines its own $settings below.
 $AirDefenderFppSettings = (isset($GLOBALS['settings']) && is_array($GLOBALS['settings'])) ? $GLOBALS['settings'] : array();
 
 function AirDefender_NormalizeValue($value, $default) {
@@ -68,10 +68,12 @@ function AirDefender_ReadFPPSettingsFile($name) {
         if (!is_readable($path)) {
             continue;
         }
+
         $lines = @file($path, FILE_IGNORE_NEW_LINES);
         if (!is_array($lines)) {
             continue;
         }
+
         foreach ($lines as $line) {
             $parts = explode('=', $line, 2);
             if (count($parts) === 2 && trim($parts[0]) === $name) {
@@ -83,12 +85,12 @@ function AirDefender_ReadFPPSettingsFile($name) {
 }
 
 function AirDefender_GetFPPSettingValue($fppSettings, $name) {
-    // 1) FPP's global $settings array (FPP's Location settings use Latitude / Longitude)
+    // 1) FPP's global $settings array
     if (is_array($fppSettings) && isset($fppSettings[$name]) && $fppSettings[$name] !== '') {
         return $fppSettings[$name];
     }
 
-    // 2) FPP helper that reads from the settings file
+    // 2) FPP helper
     if (function_exists('ReadSettingFromFile')) {
         $value = @ReadSettingFromFile($name);
         if ($value !== null && $value !== false && $value !== '') {
@@ -96,14 +98,13 @@ function AirDefender_GetFPPSettingValue($fppSettings, $name) {
         }
     }
 
-    // 3) Direct read of the FPP settings file
+    // 3) Direct read from FPP settings file
     return AirDefender_ReadFPPSettingsFile($name);
 }
 
 function AirDefender_GetFPPDetectedLocation($fppSettings) {
     $lat = AirDefender_ParseCoordinate(AirDefender_GetFPPSettingValue($fppSettings, 'Latitude'), -90, 90);
     $lon = AirDefender_ParseCoordinate(AirDefender_GetFPPSettingValue($fppSettings, 'Longitude'), -180, 180);
-
     return array($lat, $lon);
 }
 
@@ -229,7 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $statusMessage = 'Settings saved.';
+    $statusMessage = "Settings saved.";
 }
 
 foreach ($settings as $key => $config) {
