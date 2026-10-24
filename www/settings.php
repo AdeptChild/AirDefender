@@ -304,7 +304,7 @@ if ($useFppLocationEnabled) {
                                 </div>
                             <?php endif; ?>
                         <?php elseif ($config['type'] === 'select'): ?>
-                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;max-width:320px;padding:8px;border-radius:6px;background:#111;color:#fff;">
                                 <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
                                     <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($optionLabel); ?>
