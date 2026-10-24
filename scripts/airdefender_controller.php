@@ -1,14 +1,15 @@
 <?php
+<?php
 
 class AirDefenderController {
     protected $type;
-    protected $serialPort;
-    protected $dmxOutputs;
+    protected $blackoutStartChannel;
+    protected $blackoutEndChannel;
 
-    public function __construct($type = 'falcon', $serialPort = '', $dmxOutputs = '') {
+    public function __construct($type = 'falcon', $blackoutStartChannel = 0, $blackoutEndChannel = 0) {
         $this->type = strtolower((string) $type);
-        $this->serialPort = (string) $serialPort;
-        $this->dmxOutputs = $dmxOutputs;
+        $this->blackoutStartChannel = (int) $blackoutStartChannel;
+        $this->blackoutEndChannel = (int) $blackoutEndChannel;
     }
 
     public function activateSafetyMode() {
@@ -22,17 +23,19 @@ class AirDefenderController {
     }
 
     protected function sendControllerCommand($state) {
-        $serialPort = trim($this->serialPort);
-        $command = "{$this->type}:state={$state}"
-            . ($serialPort !== '' ? ":port={$serialPort}" : '')
-            . ($this->dmxOutputs !== '' ? ":outputs={$this->dmxOutputs}" : '');
+        $start = (int) $this->blackoutStartChannel;
+        $end = (int) $this->blackoutEndChannel;
+
+        $range = ($start > 0 && $end > 0 && $end >= $start)
+            ? "{$start}-{$end}"
+            : "unconfigured";
+
+        $command = "{$this->type}:state={$state}:range={$range}";
 
         $markerFile = "/home/fpp/media/plugins/AirDefender/controller_state.txt";
         @file_put_contents($markerFile, $command . PHP_EOL, LOCK_EX);
 
-        if ($serialPort !== '') {
-            $this->log("Controller adapter queued command for serial port {$serialPort}: {$command}");
-        }
+        $this->log("Controller adapter queued command: {$command}");
     }
 
     protected function log($message) {
@@ -68,16 +71,16 @@ class KulpController extends AirDefenderController {
     }
 }
 
-function airdefender_make_controller($type, $serialPort, $dmxOutputs) {
+function airdefender_make_controller($type, $blackoutStartChannel, $blackoutEndChannel) {
     $type = strtolower((string) $type);
 
     if ($type === 'kulp') {
-        return new KulpController($type, $serialPort, $dmxOutputs);
+        return new KulpController($type, $blackoutStartChannel, $blackoutEndChannel);
     }
 
     if ($type === 'falcon') {
-        return new FalconController($type, $serialPort, $dmxOutputs);
+        return new FalconController($type, $blackoutStartChannel, $blackoutEndChannel);
     }
 
-    return new AirDefenderController($type, $serialPort, $dmxOutputs);
+    return new AirDefenderController($type, $blackoutStartChannel, $blackoutEndChannel);
 }
