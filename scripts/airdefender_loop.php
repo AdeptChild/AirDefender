@@ -65,10 +65,47 @@ function airdefender_write_state(array $state): void
     @file_put_contents($path, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
-function airdefender_get_setting($pluginName, $key, $default = null) {
-    if (function_exists('GetSetting')) {
-        $value = GetSetting($pluginName, $key);
-        if ($value !== null && $value !== false && $value !== '') {
+function airdefender_config_path(string $pluginName): string
+{
+    return "/home/fpp/media/config/plugin." . $pluginName;
+}
+
+function airdefender_load_plugin_settings(string $pluginName): array
+{
+    $path = airdefender_config_path($pluginName);
+    $settings = [];
+
+    if (!is_readable($path)) {
+        return $settings;
+    }
+
+    $lines = @file($path, FILE_IGNORE_NEW_LINES);
+    if (!is_array($lines)) {
+        return $settings;
+    }
+
+    foreach ($lines as $line) {
+        $parts = explode('=', $line, 2);
+        if (count($parts) !== 2) {
+            continue;
+        }
+
+        $k = trim($parts[0]);
+        $v = trim($parts[1]);
+
+        // Strip optional surrounding quotes
+        $v = trim($v, "\"' ");
+
+        $settings[$k] = $v;
+    }
+
+    return $settings;
+}
+
+function airdefender_get_setting(array $settings, $key, $default = null) {
+    if (array_key_exists($key, $settings)) {
+        $value = $settings[$key];
+        if ($value !== null && $value !== '') {
             return $value;
         }
     }
@@ -206,34 +243,23 @@ function airdefender_log($message) {
 }
 
 $pluginName = "AirDefender";
+$pluginSettings = airdefender_load_plugin_settings($pluginName);
 
-if (function_exists('GetSetting')) {
-    $enabled = airdefender_get_setting($pluginName, 'enabled', false);
-    $useFppLocation = airdefender_get_setting($pluginName, 'useFPPLocation', true);
-    $manualOverride = airdefender_get_setting($pluginName, 'overrideLocation', false);
-    $manualLat = airdefender_get_setting($pluginName, 'latitude', '');
-    $manualLon = airdefender_get_setting($pluginName, 'longitude', '');
-    $distanceNm = (float) airdefender_get_setting($pluginName, 'distanceNM', 5);
-    $altitudeFt = (float) airdefender_get_setting($pluginName, 'altitudeThresholdFt', 3000);
-    $fetchInterval = (int) airdefender_get_setting($pluginName, 'fetchInterval', 10);
-    $adsbUrl = airdefender_get_setting($pluginName, 'adsbSourceUrl', '');
-    $controllerType = airdefender_get_setting($pluginName, 'controllerType', 'falcon');
-    $serialPort = airdefender_get_setting($pluginName, 'serialPort', '');
-    $dmxOutputs = airdefender_get_setting($pluginName, 'dmxOutputs', '');
-} else {
-    $enabled = filter_var(getenv('AIRDEFENDER_ENABLED') ?: false, FILTER_VALIDATE_BOOLEAN);
-    $useFppLocation = filter_var(getenv('AIRDEFENDER_USE_FPP_LOCATION') ?: true, FILTER_VALIDATE_BOOLEAN);
-    $manualOverride = filter_var(getenv('AIRDEFENDER_OVERRIDE_LOCATION') ?: false, FILTER_VALIDATE_BOOLEAN);
-    $manualLat = getenv('AIRDEFENDER_LATITUDE') ?: '';
-    $manualLon = getenv('AIRDEFENDER_LONGITUDE') ?: '';
-    $distanceNm = (float) (getenv('AIRDEFENDER_DISTANCE_NM') ?: 5);
-    $altitudeFt = (float) (getenv('AIRDEFENDER_ALTITUDE_THRESHOLD_FT') ?: 3000);
-    $fetchInterval = (int) (getenv('AIRDEFENDER_FETCH_INTERVAL') ?: 10);
-    $adsbUrl = getenv('AIRDEFENDER_ADSB_URL') ?: '';
-    $controllerType = getenv('AIRDEFENDER_CONTROLLER_TYPE') ?: 'falcon';
-    $serialPort = getenv('AIRDEFENDER_SERIAL_PORT') ?: '';
-    $dmxOutputs = getenv('AIRDEFENDER_DMX_OUTPUTS') ?: '';
-}
+$enabled = filter_var(airdefender_get_setting($pluginSettings, 'enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+$useFppLocation = filter_var(airdefender_get_setting($pluginSettings, 'useFPPLocation', '1'), FILTER_VALIDATE_BOOLEAN);
+
+// No overrideLocation setting anymore; manual location is used when useFPPLocation is off.
+$manualLat = airdefender_get_setting($pluginSettings, 'latitude', '');
+$manualLon = airdefender_get_setting($pluginSettings, 'longitude', '');
+
+$distanceNm = (float) airdefender_get_setting($pluginSettings, 'distanceNM', 5);
+$altitudeFt = (float) airdefender_get_setting($pluginSettings, 'altitudeThresholdFt', 3000);
+$fetchInterval = max(1, (int) airdefender_get_setting($pluginSettings, 'fetchInterval', 10));
+$adsbUrl = (string) airdefender_get_setting($pluginSettings, 'adsbSourceUrl', '');
+$controllerType = (string) airdefender_get_setting($pluginSettings, 'controllerType', 'falcon');
+
+$blackoutStartChannel = (int) airdefender_get_setting($pluginSettings, 'blackoutStartChannel', 0);
+$blackoutEndChannel = (int) airdefender_get_setting($pluginSettings, 'blackoutEndChannel', 0);
 
 if (!$enabled) {
     $state = airdefender_read_state();
@@ -261,15 +287,15 @@ if (empty($adsbUrl)) {
 $showLat = null;
 $showLon = null;
 
-if (!empty($manualOverride) && $manualLat !== '' && $manualLon !== '') {
-    $showLat = (float) $manualLat;
-    $showLon = (float) $manualLon;
-} elseif (!empty($useFppLocation)) {
+if (!empty($useFppLocation)) {
     [$fppLat, $fppLon] = airdefender_get_fpp_lat_lon();
     if ($fppLat !== null && $fppLon !== null) {
         $showLat = (float) $fppLat;
         $showLon = (float) $fppLon;
     }
+} elseif ($manualLat !== '' && $manualLon !== '') {
+    $showLat = (float) $manualLat;
+    $showLon = (float) $manualLon;
 }
 
 if ($showLat === null || $showLon === null) {
