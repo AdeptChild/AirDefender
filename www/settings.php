@@ -282,10 +282,10 @@ for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
 $settingGroups = array(
     'Plugin Status' => array('enabled'),
     'Node Role' => array('nodeRole'),
+    'Moving Heads' => $headKeys,
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
     'ADS-B Feed' => array('adsbSourceUrl'),
-    'Moving Heads' => $headKeys,
 );
 
 $statusMessage = '';
@@ -356,16 +356,70 @@ if ($useFppLocationEnabled) {
 </div>
 <?php endif; ?>
 
-<form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" style="background:#2a2a2a;padding:20px;border-radius:10px;">
+<style>
+    .settings-layout {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 20px;
+    }
+    .settings-layout > [data-group="Plugin Status"],
+    .settings-layout > [data-group="Location"],
+    .settings-layout > [data-group="Safety Thresholds"],
+    .settings-layout > [data-group="ADS-B Feed"],
+    .settings-layout > .settings-actions {
+        grid-column: 1 / -1;
+    }
+    .moving-head-grid {
+        display: grid;
+        grid-template-columns: minmax(40px,.45fr) minmax(106px,1fr) minmax(120px,1.2fr) minmax(82px,.75fr);
+        gap: 6px 14px;
+        align-items: center;
+    }
+    .moving-head-grid > div:not([data-head]) {
+        color: #aaa;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+    }
+    .moving-head-grid .head-number {
+        color: #d9d9d9;
+        font-weight: bold;
+        text-align: center;
+    }
+    .moving-head-grid .head-toggle-cell,
+    .moving-head-grid .head-input-cell {
+        display: flex;
+        justify-content: center;
+    }
+    .moving-head-grid .head-toggle-cell [data-boolean-group] {
+        justify-content: center;
+    }
+    @media (max-width: 850px) {
+        .settings-layout {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .settings-layout > [data-group],
+        .settings-layout > .settings-actions {
+            grid-column: 1;
+        }
+    }
+    @media (max-width: 600px) {
+        .moving-head-grid {
+            grid-template-columns: minmax(24px,.35fr) minmax(88px,1fr) minmax(82px,1.2fr) minmax(62px,.8fr);
+            column-gap: 8px;
+        }
+    }
+</style>
+<form class="settings-layout" method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" style="background:#2a2a2a;padding:20px;border-radius:10px;">
     <?php foreach ($settingGroups as $groupName => $groupKeys): ?>
         <div data-group="<?php echo htmlspecialchars($groupName); ?>" style="background:#1f1f1f;padding:16px;border-radius:10px;margin-bottom:20px;">
             <h3 style="margin:0 0 14px 0;color:#6cf;"><?php echo htmlspecialchars($groupName); ?></h3>
             <?php if ($groupName === 'Moving Heads'): ?>
-                <div class="moving-head-grid" style="display:grid;grid-template-columns:32px 78px 110px 74px;gap:6px 8px;align-items:center;">
-                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Head</div>
-                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Enabled</div>
-                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Shutter Channel</div>
-                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Closed Value</div>
+                <div class="moving-head-grid">
+                    <div>Head</div>
+                    <div>Enabled</div>
+                    <div>Shutter Channel</div>
+                    <div>Closed Value</div>
                     <?php for ($headIndex = 1; $headIndex <= 8; $headIndex++): ?>
                         <?php
                             $enabledKey = 'head' . $headIndex . 'Enabled';
@@ -373,7 +427,8 @@ if ($useFppLocationEnabled) {
                             $closedValueKey = 'head' . $headIndex . 'ClosedValue';
                         ?>
                         <div data-head="<?php echo $headIndex; ?>" style="display:contents;">
-                            <div style="color:#d9d9d9;font-weight:bold;"><?php echo $headIndex; ?></div>
+                            <div class="head-number"><?php echo $headIndex; ?></div>
+                            <div class="head-toggle-cell">
                             <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" data-compact="true" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
                                 <?php foreach (array('1' => 'Yes', '0' => 'No') as $toggleValue => $toggleLabel): ?>
                                     <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ($toggleValue === '1'); ?>
@@ -385,8 +440,9 @@ if ($useFppLocationEnabled) {
                                     </label>
                                 <?php endforeach; ?>
                             </div>
+                            </div>
                             <?php foreach (array($channelKey, $closedValueKey) as $inputKey): ?>
-                                <div>
+                                <div class="head-input-cell">
                                     <input
                                         type="number"
                                         name="<?php echo htmlspecialchars($inputKey); ?>"
@@ -402,16 +458,6 @@ if ($useFppLocationEnabled) {
                         </div>
                     <?php endfor; ?>
                 </div>
-                <style>
-                    @media (max-width: 600px) {
-                        [data-group="Moving Heads"] .moving-head-grid {
-                            grid-template-columns: minmax(42px,.5fr) minmax(90px,1fr) minmax(120px,1.2fr);
-                        }
-                        [data-group="Moving Heads"] [data-head] > div:nth-child(4) {
-                            grid-column: 2 / 4;
-                        }
-                    }
-                </style>
             <?php else: ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
                 <?php foreach ($groupKeys as $key): ?>
@@ -490,7 +536,7 @@ if ($useFppLocationEnabled) {
         </div>
     <?php endforeach; ?>
 
-    <div style="margin-top:20px;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div class="settings-actions" style="margin-top:20px;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;">
         <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:8px 12px;border-radius:6px;background:#333;color:#fff;text-decoration:none;font-weight:bold;line-height:1.1;">
             Dashboard
         </a>
