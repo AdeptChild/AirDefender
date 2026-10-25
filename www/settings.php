@@ -361,7 +361,7 @@ if ($useFppLocationEnabled) {
         <div data-group="<?php echo htmlspecialchars($groupName); ?>" style="background:#1f1f1f;padding:16px;border-radius:10px;margin-bottom:20px;">
             <h3 style="margin:0 0 14px 0;color:#6cf;"><?php echo htmlspecialchars($groupName); ?></h3>
             <?php if ($groupName === 'Moving Heads'): ?>
-                <div style="display:grid;grid-template-columns:minmax(48px,.5fr) minmax(100px,1fr) minmax(140px,1.4fr) minmax(130px,1.2fr);gap:8px 12px;align-items:center;">
+                <div class="moving-head-grid" style="display:grid;grid-template-columns:minmax(48px,.5fr) minmax(100px,1fr) minmax(140px,1.4fr) minmax(130px,1.2fr);gap:8px 12px;align-items:center;">
                     <div style="color:#aaa;font-size:12px;font-weight:bold;">Head</div>
                     <div style="color:#aaa;font-size:12px;font-weight:bold;">Enabled</div>
                     <div style="color:#aaa;font-size:12px;font-weight:bold;">Shutter Channel</div>
@@ -374,7 +374,7 @@ if ($useFppLocationEnabled) {
                         ?>
                         <div data-head="<?php echo $headIndex; ?>" style="display:contents;">
                             <div style="color:#d9d9d9;font-weight:bold;">MH<?php echo $headIndex; ?></div>
-                            <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
+                            <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" data-compact="true" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
                                 <?php foreach (array('1' => 'Yes', '0' => 'No') as $toggleValue => $toggleLabel): ?>
                                     <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ($toggleValue === '1'); ?>
                                     <label style="display:block;cursor:pointer;">
@@ -404,7 +404,7 @@ if ($useFppLocationEnabled) {
                 </div>
                 <style>
                     @media (max-width: 600px) {
-                        [data-group="Moving Heads"] > div[style*="grid-template-columns"] {
+                        [data-group="Moving Heads"] .moving-head-grid {
                             grid-template-columns: minmax(42px,.5fr) minmax(90px,1fr) minmax(120px,1.2fr);
                         }
                         [data-group="Moving Heads"] [data-head] > div:nth-child(4) {
@@ -509,6 +509,7 @@ if ($useFppLocationEnabled) {
         }
 
         var radios = group.querySelectorAll('input[type="radio"]');
+        var compact = group.getAttribute('data-compact') === 'true';
         radios.forEach(function (radio) {
             var label = radio.nextElementSibling;
             if (!label) {
@@ -521,8 +522,8 @@ if ($useFppLocationEnabled) {
             label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
             label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
             label.style.opacity = '1';
-            label.style.padding = '8px 12px';
-            label.style.width = '100px';
+            label.style.padding = compact ? '5px 9px' : '8px 12px';
+            label.style.width = compact ? '42px' : '100px';
             label.style.boxSizing = 'border-box';
             label.style.borderRadius = '6px';
             label.style.fontWeight = 'bold';
