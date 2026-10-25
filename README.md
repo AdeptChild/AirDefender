@@ -41,3 +41,9 @@ The settings page has a **Node Role** selector at the top:
 - **Remote** – receives commands from a master; Location, Safety Thresholds and ADS-B Feed are greyed out.
 
 **Step 1 is UI-only:** the role is saved to the config but does not yet change any runtime behavior. Greyed-out values are not submitted, so previously saved values are preserved.
+
+## Shutter Heads (Step 2 UI)
+
+The settings page now has a **Shutter Heads** section (up to 8 heads: enabled, name, shutter channel, closed value, plus a shared open value), and **Node Role** is shown last. The old Controller group is hidden from the UI, but its legacy keys (`controllerType`, `blackoutStartChannel`, `blackoutEndChannel`) are still kept in the config.
+
+This is settings-only groundwork: the runtime still uses the existing legacy blackout path until a later step.

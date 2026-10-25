@@ -250,15 +250,52 @@ $settings = array(
         'type' => 'int',
         'default' => 0,
     ),
+    'openValue' => array(
+        'label' => 'Shutter Open Value',
+        'type' => 'int',
+        'default' => 255,
+    ),
 );
 
+for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
+    $settings['head' . $headIndex . 'Enabled'] = array(
+        'label' => 'Head ' . $headIndex . ' Enabled',
+        'type' => 'bool',
+        'default' => false,
+    );
+    $settings['head' . $headIndex . 'Name'] = array(
+        'label' => 'Head ' . $headIndex . ' Name',
+        'type' => 'string',
+        'default' => 'Head ' . $headIndex,
+    );
+    $settings['head' . $headIndex . 'Channel'] = array(
+        'label' => 'Head ' . $headIndex . ' Shutter Channel',
+        'type' => 'int',
+        'default' => 0,
+    );
+    $settings['head' . $headIndex . 'ClosedValue'] = array(
+        'label' => 'Head ' . $headIndex . ' Closed Value (0-255)',
+        'type' => 'int',
+        'default' => 0,
+    );
+}
+
+$headKeys = array();
+for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
+    foreach (array('Enabled', 'Name', 'Channel', 'ClosedValue') as $headField) {
+        $headKeys[] = 'head' . $headIndex . $headField;
+    }
+}
+
+// The legacy Controller group (controllerType, blackoutStartChannel, blackoutEndChannel) is hidden from the UI
+// but its keys stay in $settings and in the saved config for runtime compatibility.
 $settingGroups = array(
-    'Node Role' => array('nodeRole'),
     'Plugin Status' => array('enabled'),
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
     'ADS-B Feed' => array('adsbSourceUrl'),
-        'Controller' => array('controllerType', 'blackoutStartChannel', 'blackoutEndChannel'),
+    'Shutter Heads' => array_merge(array('openValue'), $headKeys),
+    'Node Role' => array('nodeRole'),
 );
 
 $statusMessage = '';
@@ -276,7 +313,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($config['type'] === 'bool') {
             $toSave[$key] = AirDefender_PostBool($key) ? '1' : '0';
         } elseif ($config['type'] === 'int') {
-            $toSave[$key] = (string) (int) $postedValue;
+            $intValue = (int) $postedValue;
+            if ($key === 'openValue' || preg_match('/^head[1-8]ClosedValue$/', $key)) {
+                $intValue = max(0, min(255, $intValue));
+            } elseif (preg_match('/^head[1-8]Channel$/', $key)) {
+                $intValue = max(0, $intValue);
+            }
+            $toSave[$key] = (string) $intValue;
         } elseif ($config['type'] === 'select') {
             $toSave[$key] = (string) $postedValue;
             if ($key === 'nodeRole' && !array_key_exists($toSave[$key], $config['options'])) {
@@ -330,7 +373,7 @@ if ($useFppLocationEnabled) {
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
                 <?php foreach ($groupKeys as $key): ?>
                     <?php $config = $settings[$key]; ?>
-                    <div style="background:#171717;padding:12px;border-radius:8px;">
+                    <div <?php if (preg_match('/^head([1-8])/', $key, $headMatch)) { echo 'data-head="' . $headMatch[1] . '" '; } ?>style="background:#171717;padding:12px;border-radius:8px;">
                         <label for="<?php echo htmlspecialchars($key); ?>" style="display:block;color:#d9d9d9;margin-bottom:8px;font-weight:bold;">
                             <?php echo htmlspecialchars($config['label']); ?>
                         </label>
@@ -476,6 +519,24 @@ if ($useFppLocationEnabled) {
         });
     }
 
+    function updateHeadState() {
+        for (var n = 1; n <= 8; n++) {
+            var group = document.querySelector('[data-boolean-group="head' + n + 'Enabled"]');
+            if (!group) {
+                continue;
+            }
+            var yes = group.querySelector('input[type="radio"][value="1"]');
+            var on = yes && yes.checked;
+            ['Name', 'Channel', 'ClosedValue'].forEach(function (field) {
+                var input = document.getElementById('head' + n + field);
+                if (!input) {
+                    return;
+                }
+                input.style.opacity = on ? '1' : '0.45';
+            });
+        }
+    }
+
     function updateNodeRoleState() {
         var roleSelect = document.getElementById('nodeRole');
         var remote = roleSelect && roleSelect.value === 'remote';
@@ -516,11 +577,13 @@ if ($useFppLocationEnabled) {
                     if (group.getAttribute('data-boolean-group') === 'useFPPLocation') {
                         updateLocationState();
                     }
+                    updateHeadState();
                 });
             });
         });
 
         updateLocationState();
+        updateHeadState();
         updateNodeRoleState();
 
         var roleSelect = document.getElementById('nodeRole');
