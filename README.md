@@ -31,3 +31,13 @@ This plugin is designed for FPP 10+ and supports Raspberry Pi, BeagleBone, and o
 
    ```bash
    cd /home/fpp/media/plugins/
+
+## Node Role
+
+The settings page has a **Node Role** selector at the top:
+
+- **Standalone** – local / DDP output (default).
+- **Master** – detects aircraft and sends commands to remote FPPs.
+- **Remote** – receives commands from a master; Location, Safety Thresholds and ADS-B Feed are greyed out.
+
+**Step 1 is UI-only:** the role is saved to the config but does not yet change any runtime behavior. Greyed-out values are not submitted, so previously saved values are preserved.
