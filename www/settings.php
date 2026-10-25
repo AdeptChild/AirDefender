@@ -250,31 +250,21 @@ $settings = array(
         'type' => 'int',
         'default' => 0,
     ),
-    'openValue' => array(
-        'label' => 'Shutter Open Value',
-        'type' => 'int',
-        'default' => 255,
-    ),
 );
 
 for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
     $settings['head' . $headIndex . 'Enabled'] = array(
-        'label' => 'Head ' . $headIndex . ' Enabled',
+        'label' => 'MH' . $headIndex . ' Enabled',
         'type' => 'bool',
         'default' => false,
     );
-    $settings['head' . $headIndex . 'Name'] = array(
-        'label' => 'Head ' . $headIndex . ' Name',
-        'type' => 'string',
-        'default' => 'Head ' . $headIndex,
-    );
     $settings['head' . $headIndex . 'Channel'] = array(
-        'label' => 'Head ' . $headIndex . ' Shutter Channel',
+        'label' => 'MH' . $headIndex . ' Shutter Channel',
         'type' => 'int',
         'default' => 0,
     );
     $settings['head' . $headIndex . 'ClosedValue'] = array(
-        'label' => 'Head ' . $headIndex . ' Closed Value (0-255)',
+        'label' => 'MH' . $headIndex . ' Closed Value (0-255)',
         'type' => 'int',
         'default' => 0,
     );
@@ -282,7 +272,7 @@ for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
 
 $headKeys = array();
 for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
-    foreach (array('Enabled', 'Name', 'Channel', 'ClosedValue') as $headField) {
+    foreach (array('Enabled', 'Channel', 'ClosedValue') as $headField) {
         $headKeys[] = 'head' . $headIndex . $headField;
     }
 }
@@ -291,11 +281,11 @@ for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
 // but its keys stay in $settings and in the saved config for runtime compatibility.
 $settingGroups = array(
     'Plugin Status' => array('enabled'),
+    'Node Role' => array('nodeRole'),
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
     'ADS-B Feed' => array('adsbSourceUrl'),
-    'Shutter Heads' => array_merge(array('openValue'), $headKeys),
-    'Node Role' => array('nodeRole'),
+    'Moving Heads' => $headKeys,
 );
 
 $statusMessage = '';
@@ -314,7 +304,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $toSave[$key] = AirDefender_PostBool($key) ? '1' : '0';
         } elseif ($config['type'] === 'int') {
             $intValue = (int) $postedValue;
-            if ($key === 'openValue' || preg_match('/^head[1-8]ClosedValue$/', $key)) {
+            if (preg_match('/^head[1-8]ClosedValue$/', $key)) {
                 $intValue = max(0, min(255, $intValue));
             } elseif (preg_match('/^head[1-8]Channel$/', $key)) {
                 $intValue = max(0, $intValue);
@@ -370,6 +360,60 @@ if ($useFppLocationEnabled) {
     <?php foreach ($settingGroups as $groupName => $groupKeys): ?>
         <div data-group="<?php echo htmlspecialchars($groupName); ?>" style="background:#1f1f1f;padding:16px;border-radius:10px;margin-bottom:20px;">
             <h3 style="margin:0 0 14px 0;color:#6cf;"><?php echo htmlspecialchars($groupName); ?></h3>
+            <?php if ($groupName === 'Moving Heads'): ?>
+                <div class="moving-head-grid" style="display:grid;grid-template-columns:minmax(48px,.5fr) minmax(100px,1fr) minmax(140px,1.4fr) minmax(130px,1.2fr);gap:8px 12px;align-items:center;">
+                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Head</div>
+                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Enabled</div>
+                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Shutter Channel</div>
+                    <div style="color:#aaa;font-size:12px;font-weight:bold;">Closed Value</div>
+                    <?php for ($headIndex = 1; $headIndex <= 8; $headIndex++): ?>
+                        <?php
+                            $enabledKey = 'head' . $headIndex . 'Enabled';
+                            $channelKey = 'head' . $headIndex . 'Channel';
+                            $closedValueKey = 'head' . $headIndex . 'ClosedValue';
+                        ?>
+                        <div data-head="<?php echo $headIndex; ?>" style="display:contents;">
+                            <div style="color:#d9d9d9;font-weight:bold;">MH<?php echo $headIndex; ?></div>
+                            <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" data-compact="true" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
+                                <?php foreach (array('1' => 'Yes', '0' => 'No') as $toggleValue => $toggleLabel): ?>
+                                    <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ($toggleValue === '1'); ?>
+                                    <label style="display:block;cursor:pointer;">
+                                        <input type="radio" name="<?php echo htmlspecialchars($enabledKey); ?>" value="<?php echo $toggleValue; ?>" <?php echo $selected ? 'checked' : ''; ?> style="display:none;">
+                                        <span style="display:block;text-align:center;padding:5px 9px;min-width:42px;box-sizing:border-box;border-radius:5px;font-size:13px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo $selected ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                            <?php echo $toggleLabel; ?>
+                                        </span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php foreach (array($channelKey, $closedValueKey) as $inputKey): ?>
+                                <div>
+                                    <input
+                                        type="number"
+                                        name="<?php echo htmlspecialchars($inputKey); ?>"
+                                        id="<?php echo htmlspecialchars($inputKey); ?>"
+                                        value="<?php echo htmlspecialchars((string) $settings[$inputKey]['value']); ?>"
+                                        min="0"
+                                        <?php echo $inputKey === $closedValueKey ? 'max="255"' : ''; ?>
+                                        step="1"
+                                        style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
+                                    >
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endfor; ?>
+                </div>
+                <style>
+                    @media (max-width: 600px) {
+                        [data-group="Moving Heads"] .moving-head-grid {
+                            grid-template-columns: minmax(42px,.5fr) minmax(90px,1fr) minmax(120px,1.2fr);
+                        }
+                        [data-group="Moving Heads"] [data-head] > div:nth-child(4) {
+                            grid-column: 2 / 4;
+                        }
+                    }
+                </style>
+                <div style="margin-top:12px;color:#aaa;font-size:12px;">Open value is automatically the opposite of the closed value.</div>
+            <?php else: ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
                 <?php foreach ($groupKeys as $key): ?>
                     <?php $config = $settings[$key]; ?>
@@ -443,6 +487,7 @@ if ($useFppLocationEnabled) {
                     </div>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </div>
     <?php endforeach; ?>
 
@@ -464,6 +509,7 @@ if ($useFppLocationEnabled) {
         }
 
         var radios = group.querySelectorAll('input[type="radio"]');
+        var compact = group.getAttribute('data-compact') === 'true';
         radios.forEach(function (radio) {
             var label = radio.nextElementSibling;
             if (!label) {
@@ -476,8 +522,8 @@ if ($useFppLocationEnabled) {
             label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
             label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
             label.style.opacity = '1';
-            label.style.padding = '8px 12px';
-            label.style.width = '100px';
+            label.style.padding = compact ? '5px 9px' : '8px 12px';
+            label.style.width = compact ? '42px' : '100px';
             label.style.boxSizing = 'border-box';
             label.style.borderRadius = '6px';
             label.style.fontWeight = 'bold';
@@ -527,7 +573,7 @@ if ($useFppLocationEnabled) {
             }
             var yes = group.querySelector('input[type="radio"][value="1"]');
             var on = yes && yes.checked;
-            ['Name', 'Channel', 'ClosedValue'].forEach(function (field) {
+            ['Channel', 'ClosedValue'].forEach(function (field) {
                 var input = document.getElementById('head' + n + field);
                 if (!input) {
                     return;
