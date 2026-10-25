@@ -177,6 +177,16 @@ function AirDefender_IsTruthy($value) {
 }
 
 $settings = array(
+    'nodeRole' => array(
+        'label' => 'Node Role',
+        'type' => 'select',
+        'default' => 'standalone',
+        'options' => array(
+            'standalone' => 'Standalone (local / DDP output)',
+            'master' => 'Master (detects aircraft, sends commands to remote FPPs)',
+            'remote' => 'Remote (receives commands from a master)',
+        ),
+    ),
     'enabled' => array(
         'label' => 'Enable Air Defender',
         'type' => 'bool',
@@ -243,6 +253,7 @@ $settings = array(
 );
 
 $settingGroups = array(
+    'Node Role' => array('nodeRole'),
     'Plugin Status' => array('enabled'),
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
@@ -268,6 +279,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $toSave[$key] = (string) (int) $postedValue;
         } elseif ($config['type'] === 'select') {
             $toSave[$key] = (string) $postedValue;
+            if ($key === 'nodeRole' && !array_key_exists($toSave[$key], $config['options'])) {
+                $toSave[$key] = 'standalone';
+            }
         } else {
             $toSave[$key] = trim((string) $postedValue);
         }
@@ -311,7 +325,7 @@ if ($useFppLocationEnabled) {
 
 <form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" style="background:#2a2a2a;padding:20px;border-radius:10px;">
     <?php foreach ($settingGroups as $groupName => $groupKeys): ?>
-        <div style="background:#1f1f1f;padding:16px;border-radius:10px;margin-bottom:20px;">
+        <div data-group="<?php echo htmlspecialchars($groupName); ?>" style="background:#1f1f1f;padding:16px;border-radius:10px;margin-bottom:20px;">
             <h3 style="margin:0 0 14px 0;color:#6cf;"><?php echo htmlspecialchars($groupName); ?></h3>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
                 <?php foreach ($groupKeys as $key): ?>
@@ -351,6 +365,13 @@ if ($useFppLocationEnabled) {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <?php if ($key === 'nodeRole'): ?>
+                                <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;color:#ccc;font-size:13px;line-height:1.5;">
+                                    <div><b>Standalone:</b> detects aircraft and controls local outputs.</div>
+                                    <div><b>Master:</b> detects aircraft and sends commands to remote FPPs.</div>
+                                    <div><b>Remote:</b> receives commands from a master; does no detection.</div>
+                                </div>
+                            <?php endif; ?>
                         <?php else: ?>
                             <?php
                                 $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
@@ -455,6 +476,36 @@ if ($useFppLocationEnabled) {
         });
     }
 
+    function updateNodeRoleState() {
+        var roleSelect = document.getElementById('nodeRole');
+        var remote = roleSelect && roleSelect.value === 'remote';
+
+        ['Location', 'Safety Thresholds', 'ADS-B Feed'].forEach(function (name) {
+            var group = document.querySelector('[data-group="' + name + '"]');
+            if (!group) {
+                return;
+            }
+
+            group.style.opacity = remote ? '0.45' : '1';
+            group.style.cursor = remote ? 'not-allowed' : '';
+            group.querySelectorAll('input, select, textarea').forEach(function (input) {
+                if (remote) {
+                    input.disabled = true;
+                } else {
+                    input.disabled = false;
+                }
+            });
+            group.querySelectorAll('label').forEach(function (label) {
+                label.style.cursor = remote ? 'not-allowed' : '';
+            });
+        });
+
+        if (!remote) {
+            // restore lat/lon to the state dictated by useFPPLocation
+            updateLocationState();
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
             updateToggleVisuals(group);
@@ -470,6 +521,12 @@ if ($useFppLocationEnabled) {
         });
 
         updateLocationState();
+        updateNodeRoleState();
+
+        var roleSelect = document.getElementById('nodeRole');
+        if (roleSelect) {
+            roleSelect.addEventListener('change', updateNodeRoleState);
+        }
     });
 })();
 </script>
