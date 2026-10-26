@@ -1,5 +1,15 @@
 # Air Defender changelog
 
+## 1.0.0 (2026-10-26)
+
+First full release, tested on a live show: an FPP master sending DDP to a Falcon controller with the moving heads.
+- Heads close over a playing sequence during a test and go back to the show when it ends.
+- Checking starts 2 minutes before a scheduled show.
+- After an FPPD restart during a test, the heads close again within seconds.
+- Real aircraft coming into range close the shutters, and they reopen after the hold once the aircraft leaves.
+
+No code changes since 0.10.0.
+
 ## 0.10.0 (2026-10-26)
 
 Brought in line with FPP's plugin guidelines, ready for FPP's plugin list:
