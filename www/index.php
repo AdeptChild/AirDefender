@@ -127,7 +127,7 @@ if (file_exists($logFile)) {
     </div>
 </div>
 
-<div style="display:flex;flex-wrap:wrap;justify-content:center;">
+<div style="display:flex;flex-wrap:wrap;justify-content:flex-start;">
     <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
         <h3 style="color:<?php echo !empty($enabled) ? '#4caf50' : '#f44336'; ?>;margin:0 0 10px 0;font-size:18px;">
             Plugin Enabled
@@ -147,7 +147,7 @@ if (file_exists($logFile)) {
     </div>
 </div>
 
-<div style="display:flex;flex-wrap:wrap;justify-content:center;margin-top:20px;">
+<div style="display:flex;flex-wrap:wrap;justify-content:flex-start;margin-top:20px;">
     <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
         <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Mode</h3>
         <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
@@ -190,7 +190,7 @@ if (file_exists($logFile)) {
 </div>
 <?php endif; ?>
 
-<div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:20px auto 0 auto;display:table;text-align:center;">
+<div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:20px 0 0 0;display:table;text-align:center;">
     <h3 style="color:#6cf;margin:0 0 10px 0;">Last Event</h3>
     <p style="color:#eee;margin:0;white-space:nowrap;">
         <?php echo htmlspecialchars($lastLog); ?>
