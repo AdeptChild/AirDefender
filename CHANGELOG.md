@@ -1,5 +1,11 @@
 # Air Defender changelog
 
+## 0.9.2 (2026-10-26)
+
+- New radar-scope icon (shown on the plugin's card in FPP).
+- The dashboard and settings use the icon's colours: radar greens, with orange for aircraft and safety, blue for tests, and red and yellow for problems.
+- The dashboard's Sky radar is drawn like the icon, with a turning sweep (still for anyone whose system asks for reduced motion) and the distance limit marked inside the rim.
+
 ## 0.9.1 (2026-10-26)
 
 - While on the backup flight-data service, the chosen one is now tried again every minute (was every 5 minutes), and Air Defender switches back as soon as it answers.

@@ -113,20 +113,20 @@ $pageConfig = array(
 );
 ?>
 <style>
-    .ad { --card:#262626; --card2:#1d1d1d; --line:#3a3a3a; --text:#ececec; --muted:#9a9a9a; --accent:#6cf;
-          --warn:#ff9800; --ok:#4caf50; --bad:#f44336; --test:#42a5f5; color:var(--text); max-width:1100px; }
+    .ad { --card:#0f1f18; --card2:#0b1712; --line:#1f3d2d; --text:#e3f2e8; --muted:#8fb09c; --accent:#7dffb4;
+          --warn:#ff9800; --ok:#2fbf71; --bad:#f44336; --test:#42a5f5; color:var(--text); max-width:1100px; }
     .ad * { box-sizing:border-box; }
     .ad-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .ad-top h2 { color:var(--accent); margin:0; }
-    .ad-switch { display:inline-flex; background:#111; border-radius:8px; padding:3px; gap:3px; }
+    .ad-switch { display:inline-flex; background:#0b1712; border-radius:8px; padding:3px; gap:3px; }
     .ad-switch button, .ad-btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:6px;
           padding:7px 12px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; }
-    .ad-switch button { border:none; background:transparent; color:#bbb; font-weight:bold; }
-    .ad-switch button.on { background:var(--accent); color:#111; }
+    .ad-switch button { border:none; background:transparent; color:#c6dccd; font-weight:bold; }
+    .ad-switch button.on { background:var(--accent); color:#0b1712; }
     .ad-banner { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; border-radius:12px;
           padding:14px 18px; margin-bottom:12px; border:2px solid var(--line); background:var(--card); }
     .ad-banner .t { font-size:22px; font-weight:bold; }
-    .ad-banner .s { font-size:14px; margin-top:4px; color:#ddd; }
+    .ad-banner .s { font-size:14px; margin-top:4px; color:#c6dccd; }
     .ad-banner.clear { border-color:var(--ok); } .ad-banner.clear .t { color:var(--ok); }
     .ad-banner.safe { border-color:var(--warn); background:#3a2a10; } .ad-banner.safe .t { color:var(--warn); }
     .ad-banner.test { border-color:var(--test); background:#13283a; } .ad-banner.test .t { color:var(--test); }
@@ -136,34 +136,37 @@ $pageConfig = array(
     .ad-banner.standby { border-color:#78909c; } .ad-banner.standby .t { color:#b0bec5; }
     .ad-override { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
     .ad-override select { width:auto; min-width:118px; height:auto; min-height:34px; line-height:1.3;
-          padding:6px 30px 6px 10px; border-radius:6px; background-color:#111; color:#fff; border:1px solid #444;
+          padding:6px 30px 6px 10px; border-radius:6px; background-color:#0b1712; color:#fff; border:1px solid #2a5a40;
           font-size:14px; text-overflow:clip; }
     .ad-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
     .ad-chips { display:flex; gap:6px; flex-wrap:wrap; }
-    .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:#111; color:#bbb; }
+    .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:#0b1712; color:#c6dccd; }
     .ad-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; }
     .ad-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0; }
     .ad-card h3 { margin:0 0 10px 0; font-size:15px; color:var(--accent); display:flex; justify-content:space-between; gap:8px; }
     .ad-card h3 small { font-size:12px; font-weight:normal; color:var(--muted); }
     .ad-note { font-size:12px; color:var(--muted); margin-top:8px; }
     .ad-presets { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; }
-    .ad-presets button { border:1px solid #555; background:#333; color:#ddd; border-radius:6px; padding:5px 9px; font-size:13px; cursor:pointer; }
-    .ad-presets button.on { background:var(--accent); color:#111; border-color:var(--accent); font-weight:bold; }
+    .ad-presets button { border:1px solid #2f6648; background:#183424; color:#c6dccd; border-radius:6px; padding:5px 9px; font-size:13px; cursor:pointer; }
+    .ad-presets button.on { background:var(--accent); color:#0b1712; border-color:var(--accent); font-weight:bold; }
     .ad-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .ad-row input { width:80px; padding:7px; border-radius:6px; background:#111; color:#fff; border:1px solid #444; }
-    .ad-start { background:var(--warn); color:#111; border:none; font-weight:bold; }
+    .ad-row input { width:80px; padding:7px; border-radius:6px; background:#0b1712; color:#fff; border:1px solid #2a5a40; }
+    .ad-start { background:var(--warn); color:#0b1712; border:none; font-weight:bold; }
     .ad-stop { background:var(--bad); color:#fff; border:none; font-weight:bold; }
     .ad-count { font-family:monospace; font-size:40px; font-weight:bold; color:var(--test); line-height:1; }
-    .ad-bar { height:7px; background:#111; border-radius:4px; overflow:hidden; margin:10px 0; }
+    .ad-bar { height:7px; background:#0b1712; border-radius:4px; overflow:hidden; margin:10px 0; }
     .ad-bar div { height:100%; width:0; background:var(--test); transition:width .5s linear; }
     .ad-err { color:#ff7b72; font-size:13px; margin-top:8px; }
     .ad-head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
     .ad-head:last-child { border-bottom:none; }
     .ad-head .ch { color:var(--muted); font-size:12px; margin-left:6px; }
     .ad-badge { font-size:11px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; }
-    .ad-badge.closed { background:var(--warn); color:#111; } .ad-badge.open { background:#333; color:#aaa; }
+    .ad-badge.closed { background:var(--warn); color:#0b1712; } .ad-badge.open { background:#183424; color:#8fb09c; }
     .ad-prob { color:#ff7b72; font-size:12px; margin:-2px 0 6px 0; }
     .ad-radar { width:100%; max-width:260px; display:block; margin:0 auto; }
+    .ad-sweep { transform-origin:100px 100px; animation:ad-spin 6s linear infinite; }
+    @keyframes ad-spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .ad-sweep { animation:none; } }
     .ad-foot { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px;
           background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 16px; font-size:14px; }
     .ad-foot .ev { overflow-wrap:anywhere; flex:1; min-width:240px; }
@@ -175,7 +178,7 @@ $pageConfig = array(
 
 <div class="ad lite" id="ad">
     <div class="ad-top">
-        <h2>Air Defender <span style="font-size:13px;color:#888;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
+        <h2>Air Defender <span style="font-size:13px;color:#8fb09c;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
         <div class="ad-row">
             <div class="ad-switch" role="group" aria-label="Dashboard view">
                 <button type="button" data-view="lite" class="on" title="Refreshes every 5 seconds">Lite</button>
@@ -438,7 +441,8 @@ $pageConfig = array(
 
         var svg = $('adRadar'), lim = limits();
         var NS = 'http://www.w3.org/2000/svg';
-        var outer = Math.max(1, Math.ceil(lim.nm || 5));   // the radius the feed is asked about
+        // The scope shows a little past the limit, so the limit ring sits inside the rim.
+        var outer = Math.max(1, Math.ceil(lim.nm || 5)) * 1.15;
         var R = 88;
         function el(tag, attrs, text) {
             var e = document.createElementNS(NS, tag);
@@ -448,15 +452,28 @@ $pageConfig = array(
             return e;
         }
         svg.textContent = '';
-        el('circle', { cx: 100, cy: 100, r: R, fill: '#1d1d1d', stroke: '#444', 'stroke-width': 1 });
-        el('circle', { cx: 100, cy: 100, r: R / 2, fill: 'none', stroke: '#333', 'stroke-width': 1 });
-        el('line', { x1: 100, y1: 100 - R, x2: 100, y2: 100 + R, stroke: '#2e2e2e' });
-        el('line', { x1: 100 - R, y1: 100, x2: 100 + R, y2: 100, stroke: '#2e2e2e' });
+        // Drawn like the plugin's icon: a radar scope with range rings and a sweep.
+        el('circle', { cx: 100, cy: 100, r: R, fill: '#0a2a1c', stroke: '#2fbf71', 'stroke-width': 2.5 });
+        el('circle', { cx: 100, cy: 100, r: R * 2 / 3, fill: 'none', stroke: '#1e8a52', 'stroke-width': 1.2 });
+        el('circle', { cx: 100, cy: 100, r: R / 3, fill: 'none', stroke: '#1e8a52', 'stroke-width': 1.2 });
+        el('line', { x1: 100, y1: 100 - R, x2: 100, y2: 100 + R, stroke: '#1e8a52', 'stroke-width': 0.8 });
+        el('line', { x1: 100 - R, y1: 100, x2: 100 + R, y2: 100, stroke: '#1e8a52', 'stroke-width': 0.8 });
+        var sweep = el('g', { 'class': 'ad-sweep' });
+        // Rebuilt every refresh: start each one where the turn should be, so it never jumps.
+        sweep.style.animationDelay = (-(Date.now() % 6000) / 1000) + 's';
+        var wedge = document.createElementNS(NS, 'path');
+        wedge.setAttribute('d', 'M100 100 L100 ' + (100 - R) + ' A' + R + ' ' + R + ' 0 0 1 ' + (100 + R * Math.sin(Math.PI / 3)).toFixed(1) + ' ' + (100 - R * Math.cos(Math.PI / 3)).toFixed(1) + ' Z');
+        wedge.setAttribute('fill', '#2fbf71'); wedge.setAttribute('opacity', '0.25');
+        var beam = document.createElementNS(NS, 'line');
+        beam.setAttribute('x1', 100); beam.setAttribute('y1', 100);
+        beam.setAttribute('x2', (100 + R * Math.sin(Math.PI / 3)).toFixed(1)); beam.setAttribute('y2', (100 - R * Math.cos(Math.PI / 3)).toFixed(1));
+        beam.setAttribute('stroke', '#7dffb4'); beam.setAttribute('stroke-width', 2); beam.setAttribute('stroke-linecap', 'round');
+        sweep.appendChild(wedge); sweep.appendChild(beam);
         el('circle', { cx: 100, cy: 100, r: R * Math.min(1, (lim.nm || outer) / outer), fill: 'none',
                        stroke: '#ff9800', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
-        el('text', { x: 100, y: 9, fill: '#888', 'font-size': 9, 'text-anchor': 'middle' }, 'N');
-        el('text', { x: 196, y: 196, fill: '#777', 'font-size': 8, 'text-anchor': 'end' }, outer + ' NM');
-        el('circle', { cx: 100, cy: 100, r: 3.5, fill: '#6cf' });
+        el('text', { x: 100, y: 9, fill: '#8fb09c', 'font-size': 9, 'text-anchor': 'middle' }, 'N');
+        el('text', { x: 196, y: 196, fill: '#ff9800', 'font-size': 8, 'text-anchor': 'end' }, (lim.nm || 5) + ' NM limit');
+        el('circle', { cx: 100, cy: 100, r: 4, fill: '#7dffb4' });
 
         if (live.role === 'remote') {
             $('adSkyNote').textContent = 'This Remote follows its master, which checks the sky.';
@@ -470,7 +487,7 @@ $pageConfig = array(
         planes.forEach(function (p) {
             var r = Math.min(1, p.nm / outer) * R, a = p.brg * Math.PI / 180;
             var c = el('circle', { cx: (100 + r * Math.sin(a)).toFixed(1), cy: (100 - r * Math.cos(a)).toFixed(1),
-                                   r: p.in ? 5 : 3, fill: p.in ? '#ff9800' : '#9a9a9a' });
+                                   r: p.in ? 5 : 3, fill: p.in ? '#ff9800' : '#5f9c7a' });
             var t = document.createElementNS(NS, 'title');
             t.textContent = p.id + ' · ' + p.nm + ' NM · ' + (p.ft === null ? '? ft' : num(p.ft) + ' ft');
             c.appendChild(t);

@@ -462,14 +462,14 @@ if (!in_array(true, $headsShown, true)) {
 $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessage, 'ERROR') !== 0;
 ?>
 <style>
-    .ads { --card:#262626; --card2:#1d1d1d; --line:#3a3a3a; --text:#ececec; --muted:#9a9a9a; --accent:#6cf;
-           --warn:#ff9800; --ok:#4caf50; --bad:#f44336; color:var(--text); max-width:1100px; padding-bottom:80px; }
+    .ads { --card:#0f1f18; --card2:#0b1712; --line:#1f3d2d; --text:#e3f2e8; --muted:#8fb09c; --accent:#7dffb4;
+           --warn:#ff9800; --ok:#2fbf71; --bad:#f44336; color:var(--text); max-width:1100px; padding-bottom:80px; }
     .ads * { box-sizing:border-box; }
     .ads-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .ads-top h2 { color:var(--accent); margin:0; }
     .ads-btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:6px; padding:7px 12px;
            font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; }
-    .ads-btn.primary { background:var(--accent); color:#111; border-color:var(--accent); font-weight:bold; }
+    .ads-btn.primary { background:var(--accent); color:#0b1712; border-color:var(--accent); font-weight:bold; }
     .ads-msg { padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:14px; }
     .ads-msg.ok { background:#1f3a24; color:#cfeed6; } .ads-msg.err { background:#4a1f1f; color:#ffd7d3; }
     .ads-sec { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:12px; }
@@ -479,26 +479,26 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
     .ads-fields .ads-field:last-child { margin-bottom:12px; }
     .ads-field { display:grid; grid-template-columns:150px minmax(0,1fr); gap:6px 12px; align-items:center; margin-bottom:12px; }
     .ads-field:last-child { margin-bottom:0; }
-    .ads-field > label { color:#cfcfcf; font-size:14px; }
+    .ads-field > label { color:#c6dccd; font-size:14px; }
     .ads-help { grid-column:2; font-size:12px; color:var(--muted); line-height:1.45; }
-    .ads input[type=text], .ads input[type=number], .ads select { padding:7px 9px; border-radius:6px; border:1px solid #444;
-           background:#111; color:#fff; font-size:14px; height:auto; line-height:1.3; }
+    .ads input[type=text], .ads input[type=number], .ads select { padding:7px 9px; border-radius:6px; border:1px solid #2a5a40;
+           background:#0b1712; color:#fff; font-size:14px; height:auto; line-height:1.3; }
     .ads select { padding-right:28px; }
-    .ads input:disabled { background:#1a1a1a; color:#888; cursor:not-allowed; }
+    .ads input:disabled { background:#0b1712; color:#8fb09c; cursor:not-allowed; }
     .ads-unit { display:inline-flex; align-items:center; gap:6px; }
     .ads-unit input { width:95px; }
     .ads-unit span { color:var(--muted); font-size:13px; white-space:nowrap; }
     .ads-field > div, .ads-field > select { min-width:0; }
-    .ads-seg { display:inline-flex; justify-self:start; background:#111; border-radius:8px; padding:3px; gap:3px; flex-wrap:wrap; }
+    .ads-seg { display:inline-flex; justify-self:start; background:#0b1712; border-radius:8px; padding:3px; gap:3px; flex-wrap:wrap; }
     .ads-seg label { position:relative; }
     .ads-seg input { position:absolute; opacity:0; pointer-events:none; }
-    .ads-seg span { display:block; padding:6px 12px; border-radius:6px; color:#bbb; font-size:13px; font-weight:bold; cursor:pointer; }
-    .ads-seg input:checked + span { background:var(--accent); color:#111; }
+    .ads-seg span { display:block; padding:6px 12px; border-radius:6px; color:#c6dccd; font-size:13px; font-weight:bold; cursor:pointer; }
+    .ads-seg input:checked + span { background:var(--accent); color:#0b1712; }
     .ads-seg input:focus-visible + span { outline:2px solid var(--accent); }
     .ads-sw { position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; }
     .ads-sw input { position:absolute; opacity:0; pointer-events:none; }
-    .ads-sw .track { width:40px; height:22px; border-radius:11px; background:#444; position:relative; transition:background .15s; flex:none; }
-    .ads-sw .track::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#ddd; transition:left .15s; }
+    .ads-sw .track { width:40px; height:22px; border-radius:11px; background:#2a5a40; position:relative; transition:background .15s; flex:none; }
+    .ads-sw .track::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#c6dccd; transition:left .15s; }
     .ads-sw input:checked + .track { background:var(--ok); }
     .ads-sw input:checked + .track::after { left:21px; background:#fff; }
     .ads-sw input:focus-visible + .track { outline:2px solid var(--accent); }
@@ -511,14 +511,14 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
     .ads-heads td.closed input { width:62px; }
     .ads-heads td select { width:100%; min-width:140px; }
     .ads-heads tr.off td:not(.keep) { opacity:.45; }
-    .ads-res { font-size:13px; color:#8fd18f; white-space:nowrap; }
+    .ads-res { font-size:13px; color:#7dffb4; white-space:nowrap; }
     .ads-res.warn { color:#ffb74d; white-space:normal; } .ads-res.err { color:#ff7b72; white-space:normal; }
     .ads-x { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:2px 6px; }
     .ads-x:hover { color:#ff7b72; }
     .ads-add { margin-top:10px; }
     .ads-note { font-size:12px; color:var(--muted); line-height:1.5; margin-top:10px; }
     .ads-test { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px; }
-    .ads-test-out { font-size:13px; } .ads-test-out.ok { color:#8fd18f; } .ads-test-out.err { color:#ff7b72; }
+    .ads-test-out { font-size:13px; } .ads-test-out.ok { color:#7dffb4; } .ads-test-out.err { color:#ff7b72; }
     .ads-remote-only, .ads.remote .ads-master-only { display:none; }
     .ads.remote .ads-remote-only { display:block; }
     .ads-bar { position:sticky; bottom:0; z-index:5; display:none; justify-content:space-between; align-items:center; gap:12px;
@@ -534,7 +534,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
 
 <form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" class="ads<?php echo $isRemote ? ' remote' : ''; ?>" id="ads" novalidate>
     <div class="ads-top">
-        <h2>Air Defender settings <span style="font-size:13px;color:#888;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
+        <h2>Air Defender settings <span style="font-size:13px;color:#8fb09c;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
         <a class="ads-btn" href="plugin.php?plugin=AirDefender&page=www/index.php">Dashboard</a>
     </div>
 
@@ -575,7 +575,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 <input type="password" name="masterPassword" id="masterPassword" value="" autocomplete="new-password" style="max-width:280px;"
                     placeholder="<?php echo (string) $v('masterPassword') !== '' ? 'Saved: type to change' : 'Only if the master has one'; ?>">
                 <?php if ((string) $v('masterPassword') !== ''): ?>
-                    <label style="margin-left:10px;font-size:13px;color:#cfcfcf;"><input type="checkbox" name="masterPasswordClear" value="1"> Remove saved password</label>
+                    <label style="margin-left:10px;font-size:13px;color:#c6dccd;"><input type="checkbox" name="masterPasswordClear" value="1"> Remove saved password</label>
                 <?php endif; ?>
             </div>
             <div class="ads-help">Only needed if the master FPP has a UI password (Settings &rarr; UI on the master). The Remote logs in as admin with it to read the master's status, on your local network.</div>
@@ -650,7 +650,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
 
     <div class="ads-sec ads-remote-only" style="display:none;">
         <h3>On a Remote</h3>
-        <div style="font-size:14px;color:#cfcfcf;">When to check, location, safety limits and flight data are set on the <b>master</b>; this Remote follows it.</div>
+        <div style="font-size:14px;color:#c6dccd;">When to check, location, safety limits and flight data are set on the <b>master</b>; this Remote follows it.</div>
     </div>
 
     <div class="ads-master-only">
@@ -725,8 +725,8 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 <div class="ads-help">
                     <?php if (!empty($airdefenderFeedNote)): ?><span style="color:#ffb74d;"><?php echo htmlspecialchars($airdefenderFeedNote); ?></span><br><?php endif; ?>
                     Free community services for personal, non-commercial use: data from
-                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#6cf;">adsb.fi</a> and
-                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#6cf;">adsb.lol</a> (ODbL). A local receiver sends nothing off this FPP.
+                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#7dffb4;">adsb.fi</a> and
+                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#7dffb4;">adsb.lol</a> (ODbL). A local receiver sends nothing off this FPP.
                 </div>
             </div>
             <div class="ads-field">
@@ -895,7 +895,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             help.appendChild(document.createTextNode(useFpp ? "From FPP's settings. " : ''));
             var a = document.createElement('a');
             a.href = 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=15/' + lat + '/' + lon;
-            a.target = '_blank'; a.rel = 'noopener'; a.style.color = '#6cf'; a.textContent = 'Check it on a map';
+            a.target = '_blank'; a.rel = 'noopener'; a.style.color = '#7dffb4'; a.textContent = 'Check it on a map';
             help.appendChild(a);
         }
     }
