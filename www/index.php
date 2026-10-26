@@ -134,7 +134,9 @@ $pageConfig = array(
     .ad-banner.off .t { color:var(--muted); }
     .ad-banner.standby { border-color:#78909c; } .ad-banner.standby .t { color:#b0bec5; }
     .ad-override { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-    .ad-override select { padding:6px; border-radius:6px; background:#111; color:#fff; border:1px solid #444; }
+    .ad-override select { width:auto; min-width:118px; height:auto; min-height:34px; line-height:1.3;
+          padding:6px 30px 6px 10px; border-radius:6px; background-color:#111; color:#fff; border:1px solid #444;
+          font-size:14px; text-overflow:clip; }
     .ad-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
     .ad-chips { display:flex; gap:6px; flex-wrap:wrap; }
     .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:#111; color:#bbb; }
