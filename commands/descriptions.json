@@ -20,5 +20,21 @@
         "description": "Ends a running test early.",
         "script": "test_stop.sh",
         "args": []
+    },
+    {
+        "name": "Air Defender: Check Now",
+        "description": "Checks for aircraft for the given number of minutes even outside show times, for example while testing a sequence. 0 ends it early. The same as Check now on the dashboard.",
+        "script": "check_now.sh",
+        "args": [
+            {
+                "name": "Minutes",
+                "description": "How long to check (minutes, 0 ends it)",
+                "type": "int",
+                "min": 0,
+                "max": 720,
+                "default": "60",
+                "optional": false
+            }
+        ]
     }
 ]

@@ -156,3 +156,47 @@ function airdefender_test_stop(): array
 
     return airdefender_test_status();
 }
+
+/*
+ * "Check now" override: check for aircraft for a while even outside show
+ * times, for example while testing a sequence in the afternoon. Like a test,
+ * it stores its end time, so it survives refreshes and ends by itself.
+ */
+function airdefender_override_file(): string
+{
+    return dirname(__DIR__) . "/override.json";
+}
+
+function airdefender_override_until(): ?int
+{
+    $data = json_decode((string) @file_get_contents(airdefender_override_file()), true);
+    $until = is_array($data) ? (int) ($data['until'] ?? 0) : 0;
+    if ($until > time()) {
+        return $until;
+    }
+    if ($until > 0) {
+        // Ran out: close it out once, here or wherever it is noticed first.
+        @unlink(airdefender_override_file());
+        airdefender_test_log("Check now override ended; back to the When to Check setting.");
+    }
+    return null;
+}
+
+function airdefender_override_start($minutes): ?int
+{
+    $minutes = max(5, min(720, (int) $minutes));
+    $until = time() + $minutes * 60;
+    if (@file_put_contents(airdefender_override_file(), json_encode(['until' => $until, 'minutes' => $minutes]), LOCK_EX) === false) {
+        return null;
+    }
+    airdefender_test_log("Check now override on for {$minutes} min: checking for aircraft even outside show times.");
+    return $until;
+}
+
+function airdefender_override_stop(): void
+{
+    if (file_exists(airdefender_override_file())) {
+        @unlink(airdefender_override_file());
+        airdefender_test_log("Check now override ended early; back to the When to Check setting.");
+    }
+}

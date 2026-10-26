@@ -47,6 +47,12 @@ a different location.</p>
 
 <h3>Safety Thresholds</h3>
 <ul>
+    <li><b>When to Check</b>: when Air Defender asks for flight data.
+        <b>During scheduled shows</b> (the default) starts 2 minutes before each scheduled show and stops when it ends.
+        <b>Whenever FPP is playing</b> also covers playlists started by hand. <b>Always</b> checks around the clock.
+        Outside those times the dashboard shows <b>Standby</b>, nothing is sent to the flight-data service, and the
+        shutters are left to the show. To test a sequence at another time, use <b>Check now</b> on the dashboard (or
+        the Air Defender: Check Now command): it checks for the time you pick, then turns itself off.</li>
     <li><b>Distance Threshold (NM)</b>: how close, in nautical miles, an aircraft must be.</li>
     <li><b>Altitude Threshold (ft)</b>: how low, in feet, it must be.</li>
     <li><b>ADS-B Fetch Interval</b>: how often, in seconds, to ask for new flight data (5 or more).</li>

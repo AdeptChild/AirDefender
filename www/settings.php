@@ -232,6 +232,16 @@ $settings = array(
         'type' => 'int',
         'default' => 10,
     ),
+    'checkWhen' => array(
+        'label' => 'When to Check',
+        'type' => 'select',
+        'default' => 'scheduled',
+        'options' => array(
+            'scheduled' => 'During scheduled shows (default)',
+            'playing' => 'Whenever FPP is playing',
+            'always' => 'Always',
+        ),
+    ),
     'clearDelaySec' => array(
         'label' => 'Hold After Aircraft Leaves (seconds)',
         'type' => 'int',
@@ -320,7 +330,7 @@ $settingGroups = array(
     'Operation Mode' => array('nodeRole', 'masterAddress'),
     'Moving Heads' => $headKeys,
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
-    'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval', 'clearDelaySec'),
+    'Safety Thresholds' => array('checkWhen', 'distanceNM', 'altitudeThresholdFt', 'fetchInterval', 'clearDelaySec'),
     'ADS-B Feed' => array('adsbSourceUrl', 'feedDownSafe'),
 );
 
@@ -358,6 +368,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $toSave[$key] = (string) $postedValue;
             if ($key === 'nodeRole' && !array_key_exists($toSave[$key], $config['options'])) {
                 $toSave[$key] = 'master';
+            }
+            if ($key === 'checkWhen' && !array_key_exists($toSave[$key], $config['options'])) {
+                $toSave[$key] = 'scheduled';
             }
         } else {
             $toSave[$key] = trim((string) $postedValue);
@@ -666,6 +679,12 @@ if ($useFppLocationEnabled) {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <?php if ($key === 'checkWhen'): ?>
+                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
+                                    Air Defender only asks for flight data when there is a show to protect, starting 2 minutes before a scheduled show.
+                                    Testing a sequence at another time? Use <b>Check now</b> on the dashboard: it checks for a set time, then turns itself off.
+                                </div>
+                            <?php endif; ?>
                             <?php if ($key === 'adsbSourceUrl'): ?>
                                 <?php if (!empty($airdefenderFeedNote)): ?>
                                     <div style="margin-top:8px;color:#ffb74d;font-size:13px;line-height:1.4;"><?php echo htmlspecialchars($airdefenderFeedNote); ?></div>

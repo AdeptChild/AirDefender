@@ -132,6 +132,10 @@ $pageConfig = array(
     .ad-banner.down { border-color:var(--bad); background:#3a1414; } .ad-banner.down .t { color:#ff8a80; }
     .ad-banner.warn { border-color:#c9a227; } .ad-banner.warn .t { color:#e6c34a; }
     .ad-banner.off .t { color:var(--muted); }
+    .ad-banner.standby { border-color:#78909c; } .ad-banner.standby .t { color:#b0bec5; }
+    .ad-override { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .ad-override select { padding:6px; border-radius:6px; background:#111; color:#fff; border:1px solid #444; }
+    .ad-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
     .ad-chips { display:flex; gap:6px; flex-wrap:wrap; }
     .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:#111; color:#bbb; }
     .ad-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; }
@@ -183,9 +187,24 @@ $pageConfig = array(
             <div class="t" id="adBannerTitle">&nbsp;</div>
             <div class="s" id="adBannerSub">&nbsp;</div>
         </div>
-        <div class="ad-chips">
-            <span class="ad-chip" id="adChipRole"></span>
-            <span class="ad-chip" id="adChipEnabled"></span>
+        <div class="ad-right">
+            <div class="ad-chips">
+                <span class="ad-chip" id="adChipRole"></span>
+                <span class="ad-chip" id="adChipEnabled"></span>
+            </div>
+            <div class="ad-override ad-hidden" id="adOverrideOff" title="Check for aircraft now, even outside show times; turns itself off">
+                <select id="adOverrideMin" aria-label="How long to check">
+                    <option value="30">30 min</option>
+                    <option value="60" selected>1 hour</option>
+                    <option value="120">2 hours</option>
+                    <option value="240">4 hours</option>
+                </select>
+                <button type="button" class="ad-btn" id="adOverrideStart">Check now</button>
+            </div>
+            <div class="ad-override ad-hidden" id="adOverrideOn">
+                <span class="ad-chip" id="adOverrideLeft"></span>
+                <button type="button" class="ad-btn" id="adOverrideEnd">End</button>
+            </div>
         </div>
     </div>
 
@@ -287,6 +306,14 @@ $pageConfig = array(
         } else if (live && !live.enabled) {
             cls = 'off'; title = 'Disabled';
             sub = 'Turn on Air Defender in Settings to check for aircraft.';
+        } else if (live && live.role !== 'remote' && live.checking === false) {
+            cls = 'standby'; title = 'Standby';
+            sub = (live.checkWhen === 'playing' ? 'Not checking until FPP plays a show.' : 'Not checking until a scheduled show.');
+            if (live.nextShow && live.nextShow.start) {
+                var d = new Date(live.nextShow.start * 1000);
+                sub += ' Next: ' + (live.nextShow.name || 'show') + ', ' + d.toLocaleDateString([], { weekday: 'short' }) + ' '
+                    + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' (checks start 2 min before).';
+            }
         } else if (live && live.safe) {
             cls = 'safe'; title = 'Safety active';
             sub = (live.now || '') + (live.safeSince ? ' · since ' + new Date(live.safeSince * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
@@ -299,6 +326,15 @@ $pageConfig = array(
         }
         if (live && live.outputError) {
             sub += ' · FPP refused the shutter channels: ' + live.outputError;
+        }
+        // Check now: offered when checks depend on show times; shows time left while on.
+        var ovLeft = live && live.overrideUntil ? live.overrideUntil - (Date.now() / 1000 + clockOffset) : 0;
+        var canOverride = live && live.loopRunning && live.enabled && live.role !== 'remote' && live.checkWhen !== 'always';
+        $('adOverrideOn').classList.toggle('ad-hidden', !(ovLeft > 0));
+        $('adOverrideOff').classList.toggle('ad-hidden', !(canOverride && !(ovLeft > 0)));
+        if (ovLeft > 0) {
+            $('adOverrideLeft').textContent = 'Check now \u00b7 ' + (ovLeft >= 3600 ? Math.floor(ovLeft / 3600) + ' h ' : '')
+                + Math.ceil((ovLeft % 3600) / 60) + ' min left';
         }
         b.className = 'ad-banner ' + cls;
         $('adBannerTitle').textContent = title;
@@ -387,6 +423,7 @@ $pageConfig = array(
             return m.connected ? 'master ' + (m.address || '') + ' OK' : 'master not connected';
         }
         var f = live.feed || {};
+        if (live.checking === false) { return 'standby'; }
         if (f.error) { return 'feed problem'; }
         return f.lastOkAgo !== null && f.lastOkAgo !== undefined ? FEED_LABEL + ' · ' + ago(f.lastOkAgo) : 'not checked yet';
     }
@@ -419,6 +456,10 @@ $pageConfig = array(
 
         if (live.role === 'remote') {
             $('adSkyNote').textContent = 'This Remote follows its master, which checks the sky.';
+            return;
+        }
+        if (live.checking === false) {
+            $('adSkyNote').textContent = 'Standby: not checking until there is a show.';
             return;
         }
         var planes = live.aircraft || [], inside = 0;
@@ -512,6 +553,22 @@ $pageConfig = array(
         call('POST', 'action=stop')
             .then(function () { setTimeout(poll, 1500); })   // the loop needs about a second to move the heads
             .catch(function (e) { testError('Could not stop the test: ' + e.message); })
+            .then(function () { btn.disabled = false; });
+    });
+    $('adOverrideStart').addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        call('POST', 'action=override&minutes=' + encodeURIComponent($('adOverrideMin').value))
+            .then(function () { setTimeout(poll, 2500); })   // the loop checks within a couple of seconds
+            .catch(function (e) { window.alert('Could not start Check now: ' + e.message); })
+            .then(function () { btn.disabled = false; });
+    });
+    $('adOverrideEnd').addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        call('POST', 'action=override_off')
+            .then(function () { setTimeout(poll, 2500); })
+            .catch(function (e) { window.alert('Could not end Check now: ' + e.message); })
             .then(function () { btn.disabled = false; });
     });
     $('adClearLog').addEventListener('click', function () {

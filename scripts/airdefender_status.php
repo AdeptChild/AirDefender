@@ -69,6 +69,11 @@ function airdefender_live_status(bool $detailed = false): array
             'holdSec' => isset($limits['holdSec']) ? (int) $limits['holdSec'] : null,
         ],
         'aircraft' => $detailed && is_array($state['nearby'] ?? null) ? $state['nearby'] : null,
+        'checking' => !array_key_exists('checking', $state) || !empty($state['checking']),
+        'checkWhen' => (string) ($state['checkWhen'] ?? 'scheduled'),
+        // Read directly, so the dashboard shows a new override at once.
+        'overrideUntil' => airdefender_override_until(),
+        'nextShow' => is_array($state['nextShow'] ?? null) ? $state['nextShow'] : null,
     ];
 }
 

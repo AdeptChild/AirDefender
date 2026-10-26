@@ -10,6 +10,8 @@
  *   POST action=start&duration=<seconds> -> start a test
  *   POST action=stop                     -> end a test early
  *   POST action=clear_log                -> empty the Air Defender log
+ *   POST action=override&minutes=<n>     -> check for aircraft now, for n minutes
+ *   POST action=override_off             -> end that early
  *
  * Anything that changes state is POST only.
  */
@@ -40,6 +42,18 @@ switch ($action) {
             echo json_encode(['error' => 'Could not clear the log. Check that the log file is writable.']);
             exit;
         }
+        $status = airdefender_test_status();
+        break;
+    case 'override':
+        if (airdefender_override_start($_POST['minutes'] ?? 60) === null) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not save the override. Check that the plugin folder is writable.']);
+            exit;
+        }
+        $status = airdefender_test_status();
+        break;
+    case 'override_off':
+        airdefender_override_stop();
         $status = airdefender_test_status();
         break;
     case 'status':

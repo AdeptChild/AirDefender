@@ -21,10 +21,15 @@ whether you look or not.</p>
     <li><b>Test running</b> (blue): a test is closing the heads, with the time left.</li>
     <li><b>Can't check the sky</b> (yellow): the flight-data service is not answering. See the reason, and the
         <b>Close Heads If Feed Is Down</b> setting.</li>
+    <li><b>Standby</b> (grey-blue): no show is on, so Air Defender is not checking (see <b>When to Check</b> in
+        Settings). It shows the next scheduled show; checks start 2 minutes before it.</li>
     <li><b>Disabled</b> (grey): Air Defender is switched off in Settings.</li>
     <li><b>Not running</b> (red): the detection loop is not running. Restart FPPD (or reboot).</li>
 </ul>
 <p>The chips on the right show whether this FPP is the Master or a Remote, and whether Air Defender is enabled.</p>
+<p><b>Check now</b> (Master, when checks follow show times): checks for aircraft for 30 minutes to 4 hours even
+with no show on, for example while testing a sequence, then turns itself off. The banner shows the time left and an
+<b>End</b> button.</p>
 
 <h3>Sky (Detailed)</h3>
 <p>Your show is the blue dot in the middle, north is up, and the dashed orange ring is your distance limit.

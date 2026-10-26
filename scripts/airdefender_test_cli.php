@@ -5,6 +5,7 @@
  *
  *   php airdefender_test_cli.php start <seconds>
  *   php airdefender_test_cli.php stop
+ *   php airdefender_test_cli.php checknow <minutes>   (0 ends it)
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -25,5 +26,17 @@ if ($action === 'stop') {
     exit(0);
 }
 
-fwrite(STDERR, "Usage: php airdefender_test_cli.php start <seconds> | stop\n");
+if ($action === 'checknow') {
+    $minutes = (int) ($argv[2] ?? 60);
+    if ($minutes <= 0) {
+        airdefender_override_stop();
+        echo "Check now ended\n";
+        exit(0);
+    }
+    $until = airdefender_override_start($minutes);
+    echo $until ? "Checking for aircraft until " . date('H:i', $until) . "\n" : "Could not start Check now\n";
+    exit($until ? 0 : 1);
+}
+
+fwrite(STDERR, "Usage: php airdefender_test_cli.php start <seconds> | stop | checknow <minutes>\n");
 exit(2);

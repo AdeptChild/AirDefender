@@ -393,6 +393,57 @@ function airdefender_poll_master(string $address): array
     return [$data, null];
 }
 
+/* ---------- show schedule ---------- */
+
+const AIRDEFENDER_SHOW_LEAD_SEC = 120;   // start checking this long before a scheduled show
+
+/*
+ * What FPP is playing, from fppd's status: whether anything is playing,
+ * whether it is a scheduled show, and the next scheduled show. Null if fppd
+ * could not be asked.
+ */
+function airdefender_show_state(): ?array
+{
+    [$st, $err] = airdefender_get_json(AirDefenderOutputs::FPPD_API . "/fppd/status", 2);
+    if ($st === null) {
+        return null;
+    }
+    $sched = is_array($st['scheduler'] ?? null) ? $st['scheduler'] : [];
+    $schedStatus = (string) ($sched['status'] ?? 'idle');
+    $name = strtolower((string) ($st['status_name'] ?? 'idle'));
+    // "playing media" / "playing background" are audio only, not a light show.
+    $playing = $schedStatus === 'playing' || $schedStatus === 'manual'
+        || in_array($name, ['playing', 'paused', 'stopping gracefully', 'stopping gracefully after loop'], true);
+    $next = is_array($sched['nextPlaylist'] ?? null) ? $sched['nextPlaylist'] : [];
+    $nextStart = (int) ($next['scheduledStartTime'] ?? 0);
+    return [
+        'playing' => $playing,
+        'scheduled' => $schedStatus === 'playing',
+        'nextName' => (string) ($next['playlistName'] ?? ''),
+        'nextStart' => $nextStart > 0 ? $nextStart : null,
+    ];
+}
+
+/*
+ * Whether to check for aircraft now, for the When to Check setting:
+ *   scheduled - during a scheduled show, and from shortly before one starts
+ *   playing   - whenever FPP is playing a playlist or sequence, scheduled or not
+ *   always    - all the time
+ * A Check now override, or not being able to ask fppd, means check.
+ */
+function airdefender_should_check(string $mode, ?array $show, ?int $overrideUntil, int $now): bool
+{
+    if ($overrideUntil !== null || $mode === 'always' || $show === null) {
+        return true;
+    }
+    $soon = $show['nextStart'] !== null
+        && $show['nextStart'] - $now <= AIRDEFENDER_SHOW_LEAD_SEC && $show['nextStart'] - $now >= -60;
+    if ($mode === 'playing') {
+        return $show['playing'] || $soon;
+    }
+    return $show['scheduled'] || $soon;
+}
+
 /* ---------- main ---------- */
 
 // One copy only: a second start (fppd restarted twice quickly) just exits.
@@ -413,6 +464,9 @@ $models = null;              // FPP's model list, last good read
 $modelsAt = 0;
 $trimmedAt = 0;              // last time the log was trimmed to AIRDEFENDER_LOG_KEEP_DAYS
 $nearby = [];                // aircraft from the last good fetch, for the radar
+$show = null;                // what FPP is playing, re-read every 2 s
+$showAt = 0;
+$wasChecking = null;
 $safeSince = null;           // when safety mode last turned on
 
 $safe = false;
@@ -452,6 +506,10 @@ while (true) {
     $fetchInterval = max(5, (int) airdefender_setting($settings, 'fetchInterval', 10));
     $clearDelay = max(0, (int) airdefender_setting($settings, 'clearDelaySec', AIRDEFENDER_DEFAULT_CLEAR_DELAY));
     $feedDownSafe = airdefender_truthy(airdefender_setting($settings, 'feedDownSafe', '0'));
+    $checkWhen = (string) airdefender_setting($settings, 'checkWhen', 'scheduled');
+    if (!in_array($checkWhen, ['scheduled', 'playing', 'always'], true)) {
+        $checkWhen = 'scheduled';
+    }
     [$feedTemplate, $feedNote] = airdefender_effective_feed((string) airdefender_setting($settings, 'adsbSourceUrl', ''));
     airdefender_log_once('feed-choice', $feedNote);
     // Re-read FPP's models every 10 s, so a head re-patched in xLights and
@@ -483,7 +541,30 @@ while (true) {
     [$lat, $lon] = airdefender_location($settings);
 
     $test = airdefender_test_status();
-    $detecting = $enabled && $role !== 'remote' && $lat !== null && $lon !== null;
+
+    // Only check for aircraft when there is a show to protect (When to Check),
+    // unless a Check now override is on.
+    if ($now - $showAt >= 2) {
+        $showAt = $now;
+        $show = airdefender_show_state();
+    }
+    $overrideUntil = airdefender_override_until();
+    $checking = $role === 'remote' || airdefender_should_check($checkWhen, $show, $overrideUntil, $now);
+    if ($wasChecking !== null && $checking !== $wasChecking && $role !== 'remote' && $enabled) {
+        airdefender_log($checking
+            ? "Checking for aircraft" . ($overrideUntil !== null ? " (Check now override)." : " (show time).")
+            : "Standby: no show playing, so not checking for aircraft.");
+    }
+    if ($checking && $wasChecking === false) {
+        $nextFetchAt = 0;      // check straight away rather than one interval later
+    }
+    if (!$checking) {
+        $feedError = null;
+        $nearby = [];
+    }
+    $wasChecking = $checking;
+
+    $detecting = $enabled && $role !== 'remote' && $lat !== null && $lon !== null && $checking;
 
     // Start over with a fresh fetch whenever what we ask the feed changes.
     $feedKey = $feedTemplate . "|" . $lat . "|" . $lon . "|" . $maxNm;
@@ -585,6 +666,10 @@ while (true) {
         $safe = false;
         $reason = 'no-location';
         $event = 'No show location: set it in FPP settings or turn off Use FPP Location and enter one';
+    } elseif (!$checking) {
+        $safe = false;
+        $reason = 'standby';
+        $event = $checkWhen === 'playing' ? 'Standby: nothing playing' : 'Standby: waiting for a scheduled show';
     } elseif ($planeNow) {
         $safe = true;
         $reason = 'aircraft';
@@ -664,6 +749,10 @@ while (true) {
         'limits' => ['nm' => $maxNm, 'ft' => $maxFt, 'holdSec' => $clearDelay],
         'safeSince' => $safeSince ? date('c', $safeSince) : null,
         'enabled' => $enabled,
+        'checking' => $checking,
+        'checkWhen' => $checkWhen,
+        'overrideUntil' => $overrideUntil,
+        'nextShow' => $show && $show['nextStart'] ? ['name' => $show['nextName'], 'start' => $show['nextStart']] : null,
         'lastFetchOk' => $lastFetchOkAt ? date('c', $lastFetchOkAt) : null,
         'feedError' => $feedError,
         'location' => $lat !== null ? ['lat' => $lat, 'lon' => $lon] : null,

@@ -50,6 +50,7 @@ Air Defender adds two commands you can use in playlists, schedules and command p
 
 - **Air Defender: Start Test** – closes the shutters for the given number of seconds (5–1800), exactly like Start Test on the dashboard. On the master it closes every Remote's heads too.
 - **Air Defender: Stop Test** – ends a running test early.
+- **Air Defender: Check Now** – checks for aircraft for the given minutes even outside show times (0 ends it), like Check now on the dashboard.
 
 ## Node Role
 
@@ -95,6 +96,8 @@ Safety mode turns on when:
 - an aircraft is inside the distance **and** below the altitude threshold (aircraft on the ground are ignored),
 - one was, within the **Hold After Aircraft Leaves** time (default 30 seconds), so a plane on the edge of the radius doesn't flash the lights,
 - or the ADS-B feed stops answering while an aircraft was near: with no data it stays safe until the feed comes back. With **Close Heads If Feed Is Down** on, any feed outage closes the heads.
+
+**When to check.** By default Air Defender only checks during scheduled shows, starting 2 minutes before each one; **Whenever FPP is playing** and **Always** are the other choices. Outside those times it is on **Standby**: it sends nothing to the flight-data service and leaves the shutters to the show. To test a sequence at another time, use **Check now** on the dashboard (or the Check Now command), which turns itself off after the time you pick. A Remote follows its master regardless.
 
 The detection loop starts with fppd (`scripts/postStart.sh`) and stops with it (`scripts/preStop.sh`). It re-reads the settings every second, so changes apply without restarting fppd. Everything it does is logged to `/home/fpp/media/logs/airdefender.log`, which keeps the last 7 days (it lists aircraft that passed nearby) and can be cleared from the dashboard. The dashboard has a **Lite** view (status banner, test, heads summary, last event; refreshes every 5 s) and a **Detailed** view that adds a **Sky** radar of nearby aircraft and every head's state (refreshes every 2 s). The choice is remembered per browser. **Last Event** shows only safety turning on or off and tests.
 
