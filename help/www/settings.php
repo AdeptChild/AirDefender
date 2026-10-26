@@ -23,18 +23,23 @@ while it is off.</p>
 <h3>Moving Heads</h3>
 <p>For each head (up to 8), turn it on and tell Air Defender where its shutter is:</p>
 <ul>
-    <li><b>Model</b>: pick the head's model from FPP's model list (the names you gave them in xLights).
-        Models get into FPP when you upload them from xLights with FPP Connect, or when you add them on FPP's
-        Pixel Overlay Models page.</li>
-    <li><b>Shutter Ch.</b>: with a model picked, the shutter's channel number <i>within the fixture</i>, from
-        its DMX chart (for example 6). The FPP channel it works out is shown at the end of the row.</li>
-    <li><b>Manual channel</b>: choose this instead of a model to type the shutter's absolute FPP channel.</li>
+    <li><b>Name</b> (optional): what to call the head in the log, for example "Left mover". Picking a model
+        fills it in with the model's name.</li>
+    <li><b>Model</b>: pick the head's model from FPP's model list, or choose <b>Manual channel</b>. To get your
+        heads into the list, upload from xLights with FPP Connect with the <b>Models</b> column set to
+        <b>All</b> (<b>Local</b> leaves out heads on other controllers, such as a Falcon), or add them on FPP's
+        Pixel Overlay Models page. xLights changes spaces in model names to underscores.</li>
+    <li><b>Start Ch.</b>: for a manual head, the head's first FPP channel: its Start Channel in xLights (for
+        example 82448). For a model it is filled in from the model.</li>
+    <li><b>Shutter Ch.</b>: the shutter's channel number <i>within the fixture</i>, from its DMX chart (for
+        example 7).</li>
     <li><b>Closed</b>: the value (0&ndash;255) that closes the shutter, from the fixture's DMX chart.</li>
 </ul>
-<p>While Safety Mode is on, each shutter channel is held at its closed value over whatever the sequence is
-doing. Heads picked by model are looked up by name, so if you re-patch a head in xLights and upload again,
-Air Defender follows it. If a model is renamed or deleted, the row turns red and Air Defender keeps protecting
-the channel it last found for it until you pick the model again.</p>
+<p>Air Defender works out the FPP channel (start + shutter &minus; 1, so 82448 and 7 give 82454) and shows it at
+the end of the row. While Safety Mode is on, that channel is held at the closed value over whatever the sequence
+is doing. Heads picked by model are looked up by name, so if you re-patch a head in xLights and upload again, Air
+Defender follows it. If a model is renamed or deleted, the row turns red and Air Defender keeps protecting the
+channel it last found for it until you pick the model again.</p>
 
 <h3>Location</h3>
 <p><b>Use FPP Location</b> uses the latitude and longitude set in FPP's own settings. Turn it off to enter

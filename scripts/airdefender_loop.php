@@ -412,15 +412,17 @@ while (true) {
     }
     $resolved = airdefender_resolve_heads($settings, $models, $lastKnown);
     $heads = [];             // channel => closed value, for every enabled head
+    $headNames = [];         // channel => the head's name, for the log
     foreach ($resolved as $n => $h) {
         if (in_array($h['status'], ['ok', 'manual'], true)) {
             if (($lastKnown[$n] ?? null) !== $h['channel'] && $h['status'] === 'ok' && isset($lastKnown[$n])) {
-                airdefender_log("MH{$n} ({$h['model']}) moved from channel {$lastKnown[$n]} to {$h['channel']}; following it.");
+                airdefender_log("{$h['label']} ({$h['model']}) moved from channel {$lastKnown[$n]} to {$h['channel']}; following it.");
             }
             $lastKnown[$n] = $h['channel'];
         }
         if ($h['enabled'] && $h['channel'] !== null) {
             $heads[$h['channel']] = $h['closed'];
+            $headNames[$h['channel']] = $h['label'];
         }
         airdefender_log_once("head{$n}", $h['enabled'] && $h['message'] !== '' ? $h['message'] . '.' : null);
     }
@@ -566,8 +568,12 @@ while (true) {
 
     if ($safe && !$wasSafe) {
         $what = $reason === 'test' ? "test started" : $event;
-        airdefender_log("SAFETY ON ({$what}). Closing " . count($heads) . " shutter channel(s): "
-            . ($heads ? implode(', ', array_keys($heads)) : 'none configured'));
+        $list = [];
+        foreach (array_keys($heads) as $ch) {
+            $list[] = "{$headNames[$ch]} (ch {$ch})";
+        }
+        airdefender_log("SAFETY ON ({$what}). Closing " . count($heads) . " shutter(s): "
+            . ($list ? implode(', ', $list) : 'none configured'));
     } elseif (!$safe && $wasSafe) {
         airdefender_log("SAFETY OFF. Shutters released back to the sequence.");
     }
@@ -602,7 +608,7 @@ while (true) {
         ] : null,
         'headsConfigured' => count($heads),
         'heads' => array_map(function ($h) {
-            return ['model' => $h['model'], 'channel' => $h['channel'], 'status' => $h['status'], 'problem' => $h['message']];
+            return ['name' => $h['label'], 'model' => $h['model'], 'channel' => $h['channel'], 'status' => $h['status'], 'problem' => $h['message']];
         }, array_filter($resolved, function ($h) { return $h['enabled']; })),
         'lastKnownChannels' => $lastKnown,
         'appliedChannels' => $outputs->applied(),

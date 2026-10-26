@@ -66,12 +66,16 @@ Older settings saved as "Standalone" run as Master.
 
 ## Moving Heads
 
-The settings page has up to 8 heads (MH1–MH8). For each, turn it on, then either:
+The settings page has up to 8 heads (MH1–MH8). For each, turn it on and give it an optional **name** (used in the log), then either:
 
-- pick its **model** from FPP's model list (uploaded from xLights by FPP Connect, or added on FPP's Pixel Overlay Models page) and enter the **shutter's channel within the fixture** from its DMX chart (e.g. 6). The resulting FPP channel is shown next to it. Heads are looked up by model name, so re-patching in xLights and uploading again is followed automatically; or
-- choose **Manual channel** and type the shutter's absolute FPP channel.
+- pick its **model** from FPP's model list, or
+- choose **Manual channel** and enter the head's **Start Ch.** from xLights (e.g. 82448).
 
-Set the **closed value** (0–255) from the fixture's DMX chart. If a model is renamed or deleted, the row is flagged and Air Defender keeps protecting the channel it last resolved to, and logs a warning.
+Then enter the **Shutter Ch.**: the shutter's channel *within the fixture*, from its DMX chart (e.g. 7). Air Defender does the math (82448 + 7 − 1 = FPP channel 82454) and shows the result on the row. Set the **closed value** (0–255) from the DMX chart.
+
+To get heads into the model list, upload from xLights with **FPP Connect** with the **Models** column set to **All**. **Local** only includes models on that FPP's own outputs, so it leaves out heads on a Falcon or other controller. You can also add models by hand on FPP's Pixel Overlay Models page. FPP does not create models for DMX fixtures by itself.
+
+Heads picked by model are looked up by name, so re-patching in xLights and uploading again is followed automatically. If a model is renamed or deleted, the row is flagged and Air Defender keeps protecting the channel it last resolved to, and logs a warning. Settings from before this version (an absolute channel) carry over as Manual with that channel as the start.
 
 ## How the blackout works
 
