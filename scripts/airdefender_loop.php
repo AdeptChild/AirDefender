@@ -1,6 +1,7 @@
 <?php
 
 require_once(__DIR__ . "/airdefender_controller.php");
+require_once(__DIR__ . "/airdefender_test.php");
 
 if (PHP_SAPI !== 'cli') {
     exit(1);
@@ -229,6 +230,20 @@ function airdefender_find_triggering_aircraft($showLat, $showLon, $distanceNm, $
     return null;
 }
 
+/*
+ * Sleep for the fetch interval one second at a time, waking early if a test
+ * starts or ends so it takes effect within a second instead of a whole interval.
+ */
+function airdefender_sleep_interval(int $seconds, bool $testWasActive): void
+{
+    for ($i = 0; $i < max(1, $seconds); $i++) {
+        sleep(1);
+        if (airdefender_test_status()['active'] !== $testWasActive) {
+            return;
+        }
+    }
+}
+
 function airdefender_log($message) {
     $logFile = "/home/fpp/media/logs/airdefender.log";
     $timestamp = date("Y-m-d H:i:s");
@@ -320,6 +335,20 @@ while (true) {
     $state['blackoutStartChannel'] = $blackoutStartChannel;
     $state['blackoutEndChannel'] = $blackoutEndChannel;
 
+    // Test mode overrides the feed: force safety on until the timer runs out.
+    $test = airdefender_test_status();
+    if ($test['active']) {
+        $state['safetyMode'] = true;
+        $state['testActive'] = true;
+        $state['lastEvent'] = "Test mode: safety forced on, {$test['remaining']} s remaining";
+        $state['lastUpdated'] = date('c');
+        airdefender_write_state($state);
+        $controller->activateSafetyMode();
+        sleep(1);
+        continue;
+    }
+    $state['testActive'] = false;
+
     $payload = @file_get_contents($adsbUrl);
     if ($payload === false || $payload === '') {
         $state['safetyMode'] = false;
@@ -327,7 +356,7 @@ while (true) {
         $state['lastUpdated'] = date('c');
         airdefender_write_state($state);
         airdefender_log("Unable to retrieve ADS-B feed: {$adsbUrl}");
-        sleep(max(1, $fetchInterval));
+        airdefender_sleep_interval($fetchInterval, false);
         continue;
     }
 
@@ -338,7 +367,7 @@ while (true) {
         $state['lastUpdated'] = date('c');
         airdefender_write_state($state);
         airdefender_log("ADS-B payload is not valid JSON.");
-        sleep(max(1, $fetchInterval));
+        airdefender_sleep_interval($fetchInterval, false);
         continue;
     }
 
@@ -381,7 +410,7 @@ while (true) {
     }
 
     airdefender_write_state($state);
-    sleep(max(1, $fetchInterval));
+    airdefender_sleep_interval($fetchInterval, false);
 }
 
 ?>

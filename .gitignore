@@ -1,0 +1,4 @@
+# Runtime files written on the FPP device
+state.json
+test.json
+controller_state.txt

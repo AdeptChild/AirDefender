@@ -100,7 +100,11 @@ $modeLabels = array(
 );
 $modeLabel = isset($modeLabels[$nodeRole]) ? $modeLabels[$nodeRole] : ucfirst((string) $nodeRole);
 
+require_once(dirname(__DIR__) . "/scripts/airdefender_test.php");
+
 $state = AirDefender_ReadState();
+$test = airdefender_test_status();
+$safetyActive = !empty($state['safetyMode']) || $test['active'];
 $lastLog = isset($state['lastEvent']) ? $state['lastEvent'] : 'No log entries yet.';
 $lastAircraft = $state['lastAircraft'] ?? null;
 
@@ -138,14 +142,203 @@ if (file_exists($logFile)) {
     </div>
 
     <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
-        <h3 style="color:<?php echo !empty($state['safetyMode']) ? '#ff9800' : '#888'; ?>;margin:0 0 10px 0;font-size:18px;">
+        <h3 id="adSafetyTitle" style="color:<?php echo $safetyActive ? '#ff9800' : '#888'; ?>;margin:0 0 10px 0;font-size:18px;">
             Safety Mode
         </h3>
-        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo !empty($state['safetyMode']) ? "Active" : "Inactive"; ?>
+        <p id="adSafetyValue" style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
+            <?php echo $test['active'] ? "Active (Test)" : ($safetyActive ? "Active" : "Inactive"); ?>
         </p>
     </div>
 </div>
+
+<!-- Test Mode: forces safety mode on for a set time so people can go outside and watch -->
+<style>
+    #adTestCard { background:#2a2a2a; padding:15px 20px; border-radius:8px; margin:15px 5px 0 5px; max-width:560px; border:2px solid transparent; }
+    #adTestCard.running { border-color:#ff9800; }
+    #adTestCard h3 { color:#6cf; margin:0 0 6px 0; font-size:18px; }
+    #adTestCard .ad-note { color:#bbb; font-size:14px; margin:0 0 14px 0; }
+    #adTestCard .ad-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    #adTestCard label { color:#ddd; font-size:14px; }
+    #adTestCard input[type=number] { width:80px; padding:8px; border-radius:6px; background:#111; color:#fff; border:1px solid #444; font-size:15px; }
+    #adTestCard .ad-chip { padding:7px 11px; border-radius:6px; background:#3a3a3a; color:#eee; border:1px solid #555; cursor:pointer; font-size:13px; }
+    #adTestCard .ad-chip:hover { background:#4a4a4a; }
+    #adTestCard .ad-chip.selected { background:#6cf; color:#111; border-color:#6cf; font-weight:bold; }
+    #adTestCard .ad-btn { padding:10px 18px; border-radius:8px; border:none; font-weight:bold; font-size:15px; cursor:pointer; }
+    #adTestCard .ad-btn:disabled { opacity:0.5; cursor:default; }
+    #adTestStart { background:#ff9800; color:#111; }
+    #adTestStop { background:#f44336; color:#fff; }
+    #adTestCountdown { font-family:monospace; font-size:42px; font-weight:bold; color:#ff9800; line-height:1; }
+    #adTestBar { height:8px; background:#111; border-radius:4px; overflow:hidden; margin:10px 0 12px 0; }
+    #adTestBarFill { height:100%; width:0; background:#ff9800; transition:width 0.25s linear; }
+    #adTestError { color:#f66; font-size:14px; margin-top:10px; display:none; }
+</style>
+
+<div id="adTestCard" class="<?php echo $test['active'] ? 'running' : ''; ?>">
+    <h3>Test Mode</h3>
+    <p class="ad-note">
+        Forces Safety Mode on for the time you pick, then turns it back off, so you can head outside and watch the lights go dark and come back.
+    </p>
+
+    <div id="adTestIdle" style="<?php echo $test['active'] ? 'display:none;' : ''; ?>">
+        <div class="ad-row" style="margin-bottom:12px;">
+            <label for="adTestSeconds">Test length (seconds)</label>
+            <input type="number" id="adTestSeconds"
+                   min="<?php echo (int) $test['minSec']; ?>"
+                   max="<?php echo (int) $test['maxSec']; ?>"
+                   step="5"
+                   value="<?php echo (int) $test['lastDuration']; ?>">
+        </div>
+        <div class="ad-row" style="margin-bottom:14px;">
+            <button type="button" class="ad-chip" data-sec="30">30 s</button>
+            <button type="button" class="ad-chip" data-sec="60">1 min</button>
+            <button type="button" class="ad-chip" data-sec="120">2 min</button>
+            <button type="button" class="ad-chip" data-sec="300">5 min</button>
+            <button type="button" class="ad-chip" data-sec="600">10 min</button>
+        </div>
+        <button type="button" id="adTestStart" class="ad-btn">Start Test</button>
+    </div>
+
+    <div id="adTestRunning" style="<?php echo $test['active'] ? '' : 'display:none;'; ?>">
+        <div class="ad-row" style="justify-content:space-between;">
+            <div>
+                <div style="color:#ddd;font-size:14px;margin-bottom:6px;">Outputs back on in</div>
+                <div id="adTestCountdown">--:--</div>
+            </div>
+            <button type="button" id="adTestStop" class="ad-btn">Stop Test</button>
+        </div>
+        <div id="adTestBar"><div id="adTestBarFill"></div></div>
+    </div>
+
+    <div id="adTestError"></div>
+</div>
+
+<script>
+(function () {
+    var API = 'plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1';
+    var realSafety = <?php echo !empty($state['safetyMode']) ? 'true' : 'false'; ?>;
+    var status = <?php echo json_encode($test); ?>;
+    var clockOffset = status.serverTime - Date.now() / 1000; // server clock minus browser clock
+    var finishing = false;
+
+    var card = document.getElementById('adTestCard');
+    var idle = document.getElementById('adTestIdle');
+    var running = document.getElementById('adTestRunning');
+    var input = document.getElementById('adTestSeconds');
+    var startBtn = document.getElementById('adTestStart');
+    var stopBtn = document.getElementById('adTestStop');
+    var countdown = document.getElementById('adTestCountdown');
+    var barFill = document.getElementById('adTestBarFill');
+    var errorBox = document.getElementById('adTestError');
+    var safetyTitle = document.getElementById('adSafetyTitle');
+    var safetyValue = document.getElementById('adSafetyValue');
+    var chips = card.querySelectorAll('.ad-chip');
+
+    function showError(msg) {
+        errorBox.textContent = msg || '';
+        errorBox.style.display = msg ? 'block' : 'none';
+    }
+
+    function markChips() {
+        var v = parseInt(input.value, 10);
+        for (var i = 0; i < chips.length; i++) {
+            chips[i].classList.toggle('selected', parseInt(chips[i].getAttribute('data-sec'), 10) === v);
+        }
+    }
+
+    function fmt(sec) {
+        sec = Math.max(0, Math.ceil(sec));
+        var m = Math.floor(sec / 60);
+        var s = sec % 60;
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function secondsLeft() {
+        if (!status.active || !status.endsAt) {
+            return 0;
+        }
+        return status.endsAt - (Date.now() / 1000 + clockOffset);
+    }
+
+    function render() {
+        var left = secondsLeft();
+        var isRunning = status.active && left > 0;
+
+        idle.style.display = isRunning ? 'none' : '';
+        running.style.display = isRunning ? '' : 'none';
+        card.classList.toggle('running', isRunning);
+
+        if (isRunning) {
+            countdown.textContent = fmt(left);
+            var pct = status.duration > 0 ? (left / status.duration) * 100 : 0;
+            barFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+        }
+
+        var safe = isRunning || realSafety;
+        safetyTitle.style.color = safe ? '#ff9800' : '#888';
+        safetyValue.textContent = isRunning ? 'Active (Test)' : (safe ? 'Active' : 'Inactive');
+
+        // Timer reached zero in the browser: ask the server, which ends the test and logs it.
+        if (status.active && left <= 0 && !finishing) {
+            finishing = true;
+            request('GET').then(function () { finishing = false; }, function () { finishing = false; });
+        }
+    }
+
+    function apply(data) {
+        status = data;
+        clockOffset = data.serverTime - Date.now() / 1000;
+        render();
+    }
+
+    function request(method, body) {
+        var opts = { method: method, credentials: 'same-origin', cache: 'no-store' };
+        if (body) {
+            opts.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+            opts.body = body;
+        }
+        return fetch(API, opts)
+            .then(function (r) {
+                return r.json().then(function (d) {
+                    if (!r.ok) { throw new Error(d.error || ('HTTP ' + r.status)); }
+                    return d;
+                });
+            })
+            .then(function (d) { showError(''); apply(d); return d; });
+    }
+
+    for (var i = 0; i < chips.length; i++) {
+        chips[i].addEventListener('click', function () {
+            input.value = this.getAttribute('data-sec');
+            markChips();
+        });
+    }
+    input.addEventListener('input', markChips);
+
+    startBtn.addEventListener('click', function () {
+        var sec = parseInt(input.value, 10);
+        if (!(sec >= status.minSec && sec <= status.maxSec)) {
+            showError('Pick a test length between ' + status.minSec + ' and ' + status.maxSec + ' seconds.');
+            return;
+        }
+        startBtn.disabled = true;
+        request('POST', 'action=start&duration=' + encodeURIComponent(sec))
+            .catch(function (e) { showError('Could not start the test: ' + e.message); })
+            .then(function () { startBtn.disabled = false; });
+    });
+
+    stopBtn.addEventListener('click', function () {
+        stopBtn.disabled = true;
+        request('POST', 'action=stop')
+            .catch(function (e) { showError('Could not stop the test: ' + e.message); })
+            .then(function () { stopBtn.disabled = false; });
+    });
+
+    markChips();
+    render();
+    setInterval(render, 250);                                  // smooth countdown
+    setInterval(function () { request('GET').catch(function () {}); }, 5000); // stay in sync with other browsers
+})();
+</script>
 
 <div style="display:flex;flex-wrap:wrap;justify-content:flex-start;margin-top:20px;">
     <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
