@@ -87,9 +87,9 @@ Safety mode turns on when:
 
 - a **Test** is running from the dashboard,
 - an aircraft is inside the distance **and** below the altitude threshold (aircraft on the ground are ignored),
-- one was, within the last `clearDelaySec` seconds (default 30), so a plane on the edge of the radius doesn't flash the lights,
-- or the ADS-B feed stops answering while safety mode is on: with no data it stays safe until the feed comes back.
+- one was, within the **Hold After Aircraft Leaves** time (default 30 seconds), so a plane on the edge of the radius doesn't flash the lights,
+- or the ADS-B feed stops answering while an aircraft was near: with no data it stays safe until the feed comes back. With **Close Heads If Feed Is Down** on, any feed outage closes the heads.
 
-The detection loop starts with fppd (`scripts/postStart.sh`) and stops with it (`scripts/preStop.sh`). It re-reads the settings every second, so changes apply without restarting fppd. Everything it does is logged to `/home/fpp/media/logs/airdefender.log`.
+The detection loop starts with fppd (`scripts/postStart.sh`) and stops with it (`scripts/preStop.sh`). It re-reads the settings every second, so changes apply without restarting fppd. Everything it does is logged to `/home/fpp/media/logs/airdefender.log`, which keeps the last 7 days (it lists aircraft that passed nearby) and can be cleared from the dashboard. The dashboard's **Right Now** card shows the live state (flight data or master connection, and each head's shutter), and **Last Event** shows only safety turning on or off and tests.
 
 **Node Role:** see above. A Remote follows its master; a Test started on a Remote closes only that remote's heads.

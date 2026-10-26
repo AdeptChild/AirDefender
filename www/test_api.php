@@ -1,18 +1,19 @@
 <?php
 /*
- * AirDefender test mode endpoint, used by the dashboard.
+ * AirDefender dashboard endpoint.
  *
  * Called as plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1
  * (nopage=1 stops FPP wrapping the response in its page header and menu).
  *
- *   GET                                  -> current test status
+ *   GET                                  -> test status, live status, Last Event
  *   POST action=start&duration=<seconds> -> start a test
  *   POST action=stop                     -> end a test early
+ *   POST action=clear_log                -> empty the Air Defender log
  *
- * Starting and stopping change state, so they are POST only.
+ * Anything that changes state is POST only.
  */
 
-require_once(dirname(__DIR__) . "/scripts/airdefender_test.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_status.php");
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
@@ -23,9 +24,22 @@ $action = $method === 'POST' ? ($_POST['action'] ?? '') : 'status';
 switch ($action) {
     case 'start':
         $status = airdefender_test_start($_POST['duration'] ?? 0);
+        if (!$status['active']) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not save the test state. Check that the plugin folder is writable.']);
+            exit;
+        }
         break;
     case 'stop':
         $status = airdefender_test_stop();
+        break;
+    case 'clear_log':
+        if (!airdefender_clear_log()) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not clear the log. Check that the log file is writable.']);
+            exit;
+        }
+        $status = airdefender_test_status();
         break;
     case 'status':
         $status = airdefender_test_status();
@@ -36,15 +50,10 @@ switch ($action) {
         exit;
 }
 
-if ($action === 'start' && !$status['active']) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Could not save the test state. Check that the plugin folder is writable.']);
-    exit;
-}
-
-// Let the dashboard follow the detection loop's safety state too.
-$loopState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
-$status['loopSafety'] = is_array($loopState) && !empty($loopState['safetyMode']) && empty($loopState['testActive']);
-$status['lastEvent'] = airdefender_last_log_line(is_array($loopState) ? ($loopState['lastEvent'] ?? 'No log entries yet.') : 'No log entries yet.');
+$live = airdefender_live_status();
+// The loop's own safety state, apart from a test (the test shows separately).
+$status['loopSafety'] = $live['safe'] && $live['reason'] !== 'test';
+$status['live'] = $live;
+$status['lastEvent'] = airdefender_last_event();
 
 echo json_encode($status);

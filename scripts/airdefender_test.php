@@ -29,6 +29,34 @@ function airdefender_test_log(string $message): void
     @file_put_contents($logFile, "[{$timestamp}] {$message}\n", FILE_APPEND | LOCK_EX);
 }
 
+/*
+ * A trigger: safety mode turning on or off, or a test starting or ending.
+ * Logged like everything else, and also kept as the dashboard's Last Event,
+ * which shows only these (not notes such as a head being re-patched).
+ */
+function airdefender_last_event_file(): string
+{
+    return dirname(__DIR__) . "/last_event.json";
+}
+
+function airdefender_event(string $message): void
+{
+    airdefender_test_log($message);
+    $tmp = airdefender_last_event_file() . ".tmp";
+    $line = "[" . date("Y-m-d H:i:s") . "] " . $message;
+    if (@file_put_contents($tmp, json_encode(['text' => $line, 'time' => time()])) !== false) {
+        @rename($tmp, airdefender_last_event_file());
+    }
+}
+
+/* The newest trigger for the dashboard, or $fallback if there is none. */
+function airdefender_last_event(string $fallback = 'No events yet.'): string
+{
+    $data = json_decode((string) @file_get_contents(airdefender_last_event_file()), true);
+    return is_array($data) && isset($data['text']) && is_string($data['text']) && $data['text'] !== ''
+        ? $data['text'] : $fallback;
+}
+
 function airdefender_test_clamp($seconds): int
 {
     $seconds = (int) $seconds;
@@ -82,7 +110,7 @@ function airdefender_test_status(): array
     if (!empty($data['active']) && (int) $data['endsAt'] <= $now) {
         $data['active'] = false;
         airdefender_test_write($data);
-        airdefender_test_log("Test finished after {$data['duration']} s; outputs restored.");
+        airdefender_event("Test finished after {$data['duration']} s; outputs restored.");
     }
 
     $remaining = !empty($data['active']) ? max(0, (int) $data['endsAt'] - $now) : 0;
@@ -111,7 +139,7 @@ function airdefender_test_start($seconds): array
         'duration' => $seconds,
         'lastDuration' => $seconds,
     ]);
-    airdefender_test_log("Test started for {$seconds} s; safety mode forced active.");
+    airdefender_event("Test started for {$seconds} s; safety mode forced active.");
 
     return airdefender_test_status();
 }
@@ -123,34 +151,8 @@ function airdefender_test_stop(): array
         $data['active'] = false;
         $data['endsAt'] = time();
         airdefender_test_write($data);
-        airdefender_test_log("Test stopped early; outputs restored.");
+        airdefender_event("Test stopped early; outputs restored.");
     }
 
     return airdefender_test_status();
-}
-
-/*
- * The newest line of airdefender.log, for the dashboard's Last Event, or
- * $fallback if there is none. Reads only the end of the file, since the log
- * keeps growing through the season.
- */
-function airdefender_last_log_line(string $fallback = 'No log entries yet.'): string
-{
-    $fh = @fopen("/home/fpp/media/logs/airdefender.log", "r");
-    if (!$fh) {
-        return $fallback;
-    }
-    $size = fstat($fh)['size'] ?? 0;
-    $chunk = min($size, 8192);
-    if ($chunk <= 0) {
-        fclose($fh);
-        return $fallback;
-    }
-    fseek($fh, -$chunk, SEEK_END);
-    $tail = (string) fread($fh, $chunk);
-    fclose($fh);
-
-    $lines = preg_split('/\r?\n/', trim($tail));
-    $last = trim((string) end($lines));
-    return $last !== '' ? $last : $fallback;
 }

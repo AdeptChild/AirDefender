@@ -231,6 +231,16 @@ $settings = array(
         'type' => 'int',
         'default' => 10,
     ),
+    'clearDelaySec' => array(
+        'label' => 'Hold After Aircraft Leaves (seconds)',
+        'type' => 'int',
+        'default' => 30,
+    ),
+    'feedDownSafe' => array(
+        'label' => 'Close Heads If Feed Is Down',
+        'type' => 'bool',
+        'default' => false,
+    ),
     'adsbSourceUrl' => array(
         'label' => 'ADS-B JSON URL',
         'type' => 'select',
@@ -315,8 +325,8 @@ $settingGroups = array(
     'Operation Mode' => array('nodeRole', 'masterAddress'),
     'Moving Heads' => $headKeys,
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
-    'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
-    'ADS-B Feed' => array('adsbSourceUrl'),
+    'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval', 'clearDelaySec'),
+    'ADS-B Feed' => array('adsbSourceUrl', 'feedDownSafe'),
 );
 
 $statusMessage = '';
@@ -343,6 +353,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $intValue = max(1, $intValue);
             } elseif (preg_match('/^head[1-8]Start$/', $key)) {
                 $intValue = max(0, $intValue);
+            } elseif ($key === 'clearDelaySec') {
+                $intValue = max(0, min(600, $intValue));
+            } elseif ($key === 'fetchInterval') {
+                $intValue = max(5, $intValue);
             }
             $toSave[$key] = (string) $intValue;
         } elseif ($config['type'] === 'select') {
@@ -633,6 +647,12 @@ if ($useFppLocationEnabled) {
                                     </span>
                                 </label>
                             </div>
+                            <?php if ($key === 'feedDownSafe'): ?>
+                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
+                                    Off: if the flight-data service stops answering, heads stay as they are (unless an aircraft was near).
+                                    On: heads close until it answers again. Stricter, but an internet outage keeps them closed.
+                                </div>
+                            <?php endif; ?>
                             <?php if ($key === 'useFPPLocation'): ?>
                                 <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;">
                                     <div style="color:#6cf;font-weight:bold;font-size:13px;margin-bottom:4px;">Current FPP Location</div>
@@ -679,6 +699,11 @@ if ($useFppLocationEnabled) {
                                 <?php } ?>
                                 style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo (($key === 'latitude' || $key === 'longitude') && $useFppLocationEnabled) ? 'background:#1a1a1a;color:#888;cursor:not-allowed;opacity:0.45;' : ''; ?>"
                             >
+                            <?php if ($key === 'clearDelaySec'): ?>
+                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
+                                    How long heads stay closed after the last aircraft leaves, so one on the edge of the area does not flash them on and off (0&ndash;600).
+                                </div>
+                            <?php endif; ?>
                             <?php if ($key === 'masterAddress'): ?>
                                 <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
                                     IP or hostname of the master FPP. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one player on the network.

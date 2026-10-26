@@ -27,6 +27,7 @@ require_once(__DIR__ . "/airdefender_time.php");
 require_once(__DIR__ . "/airdefender_controller.php");
 require_once(__DIR__ . "/airdefender_test.php");
 require_once(__DIR__ . "/airdefender_models.php");
+require_once(__DIR__ . "/airdefender_status.php");
 
 const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_FEED = "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}";
@@ -369,6 +370,7 @@ foreach ((is_array($state['lastKnownChannels'] ?? null) ? $state['lastKnownChann
 }
 $models = null;              // FPP's model list, last good read
 $modelsAt = 0;
+$trimmedAt = 0;              // last time the log was trimmed to AIRDEFENDER_LOG_KEEP_DAYS
 
 $safe = false;
 $lastTriggerAt = 0;          // last time an aircraft was inside the thresholds
@@ -393,6 +395,12 @@ while (true) {
     $now = time();
     $settings = airdefender_load_settings();
 
+    // Keep only the last week of log (it records nearby aircraft).
+    if ($now - $trimmedAt >= 3600) {
+        $trimmedAt = $now;
+        airdefender_trim_log();
+    }
+
     $enabled = airdefender_truthy(airdefender_setting($settings, 'enabled', '0'));
     // "standalone" from older settings is a master.
     $role = strtolower((string) airdefender_setting($settings, 'nodeRole', 'master')) === 'remote' ? 'remote' : 'master';
@@ -400,6 +408,7 @@ while (true) {
     $maxFt = max(0, (float) airdefender_setting($settings, 'altitudeThresholdFt', 3000));
     $fetchInterval = max(5, (int) airdefender_setting($settings, 'fetchInterval', 10));
     $clearDelay = max(0, (int) airdefender_setting($settings, 'clearDelaySec', AIRDEFENDER_DEFAULT_CLEAR_DELAY));
+    $feedDownSafe = airdefender_truthy(airdefender_setting($settings, 'feedDownSafe', '0'));
     $feedTemplate = (string) airdefender_setting($settings, 'adsbSourceUrl', AIRDEFENDER_DEFAULT_FEED);
     // Re-read FPP's models every 10 s, so a head re-patched in xLights and
     // re-uploaded is followed. A failed read keeps the last good list.
@@ -543,6 +552,11 @@ while (true) {
         $safe = true;
         $reason = 'feed-hold';
         $event = "Feed down while an aircraft was near: staying safe until it answers ({$feedError})";
+    } elseif ($feedError !== null && $feedDownSafe) {
+        // "Close Heads If Feed Is Down" is on: no data, so assume the worst.
+        $safe = true;
+        $reason = 'feed-down';
+        $event = "ADS-B feed is down and Close Heads If Feed Is Down is on, so heads stay closed until it answers";
     } elseif ($lastTriggerAt > 0 && $now - $lastTriggerAt < $clearDelay) {
         $safe = true;
         $reason = 'hold';
@@ -572,10 +586,10 @@ while (true) {
         foreach (array_keys($heads) as $ch) {
             $list[] = "{$headNames[$ch]} (ch {$ch})";
         }
-        airdefender_log("SAFETY ON ({$what}). Closing " . count($heads) . " shutter(s): "
+        airdefender_event("SAFETY ON ({$what}). Closing " . count($heads) . " shutter(s): "
             . ($list ? implode(', ', $list) : 'none configured'));
     } elseif (!$safe && $wasSafe) {
-        airdefender_log("SAFETY OFF. Shutters released back to the sequence.");
+        airdefender_event("SAFETY OFF. Shutters released back to the sequence.");
     }
     if ($safe && !$heads) {
         airdefender_log_once('heads', "Safety mode is on but no moving heads are enabled in settings, so nothing is being closed.");

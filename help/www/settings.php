@@ -50,9 +50,14 @@ a different location.</p>
     <li><b>Distance Threshold (NM)</b>: how close, in nautical miles, an aircraft must be.</li>
     <li><b>Altitude Threshold (ft)</b>: how low, in feet, it must be.</li>
     <li><b>ADS-B Fetch Interval</b>: how often, in seconds, to ask for new flight data (5 or more).</li>
+    <li><b>Hold After Aircraft Leaves</b>: how long, in seconds, heads stay closed after the last aircraft leaves
+        (0&ndash;600, default 30), so one on the edge of the area does not flash them on and off.</li>
 </ul>
 
 <h3>ADS-B Feed</h3>
 <p>The flight-data service to ask. airplanes.live, adsb.lol and adsb.fi are free online services and are
 sent your show's location. The local receiver options read an ADS-B receiver running on this FPP, and
 send nothing off the device.</p>
+<p><b>Close Heads If Feed Is Down</b>: off (the default), if the service stops answering, heads stay as they are
+unless an aircraft was near when it stopped. On, heads close whenever it stops answering, until it answers again:
+stricter, but an internet outage keeps them closed.</p>

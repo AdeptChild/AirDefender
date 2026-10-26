@@ -100,13 +100,14 @@ $modeLabels = array(
 );
 $modeLabel = isset($modeLabels[$nodeRole]) ? $modeLabels[$nodeRole] : ucfirst((string) $nodeRole);
 
-require_once(dirname(__DIR__) . "/scripts/airdefender_test.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_status.php");
 
 $state = AirDefender_ReadState();
 $test = airdefender_test_status();
+$live = airdefender_live_status();
 $safetyActive = !empty($state['safetyMode']) || $test['active'];
-$lastLog = airdefender_last_log_line(isset($state['lastEvent']) ? $state['lastEvent'] : 'No log entries yet.');
-$lastAircraft = $state['lastAircraft'] ?? null;
+// Last Event shows only triggers: safety on/off and tests. Everything else is in the log.
+$lastLog = airdefender_last_event();
 ?>
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
     <div>
@@ -204,6 +205,129 @@ $lastAircraft = $state['lastAircraft'] ?? null;
     <div id="adTestError"></div>
 </div>
 
+<!-- Right Now: what the detection loop is doing, refreshed with the test status -->
+<style>
+    #adLive { background:#2a2a2a; padding:15px 20px; border-radius:8px; margin:15px 5px 0 5px; max-width:760px; }
+    #adLive h3 { color:#6cf; margin:0 0 10px 0; font-size:18px; }
+    #adLive .ad-warn { background:#4a1f1f; color:#ffd7d3; padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:14px; display:none; }
+    #adLive .ad-now { color:#eee; font-size:15px; margin-bottom:12px; }
+    #adLive .ad-now.safe { color:#ffb74d; font-weight:bold; }
+    #adLive .ad-row { display:flex; gap:10px; flex-wrap:wrap; font-size:14px; margin-bottom:8px; }
+    #adLive .ad-k { color:#999; min-width:110px; }
+    #adLive .ad-v { color:#ddd; flex:1; min-width:200px; }
+    #adLive .ad-v.bad { color:#ff7b72; }
+    #adLive .ad-heads { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+    #adLive .ad-head { background:#1f1f1f; border:1px solid #3a3a3a; border-radius:8px; padding:7px 10px; font-size:13px; color:#ddd; }
+    #adLive .ad-head b { color:#fff; }
+    #adLive .ad-pill { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:10px; font-size:12px; font-weight:bold; }
+    #adLive .ad-pill.closed { background:#ff9800; color:#111; }
+    #adLive .ad-pill.open { background:#333; color:#aaa; }
+    #adLive .ad-head .ad-problem { color:#ff7b72; margin-top:4px; max-width:320px; }
+</style>
+
+<div id="adLive">
+    <h3>Right Now</h3>
+    <div id="adLiveWarn" class="ad-warn"></div>
+    <div id="adLiveNow" class="ad-now"></div>
+    <div class="ad-row" id="adLiveFeedRow"><span class="ad-k">Flight data</span><span class="ad-v" id="adLiveFeed"></span></div>
+    <div class="ad-row" id="adLiveMasterRow"><span class="ad-k">Master FPP</span><span class="ad-v" id="adLiveMaster"></span></div>
+    <div class="ad-row" id="adLivePlaneRow"><span class="ad-k">Last aircraft</span><span class="ad-v" id="adLivePlane"></span></div>
+    <div class="ad-row" style="margin-bottom:0;"><span class="ad-k">Moving heads</span></div>
+    <div id="adLiveHeads" class="ad-heads"></div>
+</div>
+
+<script>
+(function () {
+    function ago(sec) {
+        if (sec === null || sec === undefined) { return ''; }
+        if (sec < 60) { return sec + ' s ago'; }
+        if (sec < 3600) { return Math.floor(sec / 60) + ' min ago'; }
+        return Math.floor(sec / 3600) + ' h ago';
+    }
+    function set(id, text, bad) {
+        var el = document.getElementById(id);
+        el.textContent = text;
+        el.classList.toggle('bad', !!bad);
+    }
+    function show(id, on) {
+        document.getElementById(id).style.display = on ? '' : 'none';
+    }
+
+    window.adRenderLive = function (live) {
+        if (!live) { return; }
+
+        var warn = document.getElementById('adLiveWarn');
+        var warnText = !live.loopRunning
+            ? 'The Air Defender detection loop is not running, so aircraft are not being checked. Restart FPPD (or reboot) to start it.'
+            : (live.outputError ? 'Could not set the shutter channels in FPP: ' + live.outputError : '');
+        warn.textContent = warnText;
+        warn.style.display = warnText ? 'block' : 'none';
+
+        var now = document.getElementById('adLiveNow');
+        now.textContent = live.loopRunning ? (live.now || '') : 'Not running';
+        now.classList.toggle('safe', live.loopRunning && live.safe);
+
+        var remote = live.role === 'remote';
+        show('adLiveFeedRow', !remote);
+        show('adLiveMasterRow', remote);
+        if (!remote) {
+            var f = live.feed || {};
+            if (f.error) {
+                set('adLiveFeed', 'Problem: ' + f.error + (f.lastOkAgo !== null ? ' (last good answer ' + ago(f.lastOkAgo) + ')' : ''), true);
+            } else if (f.lastOkAgo !== null) {
+                set('adLiveFeed', 'OK \u00b7 ' + f.aircraft + ' aircraft nearby \u00b7 checked ' + ago(f.lastOkAgo), false);
+            } else {
+                set('adLiveFeed', 'Not checked yet', false);
+            }
+        } else {
+            var m = live.master || {};
+            if (m.connected) {
+                set('adLiveMaster', 'Connected to ' + (m.address || 'the master') + ' \u00b7 checked ' + ago(m.lastOkAgo), false);
+            } else {
+                set('adLiveMaster', 'Not connected' + (m.address ? ' to ' + m.address : '') + (m.error ? ': ' + m.error : ''), true);
+            }
+        }
+
+        var p = live.lastAircraft;
+        show('adLivePlaneRow', !!p);
+        if (p) {
+            set('adLivePlane', (p.flight || 'Unknown') + ' \u00b7 ' + p.distanceNm + ' NM \u00b7 ' + p.altitudeFt + ' ft'
+                + (p.seenAt ? ' \u00b7 ' + new Date(p.seenAt).toLocaleTimeString() : ''), false);
+        }
+
+        var box = document.getElementById('adLiveHeads');
+        box.textContent = '';
+        if (!live.heads || !live.heads.length) {
+            var none = document.createElement('div');
+            none.className = 'ad-head';
+            none.textContent = 'No heads enabled. Add them in Settings \u2192 Moving Heads.';
+            box.appendChild(none);
+        }
+        (live.heads || []).forEach(function (h) {
+            var chip = document.createElement('div');
+            chip.className = 'ad-head';
+            var name = document.createElement('b');
+            name.textContent = h.name;
+            chip.appendChild(name);
+            chip.appendChild(document.createTextNode(h.channel ? ' \u00b7 ch ' + h.channel : ' \u00b7 no channel'));
+            var pill = document.createElement('span');
+            pill.className = 'ad-pill ' + (h.closed ? 'closed' : 'open');
+            pill.textContent = h.closed ? 'CLOSED' : 'show controls it';
+            chip.appendChild(pill);
+            if (h.problem) {
+                var prob = document.createElement('div');
+                prob.className = 'ad-problem';
+                prob.textContent = h.problem;
+                chip.appendChild(prob);
+            }
+            box.appendChild(chip);
+        });
+    };
+
+    window.adRenderLive(<?php echo json_encode($live); ?>);
+})();
+</script>
+
 <script>
 (function () {
     var API = 'plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1';
@@ -280,6 +404,9 @@ $lastAircraft = $state['lastAircraft'] ?? null;
         status = data;
         if (typeof data.loopSafety === 'boolean') {
             realSafety = data.loopSafety;
+        }
+        if (data.live && window.adRenderLive) {
+            window.adRenderLive(data.live);
         }
         if (typeof data.lastEvent === 'string') {
             var lastEvent = document.getElementById('adLastEvent');
@@ -373,20 +500,43 @@ $lastAircraft = $state['lastAircraft'] ?? null;
     <?php endif; ?>
 </div>
 
-<?php if (!empty($lastAircraft)): ?>
-<div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
-    <h3 style="color:#6cf;margin:0 0 10px 0;">Last Affected Aircraft</h3>
-    <p style="color:#eee;margin:0;">
-        <?php echo htmlspecialchars($lastAircraft['flight'] ?? $lastAircraft['hex'] ?? 'Unknown'); ?>
-        @ <?php echo isset($lastAircraft['distanceNm']) ? $lastAircraft['distanceNm'] : ($state['lastDistanceNm'] ?? 'n/a'); ?> NM,
-        <?php echo isset($lastAircraft['altitudeFt']) ? $lastAircraft['altitudeFt'] : ($state['lastAltitudeFt'] ?? 'n/a'); ?> ft
-    </p>
-</div>
-<?php endif; ?>
 
-<div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:20px 0 0 0;display:table;text-align:center;">
-    <h3 style="color:#6cf;margin:0 0 10px 0;">Last Event</h3>
-    <p id="adLastEvent" style="color:#eee;margin:0;white-space:nowrap;">
+<div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:20px 5px 0 5px;max-width:760px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+        <h3 style="color:#6cf;margin:0;">Last Event</h3>
+        <button type="button" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. It also keeps only the last 7 days on its own."
+            style="padding:6px 12px;border-radius:6px;border:1px solid #555;background:#333;color:#ddd;font-size:13px;cursor:pointer;">Clear log</button>
+    </div>
+    <p id="adLastEvent" style="color:#eee;margin:0;overflow-wrap:anywhere;">
         <?php echo htmlspecialchars($lastLog); ?>
     </p>
+    <p style="color:#888;font-size:12px;margin:8px 0 0 0;">Safety mode turning on and off, and tests. Everything else is in the full log (<code>airdefender.log</code>), which keeps the last 7 days.</p>
 </div>
+
+<script>
+(function () {
+    var btn = document.getElementById('adClearLog');
+    btn.addEventListener('click', function () {
+        if (!window.confirm('Delete the Air Defender log? This cannot be undone.')) {
+            return;
+        }
+        btn.disabled = true;
+        fetch('plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1', {
+            method: 'POST', credentials: 'same-origin', cache: 'no-store',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=clear_log'
+        }).then(function (r) {
+            return r.json().then(function (d) {
+                if (!r.ok) { throw new Error(d.error || ('HTTP ' + r.status)); }
+                document.getElementById('adLastEvent').textContent = d.lastEvent;
+                btn.textContent = 'Log cleared';
+            });
+        }).catch(function (e) {
+            window.alert('Could not clear the log: ' + e.message);
+        }).then(function () {
+            btn.disabled = false;
+            setTimeout(function () { btn.textContent = 'Clear log'; }, 3000);
+        });
+    });
+})();
+</script>

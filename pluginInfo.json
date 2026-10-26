@@ -52,8 +52,8 @@
             {
                 "what": "callsigns, distance and height of low aircraft that passed near your show",
                 "about": "third-parties",
-                "keptDays": null,
-                "canDelete": false,
+                "keptDays": 7,
+                "canDelete": true,
                 "where": "plugin log (/home/fpp/media/logs/airdefender.log)"
             }
         ],
