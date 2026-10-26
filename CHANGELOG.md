@@ -1,5 +1,12 @@
 # Air Defender changelog
 
+## 0.9.3 (2026-10-26)
+
+Fixes for a fresh install:
+- Settings showed Air Defender as Enabled before anything was saved, while it was actually off (the dashboard said Disabled). It now starts off everywhere until you switch it on, so nothing is sent anywhere before then.
+- Settings help now shows adsb.fi as the default service, and explains the backup option and the Remote's master password.
+- A head typed into the empty first row was saved as Off unless its switch was turned on too. An empty row now switches itself on when you fill it in; a head you switch off on purpose stays off.
+
 ## 0.9.2 (2026-10-26)
 
 - New radar-scope icon (shown on the plugin's card in FPP).

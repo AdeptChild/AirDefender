@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 0.9.2 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 0.9.3 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -54,7 +54,7 @@ itself. **Release Notes** in Plugin Manager shows the changelog.
 ## Quick start
 
 1. Open **Air Defender → Settings** (from the Content Setup menu, or the dashboard's Settings button).
-2. **Air Defender:** make sure it is **Enabled**, with **Role: Master** (see [Master and Remote](#master-and-remote) if
+2. **Air Defender:** switch it **On** (a new install starts off), with **Role: Master** (see [Master and Remote](#master-and-remote) if
    you have FPP remotes).
 3. **Moving heads:** add each head. Pick its **model**, or choose **Manual channel** and enter its **start channel**
    from xLights. Then enter the **shutter channel** from the fixture's DMX chart (for example 7) and the **closed**

@@ -6,7 +6,8 @@ need a restart.</p>
 
 <h3>1. Air Defender</h3>
 <ul>
-    <li><b>Enabled</b>: turns aircraft checking on or off. A test from the dashboard still works while it is off.</li>
+    <li><b>Enabled</b>: turns aircraft checking on or off. It is off on a new install until you switch it on and
+        save. A test from the dashboard still works while it is off.</li>
     <li><b>Role</b>: <b>Master</b> checks for aircraft and closes its own heads. Use it on a single FPP, and on the FPP
         that runs the show; it also covers heads it sends to over DDP or E1.31, such as a Falcon controller or an FPP in
         bridge mode. <b>Remote</b> is for an FPP in remote (multisync) mode, which plays its own copy of the sequence:
@@ -14,6 +15,8 @@ need a restart.</p>
         for 5 seconds it closes its heads until the master is back. Install Air Defender on every Remote with heads.</li>
     <li><b>Master FPP address</b> (Remote only): leave blank to find the master automatically from FPP's MultiSync
         list. Enter its IP address or hostname if there is more than one player FPP on the network.</li>
+    <li><b>Master's UI password</b> (Remote only): needed only if the master has an FPP UI password. It is stored
+        encoded and never shown; leave it blank to keep the saved one, or tick <b>Remove saved password</b> to clear it.</li>
 </ul>
 <p>On a Remote, sections 3 to 5 are hidden: they are set on the master.</p>
 
@@ -61,10 +64,13 @@ until you pick the model again.</p>
 
 <h3>5. Flight data</h3>
 <ul>
-    <li><b>Service</b>: <b>adsb.lol</b> (the default) and <b>adsb.fi</b> are free community services for personal,
+    <li><b>Service</b>: <b>adsb.fi</b> (the default) and <b>adsb.lol</b> are free community services for personal,
         non-commercial use, and are sent your show's location. The local receiver options read an ADS-B receiver
         running on this FPP and send nothing off the device. (airplanes.live is no longer offered: its API now refuses
-        requests without an account. A saved airplanes.live setting is switched to adsb.lol.)</li>
+        requests without an account. A saved airplanes.live setting is switched to adsb.fi.)</li>
+    <li><b>Use the other as a backup</b>: on (the default), if adsb.fi or adsb.lol does not answer, Air Defender asks
+        the other in the same check. It tries your chosen service again every minute and goes back to it when it
+        answers. A local receiver never falls back to an online service.</li>
     <li><b>Test connection</b>: asks the service once, right away, using the location and limits on the page (saved or
         not), and shows how many aircraft it sees, the nearest one, how many are inside your limits, or the exact
         error.</li>

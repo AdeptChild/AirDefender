@@ -205,10 +205,12 @@ $settings = array(
         'type' => 'string',
         'default' => '',
     ),
+    // Off until switched on, like the detection loop: nothing is sent anywhere
+    // until the show's owner turns Air Defender on.
     'enabled' => array(
         'label' => 'Enable Air Defender',
         'type' => 'bool',
-        'default' => true,
+        'default' => false,
     ),
     'useFPPLocation' => array(
         'label' => 'Use FPP Location',
@@ -608,7 +610,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                         $channel = (string) (int) $airdefenderLastKnown[$n];
                     }
                 ?>
-                    <tr data-head="<?php echo $n; ?>" <?php echo $headsShown[$n] ? '' : 'hidden'; ?>>
+                    <tr data-head="<?php echo $n; ?>" <?php echo $headsShown[$n] ? '' : 'hidden'; ?> <?php echo ($model === '' && $start < 1 && trim((string) $v("head{$n}Name")) === '' && !AirDefender_IsTruthy($v("head{$n}Enabled"))) ? 'data-blank="1"' : ''; ?>>
                         <td class="keep">
                             <input type="hidden" name="head<?php echo $n; ?>Enabled" value="0">
                             <label class="ads-sw" title="Protect this head"><input type="checkbox" name="head<?php echo $n; ?>Enabled" id="head<?php echo $n; ?>Enabled" value="1" <?php echo AirDefender_IsTruthy($v("head{$n}Enabled")) ? 'checked' : ''; ?>><span class="track"></span></label>
@@ -851,8 +853,24 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             allHeads(); dirty();
         });
     });
+    // An empty row switches itself on when you start filling it in, so a head
+    // entered on a fresh setup is not saved as Off by mistake.
+    function wakeRow(n) {
+        var row = $('head' + n + 'Model').closest('tr');
+        if (row.getAttribute('data-blank') === '1') {
+            row.removeAttribute('data-blank');
+            $('head' + n + 'Enabled').checked = true;
+        }
+    }
     for (var h = 1; h <= 8; h++) {
         (function (n) {
+            ['Name', 'Start', 'Offset'].forEach(function (f) {
+                $('head' + n + f).addEventListener('input', function () { wakeRow(n); });
+            });
+            $('head' + n + 'Enabled').addEventListener('change', function () {
+                this.closest('tr').removeAttribute('data-blank');   // a deliberate choice stands
+            });
+            $('head' + n + 'Model').addEventListener('change', function () { wakeRow(n); });
             $('head' + n + 'Model').addEventListener('change', function () {
                 var sel = this, nameIn = $('head' + n + 'Name'), prev = sel.getAttribute('data-previous') || '';
                 if (sel.value !== '' && (nameIn.value.trim() === '' || nameIn.value.trim() === prev)) { nameIn.value = sel.value; }
