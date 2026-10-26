@@ -34,7 +34,8 @@ with no show on, for example while testing a sequence, then turns itself off. Th
 <h3>Sky (Detailed)</h3>
 <p>Your show is the blue dot in the middle, north is up, and the dashed orange ring is your distance limit.
 Orange dots are aircraft inside your limits (close enough and low enough); grey dots are aircraft that are too
-high or too far. Hover over a dot for its callsign, distance and height. Aircraft on the ground are not shown.
+high or too far. Hover over a dot for its callsign, distance and height (above your show once <b>Show elevation</b> is set in
+Settings). Aircraft on the ground are not shown.
 On a Remote, the Sky card says it follows its master instead.</p>
 
 <h3>Moving heads</h3>
@@ -44,11 +45,11 @@ the summary line counts them.</p>
 
 <h3>When Safety Mode turns on</h3>
 <ul>
-    <li>An aircraft is inside both thresholds (aircraft on the ground are ignored).</li>
-    <li>For the <b>Hold After Aircraft Leaves</b> time (30 seconds unless changed) after it leaves, so a plane on the
+    <li>An aircraft is inside the distance and below the altitude (aircraft on the ground are ignored).</li>
+    <li>For the <b>Hold after it leaves</b> time (30 seconds unless changed) after it leaves, so a plane on the
         edge of the area does not flash the lights.</li>
     <li>If the flight-data service stops answering while an aircraft was near, until it answers again. With
-        <b>Close Heads If Feed Is Down</b> on, whenever it stops answering.</li>
+        <b>Close heads if feed is down</b> on, whenever it stops answering.</li>
     <li>On a Remote: whenever its master is in Safety Mode, and whenever it cannot reach the master for
         5 seconds.</li>
 </ul>
