@@ -99,6 +99,7 @@ $adsbSourceLabel = isset($feedOptions[$adsbSourceUrl])
     : (parse_url($adsbSourceUrl, PHP_URL_HOST) ?: 'custom feed');
 
 require_once(dirname(__DIR__) . "/scripts/airdefender_status.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_version.php");
 
 $test = airdefender_test_status();
 $live = airdefender_live_status(true);
@@ -174,7 +175,7 @@ $pageConfig = array(
 
 <div class="ad lite" id="ad">
     <div class="ad-top">
-        <h2>Air Defender</h2>
+        <h2>Air Defender <span style="font-size:13px;color:#888;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
         <div class="ad-row">
             <div class="ad-switch" role="group" aria-label="Dashboard view">
                 <button type="button" data-view="lite" class="on" title="Refreshes every 5 seconds">Lite</button>
@@ -427,7 +428,8 @@ $pageConfig = array(
         var f = live.feed || {};
         if (live.checking === false) { return 'standby'; }
         if (f.error) { return 'feed problem'; }
-        return f.lastOkAgo !== null && f.lastOkAgo !== undefined ? FEED_LABEL + ' · ' + ago(f.lastOkAgo) : 'not checked yet';
+        var label = (f.used || FEED_LABEL) + (f.onBackup ? ' (backup)' : '');
+        return f.lastOkAgo !== null && f.lastOkAgo !== undefined ? label + ' · ' + ago(f.lastOkAgo) : 'not checked yet';
     }
     function renderSky() {
         $('adFeed').textContent = feedText();

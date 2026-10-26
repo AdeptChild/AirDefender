@@ -6,6 +6,7 @@ PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Stop the detection loop; otherwise it keeps running from memory after its
 # files are gone.
+pkill -f "${PLUGIN_DIR}/scripts/airdefender_supervise.sh" 2>/dev/null
 pkill -f "${PLUGIN_DIR}/scripts/airdefender_loop.php" 2>/dev/null
 
 # If safety mode was on, hand any shutter channels the loop was holding back

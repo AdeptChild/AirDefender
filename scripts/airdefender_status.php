@@ -51,6 +51,8 @@ function airdefender_live_status(bool $detailed = false): array
             'aircraft' => isset($state['aircraftCount']) ? (int) $state['aircraftCount'] : null,
             'lastOkAgo' => $lastOk ? max(0, $now - $lastOk) : null,
             'error' => $state['feedError'] ?? null,
+            'used' => $state['feedUsed'] ?? null,
+            'onBackup' => !empty($state['feedOnBackup']),
         ],
         'master' => $master ? [
             'address' => $master['address'] ?? null,

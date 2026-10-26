@@ -30,6 +30,7 @@ require_once(__DIR__ . "/airdefender_models.php");
 require_once(__DIR__ . "/airdefender_status.php");
 require_once(__DIR__ . "/airdefender_feeds.php");
 require_once(__DIR__ . "/airdefender_adsb.php");
+require_once(__DIR__ . "/airdefender_version.php");
 
 const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_CLEAR_DELAY = 30;
@@ -202,12 +203,12 @@ function airdefender_find_trigger(float $lat, float $lon, float $maxNm, float $m
 /* ---------- master / remote ---------- */
 
 /* GET a URL and decode JSON. Returns [data, null] or [null, error]. */
-function airdefender_get_json(string $url, int $timeout): array
+function airdefender_get_json(string $url, int $timeout, string $extraHeaders = ''): array
 {
     $context = stream_context_create([
         'http' => [
             'timeout' => $timeout,
-            'header' => "User-Agent: FPP-AirDefender\r\nAccept: application/json\r\n",
+            'header' => "User-Agent: FPP-AirDefender\r\nAccept: application/json\r\n" . $extraHeaders,
             'ignore_errors' => true,
         ],
     ]);
@@ -218,11 +219,12 @@ function airdefender_get_json(string $url, int $timeout): array
             $status = (int) $m[1];
         }
     }
-    if ($body === false || $body === '') {
-        return [null, "no answer"];
-    }
+    // The status first: a refusal (401, 404) often comes with an empty body.
     if ($status !== 0 && $status !== 200) {
         return [null, "HTTP {$status}"];
+    }
+    if ($body === false || $body === '') {
+        return [null, "no answer"];
     }
     $json = json_decode($body, true);
     return is_array($json) ? [$json, null] : [null, "not valid JSON"];
@@ -271,10 +273,20 @@ function airdefender_find_master(array $settings): array
 }
 
 /* Ask the master what it wants. Returns [status, null] or [null, error]. */
-function airdefender_poll_master(string $address): array
+/*
+ * $password is the master's FPP UI password, if it has one: FPP protects every
+ * page, plugin pages included, with the user "admin" and that password.
+ */
+function airdefender_poll_master(string $address, string $password = ''): array
 {
     $base = preg_match('#^https?://#i', $address) ? rtrim($address, '/') : "http://{$address}";
-    [$data, $err] = airdefender_get_json($base . "/plugin.php?plugin=AirDefender&page=www/master_status.php&nopage=1", 2);
+    $auth = $password !== '' ? "Authorization: Basic " . base64_encode("admin:" . $password) . "\r\n" : '';
+    [$data, $err] = airdefender_get_json($base . "/plugin.php?plugin=AirDefender&page=www/master_status.php&nopage=1", 2, $auth);
+    if ($err === "HTTP 401") {
+        return [null, $password === ''
+            ? "the master has a UI password; enter it as Master's UI password in this Remote's Air Defender settings"
+            : "the master did not accept this Remote's password; check Master's UI password in Air Defender settings"];
+    }
     if ($data === null) {
         return [null, $err === "HTTP 404" ? "Air Defender is not installed on the master" : $err];
     }
@@ -293,6 +305,7 @@ function airdefender_poll_master(string $address): array
 /* ---------- show schedule ---------- */
 
 const AIRDEFENDER_SHOW_LEAD_SEC = 120;   // start checking this long before a scheduled show
+const AIRDEFENDER_PRIMARY_RETRY_SEC = 300; // while on the backup service, try the chosen one again this often
 
 /*
  * What FPP is playing, from fppd's status: whether anything is playing,
@@ -343,10 +356,11 @@ function airdefender_should_check(string $mode, ?array $show, ?int $overrideUnti
 
 /* ---------- main ---------- */
 
-// One copy only: a second start (fppd restarted twice quickly) just exits.
+// One copy only: a second start (fppd restarted twice quickly) just exits,
+// with code 3 so the watchdog knows another copy is already running.
 $lock = @fopen(sys_get_temp_dir() . "/airdefender_loop.lock", "c");
 if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
-    exit(0);
+    exit(3);
 }
 
 $state = airdefender_read_state();
@@ -364,6 +378,9 @@ $nearby = [];                // aircraft from the last good fetch, for the radar
 $show = null;                // what FPP is playing, re-read every 2 s
 $showAt = 0;
 $wasChecking = null;
+$onBackup = false;           // the chosen service is not answering and the backup is
+$primaryRetryAt = 0;
+$feedUsed = null;            // the service that gave the last good answer
 $safeSince = null;           // when safety mode last turned on
 
 $safe = false;
@@ -383,7 +400,7 @@ $master = null;              // last good answer from the master
 $masterOkAt = 0;             // when we got it
 $masterError = null;
 
-airdefender_log("Detection loop started (pid " . getmypid() . ").");
+airdefender_log("Detection loop started (Air Defender " . airdefender_version() . ", pid " . getmypid() . ").");
 
 while (true) {
     $now = time();
@@ -408,6 +425,7 @@ while (true) {
         $checkWhen = 'scheduled';
     }
     [$feedTemplate, $feedNote] = airdefender_effective_feed((string) airdefender_setting($settings, 'adsbSourceUrl', ''));
+    $backupTemplate = airdefender_truthy(airdefender_setting($settings, 'feedFallback', '1')) ? airdefender_feed_backup($feedTemplate) : null;
     airdefender_log_once('feed-choice', $feedNote);
     // Re-read FPP's models every 10 s, so a head re-patched in xLights and
     // re-uploaded is followed. A failed read keeps the last good list.
@@ -468,17 +486,57 @@ while (true) {
     if ($feedKey !== $lastFeedKey) {
         $lastFeedKey = $feedKey;
         $nextFetchAt = 0;
+        $onBackup = false;
     }
 
     /* --- feed --- */
     if ($detecting && $now >= $nextFetchAt) {
         $nextFetchAt = $now + $fetchInterval;
-        $url = str_replace(
-            ['{lat}', '{lon}', '{radius}'],
-            [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))],
-            $feedTemplate
-        );
-        [$planes, $feedError] = airdefender_fetch_feed($url);
+
+        // The chosen service, then its backup if it does not answer. While on
+        // the backup, the chosen one is tried only every few minutes, so a
+        // service that is limiting us is not asked over and over.
+        $order = [$feedTemplate];
+        if ($backupTemplate !== null) {
+            $order = ($onBackup && $now < $primaryRetryAt) ? [$backupTemplate, $feedTemplate] : [$feedTemplate, $backupTemplate];
+        }
+        $planes = null;
+        $errors = [];
+        foreach ($order as $template) {
+            $url = str_replace(
+                ['{lat}', '{lon}', '{radius}'],
+                [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))],
+                $template
+            );
+            [$planes, $err] = airdefender_fetch_feed($url);
+            if ($planes !== null) {
+                $feedUsed = $template;
+                break;
+            }
+            $errors[$template] = $err;
+            if ($template === $feedTemplate) {
+                $primaryRetryAt = $now + AIRDEFENDER_PRIMARY_RETRY_SEC;
+            }
+        }
+
+        if ($planes !== null && $feedUsed === $feedTemplate && $onBackup) {
+            $onBackup = false;
+            airdefender_log(airdefender_feed_label($feedTemplate) . " is answering again; back to it.");
+        } elseif ($planes !== null && $feedUsed !== $feedTemplate && !$onBackup) {
+            $onBackup = true;
+            $why = explode(';', (string) ($errors[$feedTemplate] ?? 'no answer'))[0];   // the reason, without the advice
+            airdefender_log(airdefender_feed_label($feedTemplate) . " did not answer ({$why}), so Air Defender is using "
+                . airdefender_feed_label($feedUsed) . " until it does.");
+        }
+
+        if ($planes === null) {
+            $feedError = $errors[$feedTemplate] ?? reset($errors);
+            if ($backupTemplate !== null && isset($errors[$backupTemplate])) {
+                $feedError .= "; the backup, " . airdefender_feed_label($backupTemplate) . ", did not answer either";
+            }
+        } else {
+            $feedError = null;
+        }
 
         if ($feedError === null) {
             if ($feedWasDown) {
@@ -515,7 +573,11 @@ while (true) {
         }
 
         if ($masterAddress !== null) {
-            [$answer, $masterError] = airdefender_poll_master($masterAddress);
+            $masterPassword = (string) ($settings['masterPassword'] ?? '');
+            if (strpos($masterPassword, 'b64:') === 0) {
+                $masterPassword = (string) base64_decode(substr($masterPassword, 4));
+            }
+            [$answer, $masterError] = airdefender_poll_master($masterAddress, $masterPassword);
             if ($answer !== null) {
                 $master = $answer;
                 $masterOkAt = $now;
@@ -642,6 +704,8 @@ while (true) {
             'seenAt' => date('c', $lastTriggerAt),
         ] : null,
         'aircraftCount' => $aircraftCount,
+        'feedUsed' => $feedUsed ? airdefender_feed_label($feedUsed) : null,
+        'feedOnBackup' => $onBackup,
         'nearby' => $role === 'master' && $detecting ? $nearby : [],
         'limits' => ['nm' => $maxNm, 'ft' => $maxFt, 'holdSec' => $clearDelay],
         'safeSince' => $safeSince ? date('c', $safeSince) : null,

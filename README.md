@@ -1,30 +1,34 @@
+# Air Defender
 
-# Air Defender  
-### ADS‑B Aircraft Safety Plugin for Falcon Player (FPP)
+**Moving-head safety for Falcon Player (FPP): closes the shutters while low aircraft fly near your show.**
 
-Air Defender monitors nearby ADS‑B aircraft and automatically disables selected DMX outputs when aircraft enter a defined safety radius. This helps prevent bright lighting effects from pointing skyward while aircraft are overhead.
+Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender watches live ADS-B flight data
+for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
+closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-This plugin is designed for FPP 10+ and supports Raspberry Pi, BeagleBone, and other compatible platforms.
-
----
-
-## ✨ Features
-
-- Real‑time ADS‑B aircraft detection  
-- Adjustable distance threshold (nautical miles)  
-- Automatic DMX output shutdown when aircraft are nearby  
-- Automatic DMX restore when clear  
-- Optional location override  
-- Adjustable ADS‑B fetch interval  
-- Simple configuration through FPP Plugin Settings  
-- Lightweight and efficient loop  
-- Local logging (`airdefender.log`)
+Version 0.9.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
-## 📦 Installation
+## How it protects your show
 
-### From FPP's Plugin Manager (recommended)
+- While an aircraft is **inside your distance limit and below your altitude limit**, each enabled head's **shutter
+  channel is held at its closed value** using an FPP channel overlay. FPP writes that value on every output frame,
+  over whatever the sequence is doing, so it reaches the fixture however the channel is output: a Kulp's DMX port,
+  a pixel cape, or E1.31/DDP to a Falcon or another controller.
+- When the aircraft leaves, the heads stay closed for a short **hold** (30 seconds by default) so a plane on the edge
+  of the area doesn't flash them on and off. Then the overlay is removed and **the sequence controls the shutter
+  again**. Air Defender never forces a shutter open.
+- **The DMX signal is never cut.** Most moving heads and lasers hold their last values when DMX stops, which could
+  leave a beam frozen open, pointing up. Closing the shutter is the only way to know the fixture is dark.
+- If the flight-data service stops answering while an aircraft was near, the heads stay closed until it answers
+  again. (Turn on **Close heads if feed is down** to close them on any outage.)
+- The overlays are re-applied every second, so they survive an fppd restart, and a watchdog restarts the detection
+  loop within seconds if it ever stops.
+
+## Install
+
+**From FPP's Plugin Manager (recommended)**
 
 1. In FPP, open **Content Setup → Plugin Manager**.
 2. Paste this into the plugin info URL box and press **Retrieve Plugin Info**:
@@ -33,72 +37,196 @@ This plugin is designed for FPP 10+ and supports Raspberry Pi, BeagleBone, and o
    https://raw.githubusercontent.com/AdeptChild/AirDefender/master/pluginInfo.json
    ```
 
-3. Press **Install**, then restart fppd when FPP asks.
+3. Review the privacy summary, press **Install**, then restart FPPD when FPP asks.
 
-### By hand (SSH)
+**By hand (SSH)**
 
 ```bash
 cd /home/fpp/media/plugins/
 git clone https://github.com/AdeptChild/AirDefender.git
 ```
 
-Then restart fppd. To update later, press **Update** for Air Defender in Plugin Manager; the detection loop restarts with the new code by itself.
+Then restart FPPD.
 
-## FPP Commands
+**Updating:** press **Update** for Air Defender in Plugin Manager. The detection loop restarts with the new code by
+itself. **Release Notes** in Plugin Manager shows the changelog.
 
-Air Defender adds two commands you can use in playlists, schedules and command presets (they appear after fppd restarts once following install):
+## Quick start
 
-- **Air Defender: Start Test** – closes the shutters for the given number of seconds (5–1800), exactly like Start Test on the dashboard. On the master it closes every Remote's heads too.
-- **Air Defender: Stop Test** – ends a running test early.
-- **Air Defender: Check Now** – checks for aircraft for the given minutes even outside show times (0 ends it), like Check now on the dashboard.
+1. Open **Air Defender → Settings** (from the Content Setup menu, or the dashboard's Settings button).
+2. **Air Defender:** make sure it is **Enabled**, with **Role: Master** (see [Master and Remote](#master-and-remote) if
+   you have FPP remotes).
+3. **Moving heads:** add each head. Pick its **model**, or choose **Manual channel** and enter its **start channel**
+   from xLights. Then enter the **shutter channel** from the fixture's DMX chart (for example 7) and the **closed**
+   value (often 0). The row shows the FPP channel it works out, for example `→ FPP ch 82454`.
+4. **When and where:** check your location (FPP's own location is used by default; **Check it on a map** confirms
+   it).
+5. **Flight data:** press **Test connection**. You should see `OK · N aircraft nearby`.
+6. Save, open the **dashboard**, and run a **Test**: the heads should close within a second and open again when the
+   timer ends.
 
-## Node Role
+Every page has help behind FPP's **?** button.
 
-The settings page has a **Node Role** selector near the top:
+## Settings
 
-- **Master** (default) – detects aircraft and closes its own heads. Use this on a single FPP, and on the FPP that runs the show. Heads fed by the master over DDP/E1.31 (a Falcon, or an FPP in bridge mode) are covered by the master itself.
-- **Remote** – for an FPP in remote (multisync) mode, which plays its own copy of the sequence, so the master's overlay can't reach its heads. It follows the master instead: it closes its own heads whenever the master is in safety mode, including during a master test. Location, Safety Thresholds and ADS-B Feed are greyed out.
+| Section | What's there |
+|---|---|
+| **1. Air Defender** | Enabled; **Role** (Master or Remote); on a Remote, the master's address and UI password. |
+| **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
+| **3. When and where** | **When to check** (scheduled shows, whenever FPP is playing, or always) and the show location. |
+| **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
+| **5. Flight data** | The service, **Test connection**, automatic backup, and **Close heads if feed is down**. |
 
-Install the plugin on the master and on **every** remote with heads (set one to Master, the rest to Remote); a remote with no heads enabled just does nothing.
+Changes take effect within a second of saving; no restart is needed.
 
-A remote finds its master automatically from FPP's MultiSync list, or uses the **Master FPP Address** setting if filled in (needed when more than one player is on the network). It checks the master every second. If it gets no good answer for 5 seconds (master off, unreachable, plugin missing, its detection loop not running, or it is set to Remote) the remote **closes its heads** until the master is back.
+### Picking heads by model
 
-Older settings saved as "Standalone" run as Master.
+To list your heads by name, upload your models from xLights: in **FPP Connect**, set the **Models** column to
+**All** for the FPP and upload. (**Local** only includes models on that FPP's own outputs, so it leaves out heads on
+a Falcon or other controller.) You can also add models by hand on FPP's **Pixel Overlay Models** page. FPP does not
+create models for DMX fixtures by itself, and xLights changes spaces in model names to underscores.
 
-## Moving Heads
+Heads picked by model are looked up by name, so a head re-patched in xLights and uploaded again is followed
+automatically. If a model is renamed or deleted, its row turns red and Air Defender keeps protecting the channel it
+last found for it until you pick the model again.
 
-The settings page has up to 8 heads (MH1–MH8). For each, turn it on and give it an optional **name** (used in the log), then either:
+### When it checks
 
-- pick its **model** from FPP's model list, or
-- choose **Manual channel** and enter the head's **Start Ch.** from xLights (e.g. 82448).
+By default Air Defender only checks **during scheduled shows**, starting **2 minutes before** each one so the heads are
+already protected when the lights come on. Outside those times it is on **Standby**: it sends nothing to the
+flight-data service and leaves the shutters to the show. Choose **When playing** to also cover playlists started by
+hand, or **Always**.
 
-Then enter the **Shutter Ch.**: the shutter's channel *within the fixture*, from its DMX chart (e.g. 7). Air Defender does the math (82448 + 7 − 1 = FPP channel 82454) and shows the result on the row. Set the **closed value** (0–255) from the DMX chart.
+To test a sequence at another time, use **Check now** on the dashboard (30 minutes to 4 hours), or the
+**Air Defender: Check Now** command. It turns itself off when the time runs out.
 
-To get heads into the model list, upload from xLights with **FPP Connect** with the **Models** column set to **All**. **Local** only includes models on that FPP's own outputs, so it leaves out heads on a Falcon or other controller. You can also add models by hand on FPP's Pixel Overlay Models page. FPP does not create models for DMX fixtures by itself.
+## Master and Remote
 
-Heads picked by model are looked up by name, so re-patching in xLights and uploading again is followed automatically. If a model is renamed or deleted, the row is flagged and Air Defender keeps protecting the channel it last resolved to, and logs a warning. Settings from before this version (an absolute channel) carry over as Manual with that channel as the start.
+| Your setup | Air Defender role |
+|---|---|
+| One FPP running the show | **Master** |
+| An FPP sending E1.31/DDP to a Falcon or other controller with the heads | **Master** on that FPP (it covers the controller) |
+| An FPP in **bridge** mode receiving data from the master | Nothing needed: the master covers it |
+| An FPP in **remote** (multisync) mode with heads on its outputs | **Master** on the show FPP, **Remote** on each remote |
+
+A remote plays its own copy of the sequence, so the master's overlays can't reach its heads. A **Remote** therefore
+follows its master: it closes its own heads whenever the master is in safety mode, including the master's tests. If
+it cannot reach the master for **5 seconds** (master off, unreachable, plugin missing, its loop not running, or it is
+set to Remote), it closes its heads until the master is back. Install Air Defender on every remote that has heads;
+a remote with no heads enabled does nothing.
+
+A Remote finds its master automatically from FPP's MultiSync list; enter the **Master FPP address** if there is more
+than one player on the network. If the master has an FPP **UI password**, enter it as **Master's UI password** on the
+Remote (it logs in as `admin`, over your local network). The password is stored encoded and never shown on the page.
+
+## The dashboard
+
+The **status banner** at the top says where things stand:
+
+| Banner | Meaning |
+|---|---|
+| **All clear** (green) | No aircraft inside your limits; the show controls the shutters. |
+| **Safety active** (orange) | The shutters are held closed, with the reason and when it started. |
+| **Test running** (blue) | A test is closing the heads, with the time left. |
+| **Standby** (grey-blue) | No show on, so not checking; shows the next scheduled show. |
+| **Can't check the sky** (yellow) | The flight-data service isn't answering. |
+| **Disabled** (grey) | Air Defender is switched off in Settings. |
+| **Not running** (red) | The detection loop isn't running. Restart FPPD or reboot. |
+
+Choose **Lite** (refreshes every 5 seconds) or **Detailed** (every 2 seconds, adds a **Sky** radar of nearby aircraft
+and every head's state). Your choice is remembered in that browser. The dashboard only asks FPP for anything while it
+is open.
+
+- **Test** closes the heads for 5 seconds to 30 minutes so you can go outside and watch; a test on the master also
+  closes every Remote's heads.
+- **Last Event** shows only safety turning on or off and tests. Everything else is in the full log.
+- **Clear log** deletes the Air Defender log.
+
+## FPP commands
+
+Available in playlists, schedules and command presets (after FPPD restarts once following install):
+
+- **Air Defender: Start Test** (seconds): like Test on the dashboard.
+- **Air Defender: Stop Test**: ends a running test.
+- **Air Defender: Check Now** (minutes, 0 ends it): checks for aircraft outside show times, like Check now.
 
 ## Flight data
 
-Air Defender asks a free community ADS-B service for aircraft near your show: **adsb.lol** (default) or **adsb.fi**, both for personal, non-commercial use, or a **local receiver** (tar1090 / dump1090) on the FPP itself, which sends nothing off the device. Data from [adsb.lol](https://adsb.lol) is under the ODbL; data from [adsb.fi](https://adsb.fi) is used under its terms.
+Air Defender asks a free community ADS-B service for the aircraft near your show:
 
-airplanes.live is no longer offered: its API now answers HTTP 403 without an account. A saved airplanes.live setting is switched to adsb.lol automatically.
+| Service | Limits | Notes |
+|---|---|---|
+| **adsb.fi** (default) | Published: 1 request a second | Personal, non-commercial use. Data from [adsb.fi](https://adsb.fi). |
+| **adsb.lol** | None published; some users report about 500 a day | Data from [adsb.lol](https://adsb.lol) under the ODbL. |
+| **Local receiver** (tar1090 / dump1090-fa) | None | Reads a receiver on the FPP itself; nothing leaves the device. |
 
-## How the blackout works
+With **Use the other as a backup** on (the default), if adsb.fi or adsb.lol refuses, limits or doesn't answer, Air
+Defender asks the other in the same check, so there's no gap. It tries the chosen one again every 5 minutes and goes
+back to it when it answers. A local receiver never falls back to an online service.
 
-When safety mode turns on, each enabled head's shutter channel is held at its **closed value** with an FPP channel overlay (`/api/overlays/range`). fppd writes that value on every output frame, over the running sequence, so it reaches the fixture however the channel is output: a Kulp's serial DMX port, or E1.31/DDP to a Falcon. When safety mode turns off, the overlay is removed and the sequence controls the shutter again (it is not forced open).
+The number of requests is your check interval over the time it checks: at 10 seconds, about 1,800 for a 5-hour show
+night. The settings page shows the estimate as you change it.
 
-The DMX signal is never cut on purpose: most moving heads and lasers hold their last values when DMX stops, which could leave a beam frozen open.
+airplanes.live is no longer offered: its API now refuses requests without an account. A saved airplanes.live setting
+is switched to the default automatically.
 
-Safety mode turns on when:
+## Privacy
 
-- a **Test** is running from the dashboard,
-- an aircraft is inside the distance **and** below the altitude threshold (aircraft on the ground are ignored),
-- one was, within the **Hold After Aircraft Leaves** time (default 30 seconds), so a plane on the edge of the radius doesn't flash the lights,
-- or the ADS-B feed stops answering while an aircraft was near: with no data it stays safe until the feed comes back. With **Close Heads If Feed Is Down** on, any feed outage closes the heads.
+- Your **show's location** and search radius go to the flight-data service you pick (adsb.fi, adsb.lol, or neither
+  with a local receiver), only while Air Defender is checking.
+- A Remote asks its master for its status over your local network, with the master's UI password if you entered one.
+- The log (`/home/fpp/media/logs/airdefender.log`) records the callsigns, distance and height of low aircraft that
+  passed near your show. It keeps **7 days** and can be deleted with **Clear log**.
+- Air Defender runs a background process while FPP is running, and holds the shutter channels you list while
+  aircraft are near or during a test.
 
-**When to check.** By default Air Defender only checks during scheduled shows, starting 2 minutes before each one; **Whenever FPP is playing** and **Always** are the other choices. Outside those times it is on **Standby**: it sends nothing to the flight-data service and leaves the shutters to the show. To test a sequence at another time, use **Check now** on the dashboard (or the Check Now command), which turns itself off after the time you pick. A Remote follows its master regardless.
+The full disclosure is in `pluginInfo.json` and is shown by Plugin Manager before you install or update.
 
-The detection loop starts with fppd (`scripts/postStart.sh`) and stops with it (`scripts/preStop.sh`). It re-reads the settings every second, so changes apply without restarting fppd. Everything it does is logged to `/home/fpp/media/logs/airdefender.log`, which keeps the last 7 days (it lists aircraft that passed nearby) and can be cleared from the dashboard. The dashboard has a **Lite** view (status banner, test, heads summary, last event; refreshes every 5 s) and a **Detailed** view that adds a **Sky** radar of nearby aircraft and every head's state (refreshes every 2 s). The choice is remembered per browser. **Last Event** shows only safety turning on or off and tests.
+## Troubleshooting
 
-**Node Role:** see above. A Remote follows its master; a Test started on a Remote closes only that remote's heads.
+Start with the dashboard banner and **Last Event**; the full log (**Content Setup → File Manager → Logs →
+airdefender.log**) explains every change.
+
+| You see | What to do |
+|---|---|
+| **Not running** | Restart FPPD (or reboot). If it keeps happening, the log shows why the loop stopped. |
+| **Can't check the sky** / "No answer from the ADS-B feed" | Check the FPP has internet access. Try **Test connection**, or the other service. |
+| "refused the request (HTTP 403)" or "(HTTP 429)" | The service is refusing or limiting requests. Leave **backup** on, raise **Check every**, or switch service. |
+| "No show location" | Set the location in FPP's settings, or turn off **Use FPP's location** and enter one. |
+| A head's row is red: "Model not found" | The model was renamed or deleted in xLights. Pick it again; until then the last channel is still protected. |
+| Heads don't close during a test | Check each head is **On**, the **FPP channel** shown matches the shutter channel, and the **closed** value is right for the fixture. |
+| **Standby** when you expected checking | No scheduled show is on. Use **Check now**, or change **When to check**. |
+| A Remote says "Lost the master" | Check the master is on, has Air Defender set to Master, and the address is right. If it says the master has a UI password, enter it on the Remote. |
+| The dashboard says "FPP refused the shutter channels" | fppd isn't accepting overlays; restart FPPD. |
+
+**Command-line check** (over SSH): asks the flight-data service once with your saved settings and lists every
+aircraft, marking those inside your limits.
+
+```bash
+php /home/fpp/media/plugins/AirDefender/scripts/airdefender_check.php
+```
+
+Options `--url`, `--lat`, `--lon`, `--distance` and `--altitude` override the saved settings. Exit code: 0 clear,
+1 an aircraft is inside the limits, 2 could not check.
+
+## How it works (for developers)
+
+| Piece | File |
+|---|---|
+| Detection loop: reads settings every second, checks the feed, decides, holds or releases the overlays | `scripts/airdefender_loop.php` |
+| Watchdog that keeps the loop running; started and stopped with fppd | `scripts/airdefender_supervise.sh`, `scripts/postStart.sh`, `scripts/preStop.sh` |
+| Shutter overlays (`PUT /overlays/range/<ch>` on fppd) | `scripts/airdefender_controller.php` |
+| Heads by model or manual channel | `scripts/airdefender_models.php` |
+| Flight-data services, backup, fetching and parsing | `scripts/airdefender_feeds.php`, `scripts/airdefender_adsb.php` |
+| Tests, Check now, Last Event, log | `scripts/airdefender_test.php`, `scripts/airdefender_status.php` |
+| Dashboard and its endpoint | `www/index.php`, `www/test_api.php` |
+| Settings page | `www/settings.php` |
+| Status a Remote reads from its master | `www/master_status.php` |
+| Install, update and uninstall hooks | `scripts/fpp_install.sh`, `scripts/fpp_upgrade.sh`, `scripts/fpp_uninstall.sh` |
+
+Runtime files written on the device (not in git): `state.json`, `test.json`, `override.json`, `last_event.json` in
+the plugin folder, and the log in `/home/fpp/media/logs/`.
+
+## License
+
+GNU General Public License v2. See [LICENSE](LICENSE).

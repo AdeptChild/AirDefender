@@ -18,6 +18,7 @@ $pluginName = "AirDefender";
 
 require_once(dirname(__DIR__) . "/scripts/airdefender_models.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_version.php");
 $airdefenderModels = airdefender_fpp_models();
 $airdefenderState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
 $airdefenderLastKnown = is_array($airdefenderState['lastKnownChannels'] ?? null) ? $airdefenderState['lastKnownChannels'] : array();
@@ -197,6 +198,13 @@ $settings = array(
         'type' => 'string',
         'default' => '',
     ),
+    // The master's FPP UI password, for a Remote whose master has one. Never
+    // shown back on the page; a blank field keeps the saved one.
+    'masterPassword' => array(
+        'label' => "Master's UI Password",
+        'type' => 'string',
+        'default' => '',
+    ),
     'enabled' => array(
         'label' => 'Enable Air Defender',
         'type' => 'bool',
@@ -246,6 +254,11 @@ $settings = array(
         'label' => 'Hold After Aircraft Leaves (seconds)',
         'type' => 'int',
         'default' => 30,
+    ),
+    'feedFallback' => array(
+        'label' => 'Use the Other Service as a Backup',
+        'type' => 'bool',
+        'default' => true,
     ),
     'feedDownSafe' => array(
         'label' => 'Close Heads If Feed Is Down',
@@ -341,6 +354,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     foreach ($settings as $key => $config) {
         if (!isset($_POST[$key])) {
+            continue;
+        }
+        if ($key === 'masterPassword') {
+            // Blank keeps the saved password; the Remove box clears it.
+            if (!empty($_POST['masterPasswordClear'])) {
+                $toSave[$key] = '';
+            } elseif ((string) $_POST[$key] !== '') {
+                // Stored encoded: the settings file cannot hold every character a password may use.
+                $toSave[$key] = 'b64:' . base64_encode((string) $_POST[$key]);
+            }
             continue;
         }
 
@@ -511,7 +534,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
 
 <form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" class="ads<?php echo $isRemote ? ' remote' : ''; ?>" id="ads" novalidate>
     <div class="ads-top">
-        <h2>Air Defender settings</h2>
+        <h2>Air Defender settings <span style="font-size:13px;color:#888;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
         <a class="ads-btn" href="plugin.php?plugin=AirDefender&page=www/index.php">Dashboard</a>
     </div>
 
@@ -545,6 +568,17 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             <label for="masterAddress">Master FPP address</label>
             <input type="text" name="masterAddress" id="masterAddress" value="<?php echo htmlspecialchars((string) $v('masterAddress')); ?>" placeholder="Blank finds it automatically" style="max-width:280px;">
             <div class="ads-help">IP or hostname of the master. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one player FPP.</div>
+        </div>
+        <div class="ads-field ads-remote-only" style="display:none;" id="masterPwRow">
+            <label for="masterPassword">Master's UI password</label>
+            <div>
+                <input type="password" name="masterPassword" id="masterPassword" value="" autocomplete="new-password" style="max-width:280px;"
+                    placeholder="<?php echo (string) $v('masterPassword') !== '' ? 'Saved: type to change' : 'Only if the master has one'; ?>">
+                <?php if ((string) $v('masterPassword') !== ''): ?>
+                    <label style="margin-left:10px;font-size:13px;color:#cfcfcf;"><input type="checkbox" name="masterPasswordClear" value="1"> Remove saved password</label>
+                <?php endif; ?>
+            </div>
+            <div class="ads-help">Only needed if the master FPP has a UI password (Settings &rarr; UI on the master). The Remote logs in as admin with it to read the master's status, on your local network.</div>
         </div>
     </div>
 
@@ -691,8 +725,8 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 <div class="ads-help">
                     <?php if (!empty($airdefenderFeedNote)): ?><span style="color:#ffb74d;"><?php echo htmlspecialchars($airdefenderFeedNote); ?></span><br><?php endif; ?>
                     Free community services for personal, non-commercial use: data from
-                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#6cf;">adsb.lol</a> (ODbL) and
-                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#6cf;">adsb.fi</a>. A local receiver sends nothing off this FPP.
+                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#6cf;">adsb.fi</a> and
+                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#6cf;">adsb.lol</a> (ODbL). A local receiver sends nothing off this FPP.
                 </div>
             </div>
             <div class="ads-field">
@@ -702,6 +736,14 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                     <span class="ads-test-out" id="feedTestOut"></span>
                 </div>
                 <div class="ads-help">Asks the service once now, with the location and limits on this page.</div>
+            </div>
+            <div class="ads-field">
+                <label for="feedFallbackSw">Use the other as a backup</label>
+                <div>
+                    <input type="hidden" name="feedFallback" value="0">
+                    <label class="ads-sw"><input type="checkbox" id="feedFallbackSw" name="feedFallback" value="1" <?php echo AirDefender_IsTruthy($v('feedFallback')) ? 'checked' : ''; ?>><span class="track"></span></label>
+                </div>
+                <div class="ads-help">If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check, and go back when it answers. Never used with a local receiver, so its location stays on this FPP.</div>
             </div>
             <div class="ads-field">
                 <label for="feedDownSw">Close heads if feed is down</label>
@@ -741,6 +783,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         form.classList.toggle('remote', remote);
         form.querySelectorAll('.ads-remote-only').forEach(function (el) { el.style.display = remote ? '' : 'none'; });
         $('masterRow').style.display = remote ? 'grid' : 'none';
+        $('masterPwRow').style.display = remote ? 'grid' : 'none';
         $('enabledText').textContent = $('enabledSw').checked ? 'On' : 'Off';
     }
 
