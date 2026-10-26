@@ -17,6 +17,7 @@ if (!function_exists("GetSetting")) {
 $pluginName = "AirDefender";
 
 require_once(dirname(__DIR__) . "/scripts/airdefender_models.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
 $airdefenderModels = airdefender_fpp_models();
 $airdefenderState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
 $airdefenderLastKnown = is_array($airdefenderState['lastKnownChannels'] ?? null) ? $airdefenderState['lastKnownChannels'] : array();
@@ -244,14 +245,8 @@ $settings = array(
     'adsbSourceUrl' => array(
         'label' => 'ADS-B JSON URL',
         'type' => 'select',
-        'default' => 'https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}',
-        'options' => array(
-            'https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}' => 'airplanes.live (default)',
-            'https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}' => 'adsb.lol',
-            'https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{radius}' => 'adsb.fi',
-            'http://localhost/tar1090/data/aircraft.json' => 'Local receiver (tar1090)',
-            'http://localhost:8080/data/aircraft.json' => 'Local receiver (dump1090-fa)',
-        ),
+        'default' => AIRDEFENDER_DEFAULT_FEED,
+        'options' => airdefender_feed_options(),
     ),
     'controllerType' => array(
         'label' => 'Controller Type',
@@ -394,6 +389,9 @@ foreach ($settings as $key => $config) {
     $value = AirDefender_StoredValue($pluginName, $key, $config['default']);
     $settings[$key]['value'] = $value;
 }
+
+// A retired feed (airplanes.live) shows as its replacement, which is what runs.
+list($settings['adsbSourceUrl']['value'], $airdefenderFeedNote) = airdefender_effective_feed((string) $settings['adsbSourceUrl']['value']);
 
 // "Standalone" was folded into Master: a master with no remotes is the same thing.
 if (!array_key_exists((string) $settings['nodeRole']['value'], $settings['nodeRole']['options'])) {
@@ -668,6 +666,17 @@ if ($useFppLocationEnabled) {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <?php if ($key === 'adsbSourceUrl'): ?>
+                                <?php if (!empty($airdefenderFeedNote)): ?>
+                                    <div style="margin-top:8px;color:#ffb74d;font-size:13px;line-height:1.4;"><?php echo htmlspecialchars($airdefenderFeedNote); ?></div>
+                                <?php endif; ?>
+                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
+                                    Free community services, for personal, non-commercial use. Data from
+                                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#6cf;">adsb.lol</a> (ODbL) and
+                                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#6cf;">adsb.fi</a>.
+                                    A local receiver sends nothing off this FPP.
+                                </div>
+                            <?php endif; ?>
                             <?php if ($key === 'nodeRole'): ?>
                                 <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;color:#ccc;font-size:13px;line-height:1.5;">
                                     <div><b>Master:</b> detects aircraft and closes its own heads. Use this on a single FPP, and on the FPP that runs the show (including when it sends to a Falcon over DDP/E1.31).</div>

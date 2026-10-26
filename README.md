@@ -77,6 +77,12 @@ To get heads into the model list, upload from xLights with **FPP Connect** with 
 
 Heads picked by model are looked up by name, so re-patching in xLights and uploading again is followed automatically. If a model is renamed or deleted, the row is flagged and Air Defender keeps protecting the channel it last resolved to, and logs a warning. Settings from before this version (an absolute channel) carry over as Manual with that channel as the start.
 
+## Flight data
+
+Air Defender asks a free community ADS-B service for aircraft near your show: **adsb.lol** (default) or **adsb.fi**, both for personal, non-commercial use, or a **local receiver** (tar1090 / dump1090) on the FPP itself, which sends nothing off the device. Data from [adsb.lol](https://adsb.lol) is under the ODbL; data from [adsb.fi](https://adsb.fi) is used under its terms.
+
+airplanes.live is no longer offered: its API now answers HTTP 403 without an account. A saved airplanes.live setting is switched to adsb.lol automatically.
+
 ## How the blackout works
 
 When safety mode turns on, each enabled head's shutter channel is held at its **closed value** with an FPP channel overlay (`/api/overlays/range`). fppd writes that value on every output frame, over the running sequence, so it reaches the fixture however the channel is output: a Kulp's serial DMX port, or E1.31/DDP to a Falcon. When safety mode turns off, the overlay is removed and the sequence controls the shutter again (it is not forced open).

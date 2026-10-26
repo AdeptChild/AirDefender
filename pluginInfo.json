@@ -21,18 +21,12 @@
         "plugins": []
     },
     "privacy": {
-        "summary": "Checks an online flight-tracking service for low aircraft near your show and closes your moving heads' shutters while one is close. Your show's location is sent to that service.",
+        "summary": "Checks a free online flight-tracking service for low aircraft near your show and closes your moving heads' shutters while one is close. Your show's location is sent to that service.",
         "sends": [
-            {
-                "to": "api.airplanes.live",
-                "what": "your show's location and search radius",
-                "why": "to get the aircraft flying near your show (the default service)",
-                "alwaysOn": false
-            },
             {
                 "to": "api.adsb.lol",
                 "what": "your show's location and search radius",
-                "why": "to get the aircraft flying near your show, if you pick this service",
+                "why": "to get the aircraft flying near your show (the default service)",
                 "alwaysOn": false
             },
             {

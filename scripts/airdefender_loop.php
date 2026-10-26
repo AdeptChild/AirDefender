@@ -28,9 +28,9 @@ require_once(__DIR__ . "/airdefender_controller.php");
 require_once(__DIR__ . "/airdefender_test.php");
 require_once(__DIR__ . "/airdefender_models.php");
 require_once(__DIR__ . "/airdefender_status.php");
+require_once(__DIR__ . "/airdefender_feeds.php");
 
 const AIRDEFENDER_PLUGIN = "AirDefender";
-const AIRDEFENDER_DEFAULT_FEED = "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}";
 const AIRDEFENDER_DEFAULT_CLEAR_DELAY = 30;
 const AIRDEFENDER_FEET_PER_METER = 3.28084;
 const AIRDEFENDER_MASTER_LOST_SEC = 5;     // no good answer from the master for this long = lost
@@ -166,7 +166,7 @@ function airdefender_parse_aircraft($data): array
 
     $planes = [];
 
-    // readsb / tar1090 / dump1090 ("aircraft") and airplanes.live / adsb.lol / adsb.fi ("ac"): feet.
+    // readsb / tar1090 / dump1090 ("aircraft") and adsb.lol / adsb.fi ("ac" or "aircraft"): feet.
     $list = $data['aircraft'] ?? $data['ac'] ?? null;
     if (is_array($list)) {
         foreach ($list as $p) {
@@ -250,6 +250,12 @@ function airdefender_fetch_feed(string $url): array
 
     if ($body === false || $body === '') {
         return [null, "No answer from the ADS-B feed"];
+    }
+    if ($status === 401 || $status === 403) {
+        return [null, "ADS-B feed refused the request (HTTP {$status}); it may need an account now. Pick another service in Settings"];
+    }
+    if ($status === 429) {
+        return [null, "ADS-B feed says too many requests (HTTP 429); raise the fetch interval in Settings"];
     }
     if ($status !== 0 && $status !== 200) {
         return [null, "ADS-B feed answered HTTP {$status}"];
@@ -409,7 +415,8 @@ while (true) {
     $fetchInterval = max(5, (int) airdefender_setting($settings, 'fetchInterval', 10));
     $clearDelay = max(0, (int) airdefender_setting($settings, 'clearDelaySec', AIRDEFENDER_DEFAULT_CLEAR_DELAY));
     $feedDownSafe = airdefender_truthy(airdefender_setting($settings, 'feedDownSafe', '0'));
-    $feedTemplate = (string) airdefender_setting($settings, 'adsbSourceUrl', AIRDEFENDER_DEFAULT_FEED);
+    [$feedTemplate, $feedNote] = airdefender_effective_feed((string) airdefender_setting($settings, 'adsbSourceUrl', ''));
+    airdefender_log_once('feed-choice', $feedNote);
     // Re-read FPP's models every 10 s, so a head re-patched in xLights and
     // re-uploaded is followed. A failed read keeps the last good list.
     if ($now - $modelsAt >= 10) {

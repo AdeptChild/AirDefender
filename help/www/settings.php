@@ -55,9 +55,10 @@ a different location.</p>
 </ul>
 
 <h3>ADS-B Feed</h3>
-<p>The flight-data service to ask. airplanes.live, adsb.lol and adsb.fi are free online services and are
-sent your show's location. The local receiver options read an ADS-B receiver running on this FPP, and
-send nothing off the device.</p>
+<p>The flight-data service to ask. <b>adsb.lol</b> (the default) and <b>adsb.fi</b> are free community services
+for personal, non-commercial use, and are sent your show's location. The local receiver options read an ADS-B
+receiver running on this FPP and send nothing off the device. (airplanes.live is no longer offered: its API now
+refuses requests without an account, with HTTP 403. A saved airplanes.live setting is switched to adsb.lol.)</p>
 <p><b>Close Heads If Feed Is Down</b>: off (the default), if the service stops answering, heads stay as they are
 unless an aircraft was near when it stopped. On, heads close whenever it stops answering, until it answers again:
 stricter, but an internet outage keeps them closed.</p>

@@ -90,7 +90,10 @@ function AirDefender_ReadState() {
 $enabled = AirDefender_StoredValue("AirDefender", "enabled", false);
 $distanceNM = AirDefender_StoredValue("AirDefender", "distanceNM", 5);
 $altitudeThresholdFt = AirDefender_StoredValue("AirDefender", "altitudeThresholdFt", 3000);
-$adsbSourceUrl = AirDefender_StoredValue("AirDefender", "adsbSourceUrl", "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}");
+require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
+list($adsbSourceUrl) = airdefender_effective_feed((string) AirDefender_StoredValue("AirDefender", "adsbSourceUrl", ""));
+$feedOptions = airdefender_feed_options();
+$adsbSourceLabel = isset($feedOptions[$adsbSourceUrl]) ? preg_replace('/ \(default\)$/', '', $feedOptions[$adsbSourceUrl]) : $adsbSourceUrl;
 $nodeRole = AirDefender_StoredValue("AirDefender", "nodeRole", "standalone");
 
 $modeLabels = array(
@@ -494,7 +497,7 @@ $lastLog = airdefender_last_event();
     <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
         <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">ADS-B Feed</h3>
         <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo htmlspecialchars((string) $adsbSourceUrl); ?>
+            <?php echo htmlspecialchars((string) $adsbSourceLabel); ?>
         </p>
     </div>
     <?php endif; ?>
