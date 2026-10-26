@@ -4,31 +4,38 @@
 moving heads' shutters while one is close. This page shows what it is doing right now and updates by
 itself every couple of seconds.</p>
 
-<h3>Status tiles</h3>
+<h3>Lite and Detailed</h3>
+<p>The switch at the top picks how much the dashboard shows. Your choice is remembered in this browser.</p>
 <ul>
-    <li><b>Plugin Enabled</b>: whether Air Defender is switched on in Settings.</li>
-    <li><b>Safety Mode</b>: <b>Active</b> means the shutters of the heads you enabled are being held
-        closed. <b>Active (Test)</b> means a test is running. <b>Inactive</b> means the show controls the
-        shutters as normal.</li>
-    <li><b>Mode</b>: Master or Remote (see Settings).</li>
-    <li><b>Distance / Altitude Threshold</b>: an aircraft must be inside the distance <i>and</i> below the
-        altitude to turn Safety Mode on.</li>
-    <li><b>ADS-B Feed</b>: the flight-data service being checked.</li>
+    <li><b>Lite</b> (default): the status banner, Test, a one-line summary of the heads, and the last event.
+        Refreshes every 5 seconds.</li>
+    <li><b>Detailed</b>: adds the <b>Sky</b> radar and every head with its channel. Refreshes every 2 seconds.</li>
 </ul>
+<p>Either way, the dashboard only asks FPP for anything while it is open; the detection loop does the same work
+whether you look or not.</p>
 
-<h3>Right Now</h3>
+<h3>Status banner</h3>
 <ul>
-    <li>The first line says what Air Defender is doing at this moment, for example "Clear" or the aircraft that
-        closed the heads.</li>
-    <li><b>Flight data</b> (Master): whether the flight-data service is answering, how many aircraft it sees nearby
-        and when it last answered.</li>
-    <li><b>Master FPP</b> (Remote): whether this Remote can reach its master.</li>
-    <li><b>Last aircraft</b>: the most recent aircraft that closed the heads.</li>
-    <li><b>Moving heads</b>: each enabled head, its channel, and whether Air Defender is holding its shutter
-        <b>CLOSED</b> right now or the show controls it. A head with a problem (for example a model that was
-        renamed) says so in red.</li>
+    <li><b>All clear</b> (green): no aircraft inside your limits; the show controls the shutters.</li>
+    <li><b>Safety active</b> (orange): the shutters are held closed, with the reason and when it started.</li>
+    <li><b>Test running</b> (blue): a test is closing the heads, with the time left.</li>
+    <li><b>Can't check the sky</b> (yellow): the flight-data service is not answering. See the reason, and the
+        <b>Close Heads If Feed Is Down</b> setting.</li>
+    <li><b>Disabled</b> (grey): Air Defender is switched off in Settings.</li>
+    <li><b>Not running</b> (red): the detection loop is not running. Restart FPPD (or reboot).</li>
 </ul>
-<p>If a red warning says the detection loop is not running, restart FPPD (or reboot).</p>
+<p>The chips on the right show whether this FPP is the Master or a Remote, and whether Air Defender is enabled.</p>
+
+<h3>Sky (Detailed)</h3>
+<p>Your show is the blue dot in the middle, north is up, and the dashed orange ring is your distance limit.
+Orange dots are aircraft inside your limits (close enough and low enough); grey dots are aircraft that are too
+high or too far. Hover over a dot for its callsign, distance and height. Aircraft on the ground are not shown.
+On a Remote, the Sky card says it follows its master instead.</p>
+
+<h3>Moving heads</h3>
+<p>Each enabled head, its FPP channel, and whether Air Defender is holding its shutter <b>Closed</b> or the
+<b>Show</b> controls it. A head with a problem (for example a model that was renamed) says so in red; in Lite
+the summary line counts them.</p>
 
 <h3>When Safety Mode turns on</h3>
 <ul>

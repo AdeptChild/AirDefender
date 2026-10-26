@@ -213,6 +213,41 @@ function airdefender_parse_aircraft($data): array
     return $planes;
 }
 
+/* Compass bearing in degrees (0 = north) from the show to a point. */
+function airdefender_bearing(float $lat1, float $lon1, float $lat2, float $lon2): float
+{
+    $p1 = deg2rad($lat1);
+    $p2 = deg2rad($lat2);
+    $dl = deg2rad($lon2 - $lon1);
+    $y = sin($dl) * cos($p2);
+    $x = cos($p1) * sin($p2) - sin($p1) * cos($p2) * cos($dl);
+    return fmod(rad2deg(atan2($y, $x)) + 360, 360);
+}
+
+/*
+ * Aircraft the feed returned, nearest first, for the dashboard's radar: at most
+ * $max, each with distance, bearing, height and whether it is inside the limits.
+ */
+function airdefender_nearby(float $lat, float $lon, float $maxNm, float $maxFt, array $planes, int $max = 40): array
+{
+    $out = [];
+    foreach ($planes as $p) {
+        if ($p['onGround']) {
+            continue;
+        }
+        $d = airdefender_distance_nm($lat, $lon, $p['lat'], $p['lon']);
+        $out[] = [
+            'id' => $p['id'],
+            'nm' => round($d, 2),
+            'brg' => (int) round(airdefender_bearing($lat, $lon, $p['lat'], $p['lon'])),
+            'ft' => $p['altFt'] !== null ? (int) round($p['altFt']) : null,
+            'in' => $d <= $maxNm && $p['altFt'] !== null && $p['altFt'] <= $maxFt,
+        ];
+    }
+    usort($out, function ($a, $b) { return $a['nm'] <=> $b['nm']; });
+    return array_slice($out, 0, $max);
+}
+
 /* Closest aircraft inside the thresholds, with its distance, or null. */
 function airdefender_find_trigger(float $lat, float $lon, float $maxNm, float $maxFt, array $planes): ?array
 {
@@ -377,6 +412,8 @@ foreach ((is_array($state['lastKnownChannels'] ?? null) ? $state['lastKnownChann
 $models = null;              // FPP's model list, last good read
 $modelsAt = 0;
 $trimmedAt = 0;              // last time the log was trimmed to AIRDEFENDER_LOG_KEEP_DAYS
+$nearby = [];                // aircraft from the last good fetch, for the radar
+$safeSince = null;           // when safety mode last turned on
 
 $safe = false;
 $lastTriggerAt = 0;          // last time an aircraft was inside the thresholds
@@ -472,6 +509,7 @@ while (true) {
             }
             $lastFetchOkAt = $now;
             $aircraftCount = count($planes);
+            $nearby = airdefender_nearby($lat, $lon, $maxNm, $maxFt, $planes);
             airdefender_log_once('feed', null);
             $hit = airdefender_find_trigger($lat, $lon, $maxNm, $maxFt, $planes);
             if ($hit !== null) {
@@ -588,6 +626,11 @@ while (true) {
     airdefender_log_once('outputs', $outputsOk ? null : "Could not set the shutter overlays: {$outputs->lastError}");
 
     if ($safe && !$wasSafe) {
+        $safeSince = $now;
+    } elseif (!$safe) {
+        $safeSince = null;
+    }
+    if ($safe && !$wasSafe) {
         $what = $reason === 'test' ? "test started" : $event;
         $list = [];
         foreach (array_keys($heads) as $ch) {
@@ -617,6 +660,10 @@ while (true) {
             'seenAt' => date('c', $lastTriggerAt),
         ] : null,
         'aircraftCount' => $aircraftCount,
+        'nearby' => $role === 'master' && $detecting ? $nearby : [],
+        'limits' => ['nm' => $maxNm, 'ft' => $maxFt, 'holdSec' => $clearDelay],
+        'safeSince' => $safeSince ? date('c', $safeSince) : null,
+        'enabled' => $enabled,
         'lastFetchOk' => $lastFetchOkAt ? date('c', $lastFetchOkAt) : null,
         'feedError' => $feedError,
         'location' => $lat !== null ? ['lat' => $lat, 'lon' => $lon] : null,

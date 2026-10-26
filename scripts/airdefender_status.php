@@ -10,7 +10,11 @@ const AIRDEFENDER_LOG_FILE = "/home/fpp/media/logs/airdefender.log";
 const AIRDEFENDER_LOG_KEEP_DAYS = 7;
 const AIRDEFENDER_LOOP_STALE_SEC = 15;
 
-function airdefender_live_status(): array
+/*
+ * $detailed adds the nearby aircraft for the radar; the Lite view leaves
+ * them out to keep each refresh small.
+ */
+function airdefender_live_status(bool $detailed = false): array
 {
     $now = time();
     $state = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
@@ -33,6 +37,8 @@ function airdefender_live_status(): array
 
     $lastOk = isset($state['lastFetchOk']) ? strtotime($state['lastFetchOk']) : false;
     $master = is_array($state['master'] ?? null) ? $state['master'] : null;
+    $since = isset($state['safeSince']) ? strtotime($state['safeSince']) : false;
+    $limits = is_array($state['limits'] ?? null) ? $state['limits'] : [];
     $masterOk = $master && !empty($master['lastOk']) ? strtotime($master['lastOk']) : false;
 
     return [
@@ -55,6 +61,14 @@ function airdefender_live_status(): array
         'heads' => $heads,
         'lastAircraft' => is_array($state['lastAircraft'] ?? null) ? $state['lastAircraft'] : null,
         'outputError' => $state['outputError'] ?? null,
+        'enabled' => !array_key_exists('enabled', $state) || !empty($state['enabled']),
+        'safeSince' => $since ?: null,
+        'limits' => [
+            'nm' => isset($limits['nm']) ? (float) $limits['nm'] : null,
+            'ft' => isset($limits['ft']) ? (int) $limits['ft'] : null,
+            'holdSec' => isset($limits['holdSec']) ? (int) $limits['holdSec'] : null,
+        ],
+        'aircraft' => $detailed && is_array($state['nearby'] ?? null) ? $state['nearby'] : null,
     ];
 }
 

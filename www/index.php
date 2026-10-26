@@ -87,459 +87,446 @@ function AirDefender_ReadState() {
     return $data;
 }
 
-$enabled = AirDefender_StoredValue("AirDefender", "enabled", false);
-$distanceNM = AirDefender_StoredValue("AirDefender", "distanceNM", 5);
-$altitudeThresholdFt = AirDefender_StoredValue("AirDefender", "altitudeThresholdFt", 3000);
+$distanceNM = (float) AirDefender_StoredValue("AirDefender", "distanceNM", 5);
+$altitudeThresholdFt = (int) AirDefender_StoredValue("AirDefender", "altitudeThresholdFt", 3000);
+$holdSec = (int) AirDefender_StoredValue("AirDefender", "clearDelaySec", 30);
 require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
 list($adsbSourceUrl) = airdefender_effective_feed((string) AirDefender_StoredValue("AirDefender", "adsbSourceUrl", ""));
 $feedOptions = airdefender_feed_options();
-$adsbSourceLabel = isset($feedOptions[$adsbSourceUrl]) ? preg_replace('/ \(default\)$/', '', $feedOptions[$adsbSourceUrl]) : $adsbSourceUrl;
-$nodeRole = AirDefender_StoredValue("AirDefender", "nodeRole", "standalone");
-
-$modeLabels = array(
-    'standalone' => 'Master',
-    'master' => 'Master',
-    'remote' => 'Remote',
-);
-$modeLabel = isset($modeLabels[$nodeRole]) ? $modeLabels[$nodeRole] : ucfirst((string) $nodeRole);
+// The service's name, or just the host of a custom address.
+$adsbSourceLabel = isset($feedOptions[$adsbSourceUrl])
+    ? preg_replace('/ \(default\)$/', '', $feedOptions[$adsbSourceUrl])
+    : (parse_url($adsbSourceUrl, PHP_URL_HOST) ?: 'custom feed');
 
 require_once(dirname(__DIR__) . "/scripts/airdefender_status.php");
 
-$state = AirDefender_ReadState();
 $test = airdefender_test_status();
-$live = airdefender_live_status();
-$safetyActive = !empty($state['safetyMode']) || $test['active'];
+$live = airdefender_live_status(true);
 // Last Event shows only triggers: safety on/off and tests. Everything else is in the log.
-$lastLog = airdefender_last_event();
+$lastEvent = airdefender_last_event();
+$pageConfig = array(
+    'test' => $test,
+    'live' => $live,
+    'lastEvent' => $lastEvent,
+    'limits' => array('nm' => $distanceNM, 'ft' => $altitudeThresholdFt, 'holdSec' => $holdSec),
+);
 ?>
-<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-    <div>
-        <h2 style="color:#6cf;margin:0;">Air Defender</h2>
-        <p style="color:#ccc;margin-top:8px;">ADS-B Safety Monitoring Dashboard</p>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a href="plugin.php?plugin=AirDefender&page=www/settings.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#6cf;color:#111;text-decoration:none;font-weight:bold;">
-            Settings
-        </a>
-        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:9px 14px;border-radius:8px;background:#444;color:#fff;text-decoration:none;font-weight:bold;">
-            Refresh
-        </a>
-    </div>
-</div>
-
-<div style="display:flex;flex-wrap:wrap;justify-content:flex-start;">
-    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
-        <h3 style="color:<?php echo !empty($enabled) ? '#4caf50' : '#f44336'; ?>;margin:0 0 10px 0;font-size:18px;">
-            Plugin Enabled
-        </h3>
-        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo !empty($enabled) ? "Yes" : "No"; ?>
-        </p>
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
-        <h3 id="adSafetyTitle" style="color:<?php echo $safetyActive ? '#ff9800' : '#888'; ?>;margin:0 0 10px 0;font-size:18px;">
-            Safety Mode
-        </h3>
-        <p id="adSafetyValue" style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo $test['active'] ? "Active (Test)" : ($safetyActive ? "Active" : "Inactive"); ?>
-        </p>
-    </div>
-</div>
-
-<!-- Test Mode: forces safety mode on for a set time so people can go outside and watch -->
 <style>
-    #adTestCard { background:#2a2a2a; padding:15px 20px; border-radius:8px; margin:15px 5px 0 5px; max-width:560px; border:2px solid transparent; }
-    #adTestCard.running { border-color:#ff9800; }
-    #adTestCard h3 { color:#6cf; margin:0 0 6px 0; font-size:18px; }
-    #adTestCard .ad-note { color:#bbb; font-size:14px; margin:0 0 14px 0; }
-    #adTestCard .ad-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-    #adTestCard label { color:#ddd; font-size:14px; }
-    #adTestCard input[type=number] { width:80px; padding:8px; border-radius:6px; background:#111; color:#fff; border:1px solid #444; font-size:15px; }
-    #adTestCard .ad-chip { padding:7px 11px; border-radius:6px; background:#3a3a3a; color:#eee; border:1px solid #555; cursor:pointer; font-size:13px; }
-    #adTestCard .ad-chip:hover { background:#4a4a4a; }
-    #adTestCard .ad-chip.selected { background:#6cf; color:#111; border-color:#6cf; font-weight:bold; }
-    #adTestCard .ad-btn { padding:10px 18px; border-radius:8px; border:none; font-weight:bold; font-size:15px; cursor:pointer; }
-    #adTestCard .ad-btn:disabled { opacity:0.5; cursor:default; }
-    #adTestStart { background:#ff9800; color:#111; }
-    #adTestStop { background:#f44336; color:#fff; }
-    #adTestCountdown { font-family:monospace; font-size:42px; font-weight:bold; color:#ff9800; line-height:1; }
-    #adTestBar { height:8px; background:#111; border-radius:4px; overflow:hidden; margin:10px 0 12px 0; }
-    #adTestBarFill { height:100%; width:0; background:#ff9800; transition:width 0.25s linear; }
-    #adTestError { color:#f66; font-size:14px; margin-top:10px; display:none; }
+    .ad { --card:#262626; --card2:#1d1d1d; --line:#3a3a3a; --text:#ececec; --muted:#9a9a9a; --accent:#6cf;
+          --warn:#ff9800; --ok:#4caf50; --bad:#f44336; --test:#42a5f5; color:var(--text); max-width:1100px; }
+    .ad * { box-sizing:border-box; }
+    .ad-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    .ad-top h2 { color:var(--accent); margin:0; }
+    .ad-switch { display:inline-flex; background:#111; border-radius:8px; padding:3px; gap:3px; }
+    .ad-switch button, .ad-btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:6px;
+          padding:7px 12px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; }
+    .ad-switch button { border:none; background:transparent; color:#bbb; font-weight:bold; }
+    .ad-switch button.on { background:var(--accent); color:#111; }
+    .ad-banner { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; border-radius:12px;
+          padding:14px 18px; margin-bottom:12px; border:2px solid var(--line); background:var(--card); }
+    .ad-banner .t { font-size:22px; font-weight:bold; }
+    .ad-banner .s { font-size:14px; margin-top:4px; color:#ddd; }
+    .ad-banner.clear { border-color:var(--ok); } .ad-banner.clear .t { color:var(--ok); }
+    .ad-banner.safe { border-color:var(--warn); background:#3a2a10; } .ad-banner.safe .t { color:var(--warn); }
+    .ad-banner.test { border-color:var(--test); background:#13283a; } .ad-banner.test .t { color:var(--test); }
+    .ad-banner.down { border-color:var(--bad); background:#3a1414; } .ad-banner.down .t { color:#ff8a80; }
+    .ad-banner.warn { border-color:#c9a227; } .ad-banner.warn .t { color:#e6c34a; }
+    .ad-banner.off .t { color:var(--muted); }
+    .ad-chips { display:flex; gap:6px; flex-wrap:wrap; }
+    .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:#111; color:#bbb; }
+    .ad-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; }
+    .ad-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0; }
+    .ad-card h3 { margin:0 0 10px 0; font-size:15px; color:var(--accent); display:flex; justify-content:space-between; gap:8px; }
+    .ad-card h3 small { font-size:12px; font-weight:normal; color:var(--muted); }
+    .ad-note { font-size:12px; color:var(--muted); margin-top:8px; }
+    .ad-presets { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; }
+    .ad-presets button { border:1px solid #555; background:#333; color:#ddd; border-radius:6px; padding:5px 9px; font-size:13px; cursor:pointer; }
+    .ad-presets button.on { background:var(--accent); color:#111; border-color:var(--accent); font-weight:bold; }
+    .ad-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .ad-row input { width:80px; padding:7px; border-radius:6px; background:#111; color:#fff; border:1px solid #444; }
+    .ad-start { background:var(--warn); color:#111; border:none; font-weight:bold; }
+    .ad-stop { background:var(--bad); color:#fff; border:none; font-weight:bold; }
+    .ad-count { font-family:monospace; font-size:40px; font-weight:bold; color:var(--test); line-height:1; }
+    .ad-bar { height:7px; background:#111; border-radius:4px; overflow:hidden; margin:10px 0; }
+    .ad-bar div { height:100%; width:0; background:var(--test); transition:width .5s linear; }
+    .ad-err { color:#ff7b72; font-size:13px; margin-top:8px; }
+    .ad-head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
+    .ad-head:last-child { border-bottom:none; }
+    .ad-head .ch { color:var(--muted); font-size:12px; margin-left:6px; }
+    .ad-badge { font-size:11px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+    .ad-badge.closed { background:var(--warn); color:#111; } .ad-badge.open { background:#333; color:#aaa; }
+    .ad-prob { color:#ff7b72; font-size:12px; margin:-2px 0 6px 0; }
+    .ad-radar { width:100%; max-width:260px; display:block; margin:0 auto; }
+    .ad-foot { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px;
+          background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 16px; font-size:14px; }
+    .ad-foot .ev { overflow-wrap:anywhere; flex:1; min-width:240px; }
+    .ad-foot .lim { color:var(--muted); font-size:13px; }
+    .ad.lite .ad-detail { display:none; }
+    .ad:not(.lite) .ad-liteonly { display:none; }
+    .ad-hidden { display:none !important; }
 </style>
 
-<div id="adTestCard" class="<?php echo $test['active'] ? 'running' : ''; ?>">
-    <h3>Test Mode</h3>
-    <p class="ad-note">
-        Forces Safety Mode on for the time you pick, then turns it back off, so you can head outside and watch the lights go dark and come back.
-    </p>
-
-    <div id="adTestIdle" style="<?php echo $test['active'] ? 'display:none;' : ''; ?>">
-        <div class="ad-row" style="margin-bottom:12px;">
-            <label for="adTestSeconds">Test length (seconds)</label>
-            <input type="number" id="adTestSeconds"
-                   min="<?php echo (int) $test['minSec']; ?>"
-                   max="<?php echo (int) $test['maxSec']; ?>"
-                   step="5"
-                   value="<?php echo (int) $test['lastDuration']; ?>">
-        </div>
-        <div class="ad-row" style="margin-bottom:14px;">
-            <button type="button" class="ad-chip" data-sec="30">30 s</button>
-            <button type="button" class="ad-chip" data-sec="60">1 min</button>
-            <button type="button" class="ad-chip" data-sec="120">2 min</button>
-            <button type="button" class="ad-chip" data-sec="300">5 min</button>
-            <button type="button" class="ad-chip" data-sec="600">10 min</button>
-        </div>
-        <button type="button" id="adTestStart" class="ad-btn">Start Test</button>
-    </div>
-
-    <div id="adTestRunning" style="<?php echo $test['active'] ? '' : 'display:none;'; ?>">
-        <div class="ad-row" style="justify-content:space-between;">
-            <div>
-                <div style="color:#ddd;font-size:14px;margin-bottom:6px;">Outputs back on in</div>
-                <div id="adTestCountdown">--:--</div>
+<div class="ad lite" id="ad">
+    <div class="ad-top">
+        <h2>Air Defender</h2>
+        <div class="ad-row">
+            <div class="ad-switch" role="group" aria-label="Dashboard view">
+                <button type="button" data-view="lite" class="on" title="Refreshes every 5 seconds">Lite</button>
+                <button type="button" data-view="detailed" title="Adds the radar and every head; refreshes every 2 seconds">Detailed</button>
             </div>
-            <button type="button" id="adTestStop" class="ad-btn">Stop Test</button>
+            <a class="ad-btn" href="plugin.php?plugin=AirDefender&page=www/settings.php">Settings</a>
         </div>
-        <div id="adTestBar"><div id="adTestBarFill"></div></div>
     </div>
 
-    <div id="adTestError"></div>
-</div>
+    <div class="ad-banner" id="adBanner">
+        <div>
+            <div class="t" id="adBannerTitle">&nbsp;</div>
+            <div class="s" id="adBannerSub">&nbsp;</div>
+        </div>
+        <div class="ad-chips">
+            <span class="ad-chip" id="adChipRole"></span>
+            <span class="ad-chip" id="adChipEnabled"></span>
+        </div>
+    </div>
 
-<!-- Right Now: what the detection loop is doing, refreshed with the test status -->
-<style>
-    #adLive { background:#2a2a2a; padding:15px 20px; border-radius:8px; margin:15px 5px 0 5px; max-width:760px; }
-    #adLive h3 { color:#6cf; margin:0 0 10px 0; font-size:18px; }
-    #adLive .ad-warn { background:#4a1f1f; color:#ffd7d3; padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:14px; display:none; }
-    #adLive .ad-now { color:#eee; font-size:15px; margin-bottom:12px; }
-    #adLive .ad-now.safe { color:#ffb74d; font-weight:bold; }
-    #adLive .ad-row { display:flex; gap:10px; flex-wrap:wrap; font-size:14px; margin-bottom:8px; }
-    #adLive .ad-k { color:#999; min-width:110px; }
-    #adLive .ad-v { color:#ddd; flex:1; min-width:200px; }
-    #adLive .ad-v.bad { color:#ff7b72; }
-    #adLive .ad-heads { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
-    #adLive .ad-head { background:#1f1f1f; border:1px solid #3a3a3a; border-radius:8px; padding:7px 10px; font-size:13px; color:#ddd; }
-    #adLive .ad-head b { color:#fff; }
-    #adLive .ad-pill { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:10px; font-size:12px; font-weight:bold; }
-    #adLive .ad-pill.closed { background:#ff9800; color:#111; }
-    #adLive .ad-pill.open { background:#333; color:#aaa; }
-    #adLive .ad-head .ad-problem { color:#ff7b72; margin-top:4px; max-width:320px; }
-</style>
+    <div class="ad-grid">
+        <div class="ad-card" id="adTestCard">
+            <h3>Test <small>closes the heads for a while</small></h3>
+            <div id="adTestIdle">
+                <div class="ad-presets">
+                    <button type="button" data-sec="30">30 s</button>
+                    <button type="button" data-sec="60">1 min</button>
+                    <button type="button" data-sec="120">2 min</button>
+                    <button type="button" data-sec="300">5 min</button>
+                    <button type="button" data-sec="600">10 min</button>
+                </div>
+                <div class="ad-row">
+                    <input type="number" id="adTestSeconds" min="<?php echo (int) $test['minSec']; ?>" max="<?php echo (int) $test['maxSec']; ?>" step="5"
+                        value="<?php echo (int) $test['lastDuration']; ?>" aria-label="Test length in seconds"> <span class="ad-note" style="margin:0;">seconds</span>
+                    <button type="button" class="ad-btn ad-start" id="adTestStart">Start test</button>
+                </div>
+                <div class="ad-note">Go outside and watch the heads close, then open again when time runs out.</div>
+            </div>
+            <div id="adTestRunning" class="ad-hidden">
+                <div class="ad-row" style="justify-content:space-between;">
+                    <div>
+                        <div class="ad-note" style="margin:0 0 6px 0;">Heads back on in</div>
+                        <div class="ad-count" id="adCount">--:--</div>
+                    </div>
+                    <button type="button" class="ad-btn ad-stop" id="adTestStop">Stop test</button>
+                </div>
+                <div class="ad-bar"><div id="adBar"></div></div>
+            </div>
+            <div class="ad-err ad-hidden" id="adTestErr"></div>
+        </div>
 
-<div id="adLive">
-    <h3>Right Now</h3>
-    <div id="adLiveWarn" class="ad-warn"></div>
-    <div id="adLiveNow" class="ad-now"></div>
-    <div class="ad-row" id="adLiveFeedRow"><span class="ad-k">Flight data</span><span class="ad-v" id="adLiveFeed"></span></div>
-    <div class="ad-row" id="adLiveMasterRow"><span class="ad-k">Master FPP</span><span class="ad-v" id="adLiveMaster"></span></div>
-    <div class="ad-row" id="adLivePlaneRow"><span class="ad-k">Last aircraft</span><span class="ad-v" id="adLivePlane"></span></div>
-    <div class="ad-row" style="margin-bottom:0;"><span class="ad-k">Moving heads</span></div>
-    <div id="adLiveHeads" class="ad-heads"></div>
+        <div class="ad-card ad-detail" id="adSkyCard">
+            <h3>Sky <small id="adFeed"></small></h3>
+            <svg class="ad-radar" id="adRadar" viewBox="0 0 200 200" role="img" aria-label="Aircraft around the show"></svg>
+            <div class="ad-note" style="text-align:center;" id="adSkyNote"></div>
+        </div>
+
+        <div class="ad-card" id="adHeadsCard">
+            <h3>Moving heads <small class="ad-liteonly" id="adFeedLite"></small></h3>
+            <div class="ad-liteonly" id="adHeadsSummary"></div>
+            <div class="ad-detail" id="adHeadsList"></div>
+        </div>
+    </div>
+
+    <div class="ad-foot">
+        <div class="ev"><span style="color:var(--muted);">Last event</span> &middot; <span id="adLastEvent"><?php echo htmlspecialchars($lastEvent); ?></span></div>
+        <div class="ad-row">
+            <span class="lim" id="adLimits"></span>
+            <button type="button" class="ad-btn" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. It keeps only the last 7 days on its own.">Clear log</button>
+        </div>
+    </div>
 </div>
 
 <script>
 (function () {
+    var API = 'plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1';
+    var FEED_LABEL = <?php echo json_encode($adsbSourceLabel); ?>;
+    var cfg = <?php echo json_encode($pageConfig); ?>;
+    var status = cfg.test, live = cfg.live;
+    var clockOffset = status.serverTime - Date.now() / 1000;
+    var view = 'lite', pollTimer = null, tickTimer = null, finishing = false;
+
+    var $ = function (id) { return document.getElementById(id); };
+    var root = $('ad');
+
+    function fmtClock(sec) {
+        sec = Math.max(0, Math.ceil(sec));
+        var m = Math.floor(sec / 60), s = sec % 60;
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
     function ago(sec) {
         if (sec === null || sec === undefined) { return ''; }
         if (sec < 60) { return sec + ' s ago'; }
         if (sec < 3600) { return Math.floor(sec / 60) + ' min ago'; }
         return Math.floor(sec / 3600) + ' h ago';
     }
-    function set(id, text, bad) {
-        var el = document.getElementById(id);
-        el.textContent = text;
-        el.classList.toggle('bad', !!bad);
+    function num(n) { return Number(n).toLocaleString(); }
+    function testLeft() {
+        return status.active && status.endsAt ? status.endsAt - (Date.now() / 1000 + clockOffset) : 0;
     }
-    function show(id, on) {
-        document.getElementById(id).style.display = on ? '' : 'none';
+    function limits() {
+        var l = (live && live.limits && live.limits.nm !== null) ? live.limits : cfg.limits;
+        return { nm: l.nm, ft: l.ft, holdSec: l.holdSec };
     }
 
-    window.adRenderLive = function (live) {
-        if (!live) { return; }
-
-        var warn = document.getElementById('adLiveWarn');
-        var warnText = !live.loopRunning
-            ? 'The Air Defender detection loop is not running, so aircraft are not being checked. Restart FPPD (or reboot) to start it.'
-            : (live.outputError ? 'Could not set the shutter channels in FPP: ' + live.outputError : '');
-        warn.textContent = warnText;
-        warn.style.display = warnText ? 'block' : 'none';
-
-        var now = document.getElementById('adLiveNow');
-        now.textContent = live.loopRunning ? (live.now || '') : 'Not running';
-        now.classList.toggle('safe', live.loopRunning && live.safe);
-
-        var remote = live.role === 'remote';
-        show('adLiveFeedRow', !remote);
-        show('adLiveMasterRow', remote);
-        if (!remote) {
-            var f = live.feed || {};
-            if (f.error) {
-                set('adLiveFeed', 'Problem: ' + f.error + (f.lastOkAgo !== null ? ' (last good answer ' + ago(f.lastOkAgo) + ')' : ''), true);
-            } else if (f.lastOkAgo !== null) {
-                set('adLiveFeed', 'OK \u00b7 ' + f.aircraft + ' aircraft nearby \u00b7 checked ' + ago(f.lastOkAgo), false);
-            } else {
-                set('adLiveFeed', 'Not checked yet', false);
-            }
+    /* ---------- banner ---------- */
+    function renderBanner() {
+        var b = $('adBanner'), title, sub, cls;
+        var left = testLeft();
+        if (live && !live.loopRunning) {
+            cls = 'down'; title = 'Not running';
+            sub = "Air Defender's detection loop is not running, so aircraft are not being checked. Restart FPPD (or reboot).";
+        } else if (status.active && left > 0) {
+            cls = 'test'; title = 'Test running';
+            sub = 'Heads closed · back on in ' + fmtClock(left);
+        } else if (live && !live.enabled) {
+            cls = 'off'; title = 'Disabled';
+            sub = 'Turn on Air Defender in Settings to check for aircraft.';
+        } else if (live && live.safe) {
+            cls = 'safe'; title = 'Safety active';
+            sub = (live.now || '') + (live.safeSince ? ' · since ' + new Date(live.safeSince * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
+        } else if (live && live.role !== 'remote' && live.feed && live.feed.error) {
+            cls = 'warn'; title = "Can't check the sky";
+            sub = live.feed.error;
         } else {
-            var m = live.master || {};
-            if (m.connected) {
-                set('adLiveMaster', 'Connected to ' + (m.address || 'the master') + ' \u00b7 checked ' + ago(m.lastOkAgo), false);
-            } else {
-                set('adLiveMaster', 'Not connected' + (m.address ? ' to ' + m.address : '') + (m.error ? ': ' + m.error : ''), true);
-            }
+            cls = 'clear'; title = 'All clear';
+            sub = (live && live.now) || '';
         }
-
-        var p = live.lastAircraft;
-        show('adLivePlaneRow', !!p);
-        if (p) {
-            set('adLivePlane', (p.flight || 'Unknown') + ' \u00b7 ' + p.distanceNm + ' NM \u00b7 ' + p.altitudeFt + ' ft'
-                + (p.seenAt ? ' \u00b7 ' + new Date(p.seenAt).toLocaleTimeString() : ''), false);
+        if (live && live.outputError) {
+            sub += ' · FPP refused the shutter channels: ' + live.outputError;
         }
-
-        var box = document.getElementById('adLiveHeads');
-        box.textContent = '';
-        if (!live.heads || !live.heads.length) {
-            var none = document.createElement('div');
-            none.className = 'ad-head';
-            none.textContent = 'No heads enabled. Add them in Settings \u2192 Moving Heads.';
-            box.appendChild(none);
-        }
-        (live.heads || []).forEach(function (h) {
-            var chip = document.createElement('div');
-            chip.className = 'ad-head';
-            var name = document.createElement('b');
-            name.textContent = h.name;
-            chip.appendChild(name);
-            chip.appendChild(document.createTextNode(h.channel ? ' \u00b7 ch ' + h.channel : ' \u00b7 no channel'));
-            var pill = document.createElement('span');
-            pill.className = 'ad-pill ' + (h.closed ? 'closed' : 'open');
-            pill.textContent = h.closed ? 'CLOSED' : 'show controls it';
-            chip.appendChild(pill);
-            if (h.problem) {
-                var prob = document.createElement('div');
-                prob.className = 'ad-problem';
-                prob.textContent = h.problem;
-                chip.appendChild(prob);
-            }
-            box.appendChild(chip);
-        });
-    };
-
-    window.adRenderLive(<?php echo json_encode($live); ?>);
-})();
-</script>
-
-<script>
-(function () {
-    var API = 'plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1';
-    var realSafety = <?php echo (!empty($state['safetyMode']) && empty($state['testActive'])) ? 'true' : 'false'; ?>;
-    var status = <?php echo json_encode($test); ?>;
-    var clockOffset = status.serverTime - Date.now() / 1000; // server clock minus browser clock
-    var finishing = false;
-
-    var card = document.getElementById('adTestCard');
-    var idle = document.getElementById('adTestIdle');
-    var running = document.getElementById('adTestRunning');
-    var input = document.getElementById('adTestSeconds');
-    var startBtn = document.getElementById('adTestStart');
-    var stopBtn = document.getElementById('adTestStop');
-    var countdown = document.getElementById('adTestCountdown');
-    var barFill = document.getElementById('adTestBarFill');
-    var errorBox = document.getElementById('adTestError');
-    var safetyTitle = document.getElementById('adSafetyTitle');
-    var safetyValue = document.getElementById('adSafetyValue');
-    var chips = card.querySelectorAll('.ad-chip');
-
-    function showError(msg) {
-        errorBox.textContent = msg || '';
-        errorBox.style.display = msg ? 'block' : 'none';
+        b.className = 'ad-banner ' + cls;
+        $('adBannerTitle').textContent = title;
+        $('adBannerSub').textContent = sub;
+        $('adChipRole').textContent = live && live.role === 'remote' ? 'Remote' : 'Master';
+        $('adChipEnabled').textContent = live && !live.enabled ? 'Disabled' : 'Enabled';
     }
 
-    function markChips() {
-        var v = parseInt(input.value, 10);
-        for (var i = 0; i < chips.length; i++) {
-            chips[i].classList.toggle('selected', parseInt(chips[i].getAttribute('data-sec'), 10) === v);
+    /* ---------- test ---------- */
+    function renderTest() {
+        var left = testLeft(), running = status.active && left > 0;
+        $('adTestIdle').classList.toggle('ad-hidden', running);
+        $('adTestRunning').classList.toggle('ad-hidden', !running);
+        if (running) {
+            $('adCount').textContent = fmtClock(left);
+            $('adBar').style.width = Math.max(0, Math.min(100, status.duration ? left / status.duration * 100 : 0)) + '%';
         }
-    }
-
-    function fmt(sec) {
-        sec = Math.max(0, Math.ceil(sec));
-        var m = Math.floor(sec / 60);
-        var s = sec % 60;
-        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-    }
-
-    function secondsLeft() {
-        if (!status.active || !status.endsAt) {
-            return 0;
-        }
-        return status.endsAt - (Date.now() / 1000 + clockOffset);
-    }
-
-    function render() {
-        var left = secondsLeft();
-        var isRunning = status.active && left > 0;
-
-        idle.style.display = isRunning ? 'none' : '';
-        running.style.display = isRunning ? '' : 'none';
-        card.classList.toggle('running', isRunning);
-
-        if (isRunning) {
-            countdown.textContent = fmt(left);
-            var pct = status.duration > 0 ? (left / status.duration) * 100 : 0;
-            barFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
-        }
-
-        var safe = isRunning || realSafety;
-        safetyTitle.style.color = safe ? '#ff9800' : '#888';
-        safetyValue.textContent = isRunning ? 'Active (Test)' : (safe ? 'Active' : 'Inactive');
-
-        // Timer reached zero in the browser: ask the server, which ends the test and logs it.
         if (status.active && left <= 0 && !finishing) {
             finishing = true;
-            request('GET').then(function () { finishing = false; }, function () { finishing = false; });
+            poll().then(function () { finishing = false; }, function () { finishing = false; });
+        }
+        // Tick the countdown only while a test runs.
+        if (running && !tickTimer) {
+            tickTimer = setInterval(function () { renderTest(); renderBanner(); }, 500);
+        } else if (!running && tickTimer) {
+            clearInterval(tickTimer);
+            tickTimer = null;
         }
     }
-
-    function apply(data) {
-        status = data;
-        if (typeof data.loopSafety === 'boolean') {
-            realSafety = data.loopSafety;
-        }
-        if (data.live && window.adRenderLive) {
-            window.adRenderLive(data.live);
-        }
-        if (typeof data.lastEvent === 'string') {
-            var lastEvent = document.getElementById('adLastEvent');
-            if (lastEvent && lastEvent.textContent.trim() !== data.lastEvent) {
-                lastEvent.textContent = data.lastEvent;
-            }
-        }
-        clockOffset = data.serverTime - Date.now() / 1000;
-        render();
-    }
-
-    function request(method, body) {
-        var opts = { method: method, credentials: 'same-origin', cache: 'no-store' };
-        if (body) {
-            opts.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-            opts.body = body;
-        }
-        return fetch(API, opts)
-            .then(function (r) {
-                return r.json().then(function (d) {
-                    if (!r.ok) { throw new Error(d.error || ('HTTP ' + r.status)); }
-                    return d;
-                });
-            })
-            .then(function (d) { showError(''); apply(d); return d; });
-    }
-
-    for (var i = 0; i < chips.length; i++) {
-        chips[i].addEventListener('click', function () {
-            input.value = this.getAttribute('data-sec');
-            markChips();
+    function markPresets() {
+        var v = parseInt($('adTestSeconds').value, 10);
+        root.querySelectorAll('.ad-presets button').forEach(function (b) {
+            b.classList.toggle('on', parseInt(b.getAttribute('data-sec'), 10) === v);
         });
     }
-    input.addEventListener('input', markChips);
+    function testError(msg) {
+        $('adTestErr').textContent = msg || '';
+        $('adTestErr').classList.toggle('ad-hidden', !msg);
+    }
 
-    startBtn.addEventListener('click', function () {
-        var sec = parseInt(input.value, 10);
-        if (!(sec >= status.minSec && sec <= status.maxSec)) {
-            showError('Pick a test length between ' + status.minSec + ' and ' + status.maxSec + ' seconds.');
+    /* ---------- heads ---------- */
+    function renderHeads() {
+        var heads = (live && live.heads) || [];
+        var list = $('adHeadsList');
+        list.textContent = '';
+        if (!heads.length) {
+            list.innerHTML = '<div class="ad-note" style="margin:0;">No heads enabled. Add them in Settings.</div>';
+        }
+        heads.forEach(function (h) {
+            var row = document.createElement('div');
+            row.className = 'ad-head';
+            var name = document.createElement('span');
+            name.textContent = h.name;
+            var ch = document.createElement('span');
+            ch.className = 'ch';
+            ch.textContent = h.channel ? 'ch ' + h.channel : 'no channel';
+            name.appendChild(ch);
+            var badge = document.createElement('span');
+            badge.className = 'ad-badge ' + (h.closed ? 'closed' : 'open');
+            badge.textContent = h.closed ? 'Closed' : 'Show';
+            row.appendChild(name);
+            row.appendChild(badge);
+            list.appendChild(row);
+            if (h.problem) {
+                var p = document.createElement('div');
+                p.className = 'ad-prob';
+                p.textContent = h.problem;
+                list.appendChild(p);
+            }
+        });
+
+        var closed = heads.filter(function (h) { return h.closed; }).length;
+        var problems = heads.filter(function (h) { return h.problem; }).length;
+        var summary = !heads.length ? 'No heads enabled. Add them in Settings.'
+            : heads.length + (heads.length === 1 ? ' head' : ' heads') + ' · '
+              + (closed === heads.length ? 'all closed' : closed === 0 ? 'the show controls them' : closed + ' closed');
+        $('adHeadsSummary').textContent = summary + (problems ? ' · ' + problems + ' need attention (see Detailed)' : '');
+        $('adHeadsSummary').style.color = problems ? '#ff7b72' : '';
+    }
+
+    /* ---------- sky ---------- */
+    function feedText() {
+        if (!live) { return ''; }
+        if (live.role === 'remote') {
+            var m = live.master || {};
+            return m.connected ? 'master ' + (m.address || '') + ' OK' : 'master not connected';
+        }
+        var f = live.feed || {};
+        if (f.error) { return 'feed problem'; }
+        return f.lastOkAgo !== null && f.lastOkAgo !== undefined ? FEED_LABEL + ' · ' + ago(f.lastOkAgo) : 'not checked yet';
+    }
+    function renderSky() {
+        $('adFeed').textContent = feedText();
+        $('adFeedLite').textContent = feedText();
+        if (view !== 'detailed') { return; }
+
+        var svg = $('adRadar'), lim = limits();
+        var NS = 'http://www.w3.org/2000/svg';
+        var outer = Math.max(1, Math.ceil(lim.nm || 5));   // the radius the feed is asked about
+        var R = 88;
+        function el(tag, attrs, text) {
+            var e = document.createElementNS(NS, tag);
+            for (var k in attrs) { e.setAttribute(k, attrs[k]); }
+            if (text !== undefined) { e.textContent = text; }
+            svg.appendChild(e);
+            return e;
+        }
+        svg.textContent = '';
+        el('circle', { cx: 100, cy: 100, r: R, fill: '#1d1d1d', stroke: '#444', 'stroke-width': 1 });
+        el('circle', { cx: 100, cy: 100, r: R / 2, fill: 'none', stroke: '#333', 'stroke-width': 1 });
+        el('line', { x1: 100, y1: 100 - R, x2: 100, y2: 100 + R, stroke: '#2e2e2e' });
+        el('line', { x1: 100 - R, y1: 100, x2: 100 + R, y2: 100, stroke: '#2e2e2e' });
+        el('circle', { cx: 100, cy: 100, r: R * Math.min(1, (lim.nm || outer) / outer), fill: 'none',
+                       stroke: '#ff9800', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+        el('text', { x: 100, y: 9, fill: '#888', 'font-size': 9, 'text-anchor': 'middle' }, 'N');
+        el('text', { x: 196, y: 196, fill: '#777', 'font-size': 8, 'text-anchor': 'end' }, outer + ' NM');
+        el('circle', { cx: 100, cy: 100, r: 3.5, fill: '#6cf' });
+
+        if (live.role === 'remote') {
+            $('adSkyNote').textContent = 'This Remote follows its master, which checks the sky.';
             return;
         }
-        startBtn.disabled = true;
-        request('POST', 'action=start&duration=' + encodeURIComponent(sec))
-            .catch(function (e) { showError('Could not start the test: ' + e.message); })
-            .then(function () { startBtn.disabled = false; });
-    });
+        var planes = live.aircraft || [], inside = 0;
+        planes.forEach(function (p) {
+            var r = Math.min(1, p.nm / outer) * R, a = p.brg * Math.PI / 180;
+            var c = el('circle', { cx: (100 + r * Math.sin(a)).toFixed(1), cy: (100 - r * Math.cos(a)).toFixed(1),
+                                   r: p.in ? 5 : 3, fill: p.in ? '#ff9800' : '#9a9a9a' });
+            var t = document.createElementNS(NS, 'title');
+            t.textContent = p.id + ' · ' + p.nm + ' NM · ' + (p.ft === null ? '? ft' : num(p.ft) + ' ft');
+            c.appendChild(t);
+            if (p.in) { inside++; }
+        });
+        $('adSkyNote').textContent = !live.feed || live.feed.lastOkAgo === null ? 'Waiting for flight data'
+            : planes.length + (planes.length === 1 ? ' aircraft' : ' aircraft') + ' around · '
+              + inside + ' inside ' + lim.nm + ' NM / ' + num(lim.ft) + ' ft';
+    }
 
-    stopBtn.addEventListener('click', function () {
-        stopBtn.disabled = true;
-        request('POST', 'action=stop')
-            .catch(function (e) { showError('Could not stop the test: ' + e.message); })
-            .then(function () { stopBtn.disabled = false; });
-    });
+    /* ---------- footer ---------- */
+    function renderFooter(lastEvent) {
+        if (typeof lastEvent === 'string') { $('adLastEvent').textContent = lastEvent; }
+        var lim = limits();
+        $('adLimits').textContent = lim.nm + ' NM · ' + num(lim.ft) + ' ft · hold ' + lim.holdSec + ' s'
+            + (live && live.role === 'remote' ? '' : ' · ' + FEED_LABEL);
+    }
 
-    markChips();
-    render();
-    setInterval(render, 250);                                  // smooth countdown
-    setInterval(function () { request('GET').catch(function () {}); }, 2000); // live status, Last Event, other browsers
-})();
-</script>
-
-<div style="display:flex;flex-wrap:wrap;justify-content:flex-start;margin-top:20px;">
-    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Mode</h3>
-        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo htmlspecialchars($modeLabel); ?>
-        </p>
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Distance Threshold</h3>
-        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo isset($distanceNM) ? $distanceNM : 0; ?> NM
-        </p>
-    </div>
-
-    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Altitude Threshold</h3>
-        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo isset($altitudeThresholdFt) ? $altitudeThresholdFt : 3000; ?> ft
-        </p>
-    </div>
-
-    <?php if (!empty($adsbSourceUrl)): ?>
-    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">ADS-B Feed</h3>
-        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
-            <?php echo htmlspecialchars((string) $adsbSourceLabel); ?>
-        </p>
-    </div>
-    <?php endif; ?>
-</div>
-
-
-<div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:20px 5px 0 5px;max-width:760px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-        <h3 style="color:#6cf;margin:0;">Last Event</h3>
-        <button type="button" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. It also keeps only the last 7 days on its own."
-            style="padding:6px 12px;border-radius:6px;border:1px solid #555;background:#333;color:#ddd;font-size:13px;cursor:pointer;">Clear log</button>
-    </div>
-    <p id="adLastEvent" style="color:#eee;margin:0;overflow-wrap:anywhere;">
-        <?php echo htmlspecialchars($lastLog); ?>
-    </p>
-    <p style="color:#888;font-size:12px;margin:8px 0 0 0;">Safety mode turning on and off, and tests. Everything else is in the full log (<code>airdefender.log</code>), which keeps the last 7 days.</p>
-</div>
-
-<script>
-(function () {
-    var btn = document.getElementById('adClearLog');
-    btn.addEventListener('click', function () {
-        if (!window.confirm('Delete the Air Defender log? This cannot be undone.')) {
-            return;
+    function renderAll(data) {
+        if (data) {
+            status = data;
+            clockOffset = data.serverTime - Date.now() / 1000;
+            if (data.live) { live = data.live; }
         }
-        btn.disabled = true;
-        fetch('plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1', {
-            method: 'POST', credentials: 'same-origin', cache: 'no-store',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=clear_log'
-        }).then(function (r) {
+        renderBanner(); renderTest(); renderHeads(); renderSky(); renderFooter(data ? data.lastEvent : cfg.lastEvent);
+    }
+
+    /* ---------- server ---------- */
+    function call(method, body) {
+        var opts = { method: method, credentials: 'same-origin', cache: 'no-store' };
+        if (body) { opts.headers = { 'Content-Type': 'application/x-www-form-urlencoded' }; opts.body = body; }
+        return fetch(API + (view === 'detailed' ? '&view=detailed' : ''), opts).then(function (r) {
             return r.json().then(function (d) {
                 if (!r.ok) { throw new Error(d.error || ('HTTP ' + r.status)); }
-                document.getElementById('adLastEvent').textContent = d.lastEvent;
-                btn.textContent = 'Log cleared';
+                renderAll(d);
+                return d;
             });
-        }).catch(function (e) {
-            window.alert('Could not clear the log: ' + e.message);
-        }).then(function () {
-            btn.disabled = false;
-            setTimeout(function () { btn.textContent = 'Clear log'; }, 3000);
         });
+    }
+    function poll() { return call('GET').catch(function () {}); }
+    function schedule() {
+        if (pollTimer) { clearInterval(pollTimer); }
+        pollTimer = setInterval(poll, view === 'detailed' ? 2000 : 5000);
+    }
+
+    /* ---------- view switch ---------- */
+    function setView(v, save) {
+        view = v === 'detailed' ? 'detailed' : 'lite';
+        root.classList.toggle('lite', view === 'lite');
+        root.querySelectorAll('.ad-switch button').forEach(function (b) {
+            b.classList.toggle('on', b.getAttribute('data-view') === view);
+        });
+        if (save) { try { localStorage.setItem('airdefenderView', view); } catch (e) {} }
+        schedule();
+        renderAll();
+        if (save) { poll(); }
+    }
+    root.querySelectorAll('.ad-switch button').forEach(function (b) {
+        b.addEventListener('click', function () { setView(b.getAttribute('data-view'), true); });
     });
+
+    /* ---------- controls ---------- */
+    root.querySelectorAll('.ad-presets button').forEach(function (b) {
+        b.addEventListener('click', function () { $('adTestSeconds').value = b.getAttribute('data-sec'); markPresets(); });
+    });
+    $('adTestSeconds').addEventListener('input', markPresets);
+    $('adTestStart').addEventListener('click', function () {
+        var sec = parseInt($('adTestSeconds').value, 10);
+        if (!(sec >= status.minSec && sec <= status.maxSec)) {
+            testError('Pick a test length between ' + status.minSec + ' and ' + status.maxSec + ' seconds.');
+            return;
+        }
+        testError('');
+        this.disabled = true;
+        var btn = this;
+        call('POST', 'action=start&duration=' + encodeURIComponent(sec))
+            .then(function () { setTimeout(poll, 1500); })   // the loop needs about a second to move the heads
+            .catch(function (e) { testError('Could not start the test: ' + e.message); })
+            .then(function () { btn.disabled = false; });
+    });
+    $('adTestStop').addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        call('POST', 'action=stop')
+            .then(function () { setTimeout(poll, 1500); })   // the loop needs about a second to move the heads
+            .catch(function (e) { testError('Could not stop the test: ' + e.message); })
+            .then(function () { btn.disabled = false; });
+    });
+    $('adClearLog').addEventListener('click', function () {
+        if (!window.confirm('Delete the Air Defender log? This cannot be undone.')) { return; }
+        var btn = this;
+        btn.disabled = true;
+        call('POST', 'action=clear_log')
+            .then(function () { btn.textContent = 'Log cleared'; })
+            .catch(function (e) { window.alert('Could not clear the log: ' + e.message); })
+            .then(function () { btn.disabled = false; setTimeout(function () { btn.textContent = 'Clear log'; }, 3000); });
+    });
+
+    var saved = 'lite';
+    try { saved = localStorage.getItem('airdefenderView') || 'lite'; } catch (e) {}
+    markPresets();
+    setView(saved, false);
 })();
 </script>

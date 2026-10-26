@@ -5,7 +5,8 @@
  * Called as plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1
  * (nopage=1 stops FPP wrapping the response in its page header and menu).
  *
- *   GET                                  -> test status, live status, Last Event
+ *   GET [view=detailed]                  -> test status, live status, Last Event
+ *                                           (view=detailed adds nearby aircraft)
  *   POST action=start&duration=<seconds> -> start a test
  *   POST action=stop                     -> end a test early
  *   POST action=clear_log                -> empty the Air Defender log
@@ -50,7 +51,7 @@ switch ($action) {
         exit;
 }
 
-$live = airdefender_live_status();
+$live = airdefender_live_status(($_GET['view'] ?? '') === 'detailed');
 // The loop's own safety state, apart from a test (the test shows separately).
 $status['loopSafety'] = $live['safe'] && $live['reason'] !== 'test';
 $status['live'] = $live;
