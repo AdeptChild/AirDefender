@@ -3,10 +3,10 @@
     "name": "Air Defender",
     "author": "G Hancox",
     "description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
-    "homeURL": "https://github.com/AdeptChild/AirDefender",
-    "srcURL": "https://github.com/AdeptChild/AirDefender.git",
-    "bugURL": "https://github.com/AdeptChild/AirDefender/issues",
-    "iconURL": "https://raw.githubusercontent.com/AdeptChild/AirDefender/master/icon.png",
+    "homeURL": "https://github.com/G-Hancox/AirDefender",
+    "srcURL": "https://github.com/G-Hancox/AirDefender.git",
+    "bugURL": "https://github.com/G-Hancox/AirDefender/issues",
+    "iconURL": "https://raw.githubusercontent.com/G-Hancox/AirDefender/master/icon.png",
     "releaseNotesStyle": "script",
     "versions": [
         {

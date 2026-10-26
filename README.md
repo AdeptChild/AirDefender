@@ -34,7 +34,7 @@ Version 0.9.6 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 2. Paste this into the plugin info URL box and press **Retrieve Plugin Info**:
 
    ```
-   https://raw.githubusercontent.com/AdeptChild/AirDefender/master/pluginInfo.json
+   https://raw.githubusercontent.com/G-Hancox/AirDefender/master/pluginInfo.json
    ```
 
 3. Review the privacy summary, press **Install**, then restart FPPD when FPP asks.
@@ -43,7 +43,7 @@ Version 0.9.6 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ```bash
 cd /home/fpp/media/plugins/
-git clone https://github.com/AdeptChild/AirDefender.git
+git clone https://github.com/G-Hancox/AirDefender.git
 ```
 
 Then restart FPPD.
