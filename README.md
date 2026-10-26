@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 0.9.4 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 0.9.5 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 

@@ -358,8 +358,16 @@ function airdefender_should_check(string $mode, ?array $show, ?int $overrideUnti
 
 // One copy only: a second start (fppd restarted twice quickly) just exits,
 // with code 3 so the watchdog knows another copy is already running.
-$lock = @fopen(sys_get_temp_dir() . "/airdefender_loop.lock", "c");
-if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
+// A lock file left by another user (a copy once run as root) can still be
+// locked through a read-only handle; if it cannot be opened at all, that is
+// not "already running", so exit 1 and let the watchdog log it and retry.
+$lockFile = sys_get_temp_dir() . "/airdefender_loop.lock";
+$lock = @fopen($lockFile, "c") ?: @fopen($lockFile, "r");
+if (!$lock) {
+    airdefender_log("Cannot open the lock file {$lockFile}; delete it and restart FPPD.");
+    exit(1);
+}
+if (!flock($lock, LOCK_EX | LOCK_NB)) {
     exit(3);
 }
 

@@ -15,7 +15,13 @@ note() {
 quick=0
 while true; do
     started=$(date +%s)
-    php "${LOOP}" 2>>"${LOG}"
+    # If the log cannot be written (wrong owner, full disk), still run the
+    # loop: protecting the heads matters more than its error output.
+    if { : >>"${LOG}"; } 2>/dev/null; then
+        php "${LOOP}" 2>>"${LOG}"
+    else
+        php "${LOOP}" 2>/dev/null
+    fi
     code=$?
 
     if [ "${code}" -eq 3 ]; then

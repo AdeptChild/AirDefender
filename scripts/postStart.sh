@@ -22,5 +22,23 @@ else
     RUN_AS=""
 fi
 
+# The log must belong to the user the loop runs as. Run as root (install,
+# update, boot), the redirect below would otherwise create it owned by root,
+# the loop could not write to it, and the watchdog could not start PHP: on a
+# fresh install the loop never ran until a reboot chowned the media folder.
+if [ -n "${RUN_AS}" ]; then
+    touch "${LOG}" 2>/dev/null
+    chown fpp:fpp "${LOG}" 2>/dev/null
+fi
+
 echo "Starting Air Defender detection loop"
-nohup setsid ${RUN_AS} bash "${SUPERVISOR}" >>"${LOG}" 2>/dev/null </dev/null &
+# Started with only stdin, stdout and stderr open: whatever ran this (FPP's
+# web server during an install or update, say) may have sockets open that
+# the loop must not hold on to for the rest of its life.
+(
+    for fd in /proc/self/fd/*; do
+        fd=${fd##*/}
+        [ "${fd}" -gt 2 ] 2>/dev/null && eval "exec ${fd}>&-" 2>/dev/null
+    done
+    exec nohup setsid ${RUN_AS} bash "${SUPERVISOR}" >>"${LOG}" 2>/dev/null </dev/null
+) &

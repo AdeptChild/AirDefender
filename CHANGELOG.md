@@ -1,5 +1,14 @@
 # Air Defender changelog
 
+## 0.9.5 (2026-10-26)
+
+- Fixed: on a fresh install the detection loop did not start until FPP was rebooted, and the dashboard said Not
+  running. The install runs as root, so it created the log file owned by root; the loop runs as the fpp user and
+  could not write to it, and the watchdog could not start it. The log is now given to the fpp user before the loop
+  starts, and the loop runs even if its log cannot be written.
+- The loop no longer takes an unreadable lock file for "already running" (it logs it and keeps retrying), and it
+  starts without holding on to files or sockets left open by whatever started it.
+
 ## 0.9.4 (2026-10-26)
 
 - New **Show elevation** setting: aircraft report their height above sea level, so Air Defender now subtracts your
