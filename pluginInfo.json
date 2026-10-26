@@ -2,7 +2,7 @@
     "repoName": "AirDefender",
     "name": "Air Defender",
     "author": "G Hancox",
-    "description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
+    "description": "Closes your moving heads' shutters while low aircraft fly near your show, using live ADS-B flight data.",
     "homeURL": "https://github.com/G-Hancox/AirDefender",
     "srcURL": "https://github.com/G-Hancox/AirDefender.git",
     "bugURL": "https://github.com/G-Hancox/AirDefender/issues",
