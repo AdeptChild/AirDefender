@@ -42,4 +42,8 @@ if ($action === 'start' && !$status['active']) {
     exit;
 }
 
+// Let the dashboard follow the detection loop's safety state too.
+$loopState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
+$status['loopSafety'] = is_array($loopState) && !empty($loopState['safetyMode']) && empty($loopState['testActive']);
+
 echo json_encode($status);

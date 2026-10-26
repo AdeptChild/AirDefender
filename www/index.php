@@ -215,7 +215,7 @@ if (file_exists($logFile)) {
 <script>
 (function () {
     var API = 'plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1';
-    var realSafety = <?php echo !empty($state['safetyMode']) ? 'true' : 'false'; ?>;
+    var realSafety = <?php echo (!empty($state['safetyMode']) && empty($state['testActive'])) ? 'true' : 'false'; ?>;
     var status = <?php echo json_encode($test); ?>;
     var clockOffset = status.serverTime - Date.now() / 1000; // server clock minus browser clock
     var finishing = false;
@@ -286,6 +286,9 @@ if (file_exists($logFile)) {
 
     function apply(data) {
         status = data;
+        if (typeof data.loopSafety === 'boolean') {
+            realSafety = data.loopSafety;
+        }
         clockOffset = data.serverTime - Date.now() / 1000;
         render();
     }
