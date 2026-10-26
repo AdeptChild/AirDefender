@@ -372,7 +372,7 @@ if ($useFppLocationEnabled) {
     .moving-head-grid {
         display: grid;
         grid-template-columns: 40px auto 76px 56px;
-        justify-content: center;
+        justify-content: start;
         gap: 6px 8px;
         align-items: center;
     }
@@ -380,20 +380,20 @@ if ($useFppLocationEnabled) {
         color: #aaa;
         font-size: 12px;
         font-weight: bold;
-        text-align: center;
+        text-align: left;
     }
     .moving-head-grid .head-number {
         color: #d9d9d9;
         font-weight: bold;
-        text-align: center;
+        text-align: left;
     }
     .moving-head-grid .head-toggle-cell,
     .moving-head-grid .head-input-cell {
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
     }
     .moving-head-grid .head-toggle-cell [data-boolean-group] {
-        justify-content: center;
+        justify-content: flex-start;
     }
     @media (max-width: 850px) {
         .settings-layout {
