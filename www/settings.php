@@ -180,12 +180,16 @@ $settings = array(
     'nodeRole' => array(
         'label' => 'Operation Mode',
         'type' => 'select',
-        'default' => 'standalone',
+        'default' => 'master',
         'options' => array(
-            'standalone' => 'Standalone',
             'master' => 'Master',
             'remote' => 'Remote',
         ),
+    ),
+    'masterAddress' => array(
+        'label' => 'Master FPP Address',
+        'type' => 'string',
+        'default' => '',
     ),
     'enabled' => array(
         'label' => 'Enable Air Defender',
@@ -281,7 +285,7 @@ for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
 // but its keys stay in $settings and in the saved config for runtime compatibility.
 $settingGroups = array(
     'Plugin Status' => array('enabled'),
-    'Operation Mode' => array('nodeRole'),
+    'Operation Mode' => array('nodeRole', 'masterAddress'),
     'Moving Heads' => $headKeys,
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
@@ -313,7 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($config['type'] === 'select') {
             $toSave[$key] = (string) $postedValue;
             if ($key === 'nodeRole' && !array_key_exists($toSave[$key], $config['options'])) {
-                $toSave[$key] = 'standalone';
+                $toSave[$key] = 'master';
             }
         } else {
             $toSave[$key] = trim((string) $postedValue);
@@ -330,6 +334,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 foreach ($settings as $key => $config) {
     $value = AirDefender_StoredValue($pluginName, $key, $config['default']);
     $settings[$key]['value'] = $value;
+}
+
+// "Standalone" was folded into Master: a master with no remotes is the same thing.
+if (!array_key_exists((string) $settings['nodeRole']['value'], $settings['nodeRole']['options'])) {
+    $settings['nodeRole']['value'] = 'master';
 }
 
 $useFppLocationEnabled = AirDefender_IsTruthy($settings['useFPPLocation']['value']);
@@ -464,7 +473,7 @@ if ($useFppLocationEnabled) {
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
                 <?php foreach ($groupKeys as $key): ?>
                     <?php $config = $settings[$key]; ?>
-                    <div <?php if (preg_match('/^head([1-8])/', $key, $headMatch)) { echo 'data-head="' . $headMatch[1] . '" '; } ?>style="background:#171717;padding:12px;border-radius:8px;">
+                    <div data-field="<?php echo htmlspecialchars($key); ?>" <?php if (preg_match('/^head([1-8])/', $key, $headMatch)) { echo 'data-head="' . $headMatch[1] . '" '; } ?>style="background:#171717;padding:12px;border-radius:8px;">
                         <label for="<?php echo htmlspecialchars($key); ?>" style="display:block;color:#d9d9d9;margin-bottom:8px;font-weight:bold;">
                             <?php echo htmlspecialchars($config['label']); ?>
                         </label>
@@ -501,9 +510,8 @@ if ($useFppLocationEnabled) {
                             </select>
                             <?php if ($key === 'nodeRole'): ?>
                                 <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;color:#ccc;font-size:13px;line-height:1.5;">
-                                    <div><b>Standalone:</b> detects aircraft and controls local outputs.</div>
-                                    <div><b>Master:</b> detects aircraft and sends commands to remote FPPs.</div>
-                                    <div><b>Remote:</b> receives commands from a master; does no detection.</div>
+                                    <div><b>Master:</b> detects aircraft and closes its own heads. Use this on a single FPP, and on the FPP that runs the show (including when it sends to a Falcon over DDP/E1.31).</div>
+                                    <div><b>Remote:</b> for an FPP in remote (multisync) mode. Follows the master, including its tests, and closes its own heads. If it loses the master, it closes its heads until it is back.</div>
                                 </div>
                             <?php endif; ?>
                         <?php else: ?>
@@ -519,6 +527,7 @@ if ($useFppLocationEnabled) {
                             ?>
                             <input
                                 type="text"
+                                <?php if ($key === 'masterAddress'): ?>placeholder="Blank = find it automatically"<?php endif; ?>
                                 name="<?php echo htmlspecialchars($key); ?>"
                                 id="<?php echo htmlspecialchars($key); ?>"
                                 value="<?php echo htmlspecialchars($fieldValue); ?>"
@@ -530,6 +539,11 @@ if ($useFppLocationEnabled) {
                                 <?php } ?>
                                 style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo (($key === 'latitude' || $key === 'longitude') && $useFppLocationEnabled) ? 'background:#1a1a1a;color:#888;cursor:not-allowed;opacity:0.45;' : ''; ?>"
                             >
+                            <?php if ($key === 'masterAddress'): ?>
+                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
+                                    IP or hostname of the master FPP. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one player on the network.
+                                </div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
@@ -653,6 +667,11 @@ if ($useFppLocationEnabled) {
                 label.style.cursor = remote ? 'not-allowed' : '';
             });
         });
+
+        var masterField = document.querySelector('[data-field="masterAddress"]');
+        if (masterField) {
+            masterField.style.display = remote ? '' : 'none';
+        }
 
         if (!remote) {
             // restore lat/lon to the state dictated by useFPPLocation

@@ -34,13 +34,16 @@ This plugin is designed for FPP 10+ and supports Raspberry Pi, BeagleBone, and o
 
 ## Node Role
 
-The settings page has a **Node Role** selector at the top:
+The settings page has a **Node Role** selector near the top:
 
-- **Standalone** – local / DDP output (default).
-- **Master** – detects aircraft and sends commands to remote FPPs.
-- **Remote** – receives commands from a master; Location, Safety Thresholds and ADS-B Feed are greyed out.
+- **Master** (default) – detects aircraft and closes its own heads. Use this on a single FPP, and on the FPP that runs the show. Heads fed by the master over DDP/E1.31 (a Falcon, or an FPP in bridge mode) are covered by the master itself.
+- **Remote** – for an FPP in remote (multisync) mode, which plays its own copy of the sequence, so the master's overlay can't reach its heads. It follows the master instead: it closes its own heads whenever the master is in safety mode, including during a master test. Location, Safety Thresholds and ADS-B Feed are greyed out.
 
-**Step 1 is UI-only:** the role is saved to the config but does not yet change any runtime behavior. Greyed-out values are not submitted, so previously saved values are preserved.
+Install the plugin on the master and on **every** remote with heads (set one to Master, the rest to Remote); a remote with no heads enabled just does nothing.
+
+A remote finds its master automatically from FPP's MultiSync list, or uses the **Master FPP Address** setting if filled in (needed when more than one player is on the network). It checks the master every second. If it gets no good answer for 5 seconds (master off, unreachable, plugin missing, its detection loop not running, or it is set to Remote) the remote **closes its heads** until the master is back.
+
+Older settings saved as "Standalone" run as Master.
 
 ## Moving Heads (Step 2 UI)
 
@@ -61,4 +64,4 @@ Safety mode turns on when:
 
 The detection loop starts with fppd (`scripts/postStart.sh`) and stops with it (`scripts/preStop.sh`). It re-reads the settings every second, so changes apply without restarting fppd. Everything it does is logged to `/home/fpp/media/logs/airdefender.log`.
 
-**Node Role:** Standalone and Master both detect aircraft and close their own heads. Remote does not detect yet (the master-to-remote link is a later step), but a dashboard Test still works on it.
+**Node Role:** see above. A Remote follows its master; a Test started on a Remote closes only that remote's heads.

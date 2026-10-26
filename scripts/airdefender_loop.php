@@ -30,6 +30,9 @@ const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_FEED = "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}";
 const AIRDEFENDER_DEFAULT_CLEAR_DELAY = 30;
 const AIRDEFENDER_FEET_PER_METER = 3.28084;
+const AIRDEFENDER_MASTER_LOST_SEC = 5;     // no good answer from the master for this long = lost
+const AIRDEFENDER_MASTER_STALE_SEC = 15;   // master's own loop silent this long = treat it as down
+const AIRDEFENDER_FPP_PLAYER_MODE = 2;     // FPPMode::PLAYER_MODE in FPP's settings.h
 
 /* ---------- files ---------- */
 
@@ -255,6 +258,97 @@ function airdefender_fetch_feed(string $url): array
     return [airdefender_parse_aircraft($json), null];
 }
 
+/* ---------- master / remote ---------- */
+
+/* GET a URL and decode JSON. Returns [data, null] or [null, error]. */
+function airdefender_get_json(string $url, int $timeout): array
+{
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => $timeout,
+            'header' => "User-Agent: FPP-AirDefender\r\nAccept: application/json\r\n",
+            'ignore_errors' => true,
+        ],
+    ]);
+    $body = @file_get_contents($url, false, $context);
+    $status = 0;
+    foreach ($http_response_header ?? [] as $line) {
+        if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
+            $status = (int) $m[1];
+        }
+    }
+    if ($body === false || $body === '') {
+        return [null, "no answer"];
+    }
+    if ($status !== 0 && $status !== 200) {
+        return [null, "HTTP {$status}"];
+    }
+    $json = json_decode($body, true);
+    return is_array($json) ? [$json, null] : [null, "not valid JSON"];
+}
+
+/*
+ * The master's address: the Master FPP Address setting if filled in, else the
+ * one player on the network sending MultiSync, from fppd's own list.
+ * Returns [address, null] or [null, why it could not be found].
+ */
+function airdefender_find_master(array $settings): array
+{
+    $manual = trim((string) ($settings['masterAddress'] ?? ''));
+    if ($manual !== '') {
+        return [$manual, null];
+    }
+
+    [$data, $err] = airdefender_get_json(AirDefenderOutputs::FPPD_API . "/fppd/multiSyncSystems", 3);
+    if ($data === null) {
+        return [null, "could not read FPP's MultiSync list ({$err})"];
+    }
+
+    $players = [];
+    $syncing = [];
+    foreach ($data['systems'] ?? [] as $sys) {
+        if (!is_array($sys) || !empty($sys['local']) || empty($sys['address'])) {
+            continue;
+        }
+        if ((int) ($sys['fppMode'] ?? 0) === AIRDEFENDER_FPP_PLAYER_MODE) {
+            $players[$sys['address']] = $sys['hostname'] ?? $sys['address'];
+            if (!empty($sys['multisync'])) {
+                $syncing[$sys['address']] = true;
+            }
+        }
+    }
+
+    // Prefer the player actually sending sync; fall back to the only player.
+    $candidates = $syncing ? array_keys($syncing) : array_keys($players);
+    if (count($candidates) === 1) {
+        return [$candidates[0], null];
+    }
+    if (!$candidates) {
+        return [null, "no master FPP found in the MultiSync list; enter its address in settings"];
+    }
+    return [null, "more than one player FPP found (" . implode(', ', $candidates) . "); enter the master's address in settings"];
+}
+
+/* Ask the master what it wants. Returns [status, null] or [null, error]. */
+function airdefender_poll_master(string $address): array
+{
+    $base = preg_match('#^https?://#i', $address) ? rtrim($address, '/') : "http://{$address}";
+    [$data, $err] = airdefender_get_json($base . "/plugin.php?plugin=AirDefender&page=www/master_status.php&nopage=1", 2);
+    if ($data === null) {
+        return [null, $err === "HTTP 404" ? "Air Defender is not installed on the master" : $err];
+    }
+    if (($data['plugin'] ?? '') !== 'AirDefender') {
+        return [null, "the master did not answer as Air Defender"];
+    }
+    if (($data['role'] ?? '') !== 'master') {
+        return [null, "that FPP is set to Remote, not Master"];
+    }
+    if (empty($data['testActive']) && ($data['loopAge'] === null || $data['loopAge'] > AIRDEFENDER_MASTER_STALE_SEC)) {
+        return [null, "the master's detection loop is not running"];
+    }
+    return [$data, null];
+}
+
 /* ---------- main ---------- */
 
 // One copy only: a second start (fppd restarted twice quickly) just exits.
@@ -275,6 +369,13 @@ $lastFetchOkAt = null;
 $aircraftCount = null;
 $lastFeedKey = '';
 $feedWasDown = false;
+$startedAt = time();
+$masterAddress = null;       // address in use (manual or found)
+$masterLookupAt = 0;         // when we last looked it up
+$masterLookupError = null;
+$master = null;              // last good answer from the master
+$masterOkAt = 0;             // when we got it
+$masterError = null;
 
 airdefender_log("Detection loop started (pid " . getmypid() . ").");
 
@@ -283,7 +384,8 @@ while (true) {
     $settings = airdefender_load_settings();
 
     $enabled = airdefender_truthy(airdefender_setting($settings, 'enabled', '0'));
-    $role = strtolower((string) airdefender_setting($settings, 'nodeRole', 'standalone'));
+    // "standalone" from older settings is a master.
+    $role = strtolower((string) airdefender_setting($settings, 'nodeRole', 'master')) === 'remote' ? 'remote' : 'master';
     $maxNm = max(0.1, (float) airdefender_setting($settings, 'distanceNM', 5));
     $maxFt = max(0, (float) airdefender_setting($settings, 'altitudeThresholdFt', 3000));
     $fetchInterval = max(5, (int) airdefender_setting($settings, 'fetchInterval', 10));
@@ -331,6 +433,40 @@ while (true) {
         }
     }
 
+    /* --- master (remote role only) --- */
+    if ($role === 'remote' && $enabled) {
+        $manual = trim((string) ($settings['masterAddress'] ?? ''));
+        // Look the master up again every 30 s while it is not answering, or at once if the setting changed.
+        if ($masterAddress === null || ($manual !== '' && $manual !== $masterAddress)
+            || ($manual === '' && $now - $masterLookupAt >= 30 && $now - $masterOkAt > AIRDEFENDER_MASTER_LOST_SEC)) {
+            $masterLookupAt = $now;
+            [$found, $masterLookupError] = airdefender_find_master($settings);
+            if ($found !== null && $found !== $masterAddress) {
+                $masterAddress = $found;
+                airdefender_log("Remote mode: using master at {$masterAddress}" . ($manual === '' ? " (found automatically)." : "."));
+            }
+        }
+
+        if ($masterAddress !== null) {
+            [$answer, $masterError] = airdefender_poll_master($masterAddress);
+            if ($answer !== null) {
+                $master = $answer;
+                $masterOkAt = $now;
+            }
+        } else {
+            $masterError = $masterLookupError;
+        }
+    } elseif ($role !== 'remote') {
+        $masterAddress = null;
+        $master = null;
+        $masterOkAt = 0;
+        $masterError = null;
+    }
+    $masterLost = $role === 'remote' && (
+        $masterOkAt === 0 ? $now - $startedAt >= AIRDEFENDER_MASTER_LOST_SEC : $now - $masterOkAt > AIRDEFENDER_MASTER_LOST_SEC
+    );
+    $masterName = $masterAddress ?? 'master';
+
     /* --- decide --- */
     $wasSafe = $safe;
     $planeNow = $lastTriggerAt > 0 && $lastTriggerAt >= ($lastFetchOkAt ?? 0) && $feedError === null
@@ -344,10 +480,18 @@ while (true) {
         $safe = false;
         $reason = 'disabled';
         $event = 'Plugin disabled';
+    } elseif ($role === 'remote' && $masterLost) {
+        $safe = true;
+        $reason = 'master-lost';
+        $event = "Lost the master ({$masterName}): " . ($masterError ?? 'no answer') . ". Heads closed until it is back";
+    } elseif ($role === 'remote' && $masterOkAt === 0) {
+        $safe = $wasSafe;
+        $reason = 'master-connecting';
+        $event = "Connecting to the master ({$masterName})...";
     } elseif ($role === 'remote') {
-        $safe = false;
-        $reason = 'remote';
-        $event = 'Remote mode: waiting for commands from the master (not built yet)';
+        $safe = !empty($master['safe']);
+        $reason = $safe ? 'master' : 'clear';
+        $event = (!empty($master['testActive']) ? "Master test: " : "Master ({$masterName}): ") . ($master['event'] ?? '');
     } elseif ($lat === null || $lon === null) {
         $safe = false;
         $reason = 'no-location';
@@ -372,6 +516,12 @@ while (true) {
         $event = $feedError !== null
             ? "ADS-B feed problem: {$feedError}"
             : "Clear: no aircraft within {$maxNm} NM below {$maxFt} ft";
+    }
+
+    if ($role === 'remote' && $enabled && !$test['active']) {
+        airdefender_log_once('master', $masterLost ? $event : ($masterOkAt ? "Connected to the master at {$masterName}." : null));
+    } elseif ($role !== 'remote') {
+        airdefender_log_once('master', null);
     }
 
     /* --- act --- */
@@ -407,6 +557,13 @@ while (true) {
         'lastFetchOk' => $lastFetchOkAt ? date('c', $lastFetchOkAt) : null,
         'feedError' => $feedError,
         'location' => $lat !== null ? ['lat' => $lat, 'lon' => $lon] : null,
+        'role' => $role,
+        'master' => $role === 'remote' ? [
+            'address' => $masterAddress,
+            'connected' => !$masterLost && $masterOkAt > 0,
+            'lastOk' => $masterOkAt ? date('c', $masterOkAt) : null,
+            'error' => $masterError,
+        ] : null,
         'headsConfigured' => count($heads),
         'appliedChannels' => $outputs->applied(),
         'outputError' => $outputsOk ? null : $outputs->lastError,

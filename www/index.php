@@ -94,7 +94,7 @@ $adsbSourceUrl = AirDefender_StoredValue("AirDefender", "adsbSourceUrl", "https:
 $nodeRole = AirDefender_StoredValue("AirDefender", "nodeRole", "standalone");
 
 $modeLabels = array(
-    'standalone' => 'Standalone',
+    'standalone' => 'Master',
     'master' => 'Master',
     'remote' => 'Remote',
 );
