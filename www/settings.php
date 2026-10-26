@@ -178,13 +178,13 @@ function AirDefender_IsTruthy($value) {
 
 $settings = array(
     'nodeRole' => array(
-        'label' => 'Node Role',
+        'label' => 'Operation Mode',
         'type' => 'select',
         'default' => 'standalone',
         'options' => array(
-            'standalone' => 'Standalone (local / DDP output)',
-            'master' => 'Master (detects aircraft, sends commands to remote FPPs)',
-            'remote' => 'Remote (receives commands from a master)',
+            'standalone' => 'Standalone',
+            'master' => 'Master',
+            'remote' => 'Remote',
         ),
     ),
     'enabled' => array(
@@ -222,7 +222,7 @@ $settings = array(
         'type' => 'int',
         'default' => 10,
     ),
-            'adsbSourceUrl' => array(
+    'adsbSourceUrl' => array(
         'label' => 'ADS-B JSON URL',
         'type' => 'select',
         'default' => 'https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}',
@@ -234,7 +234,7 @@ $settings = array(
             'http://localhost:8080/data/aircraft.json' => 'Local receiver (dump1090-fa)',
         ),
     ),
-       'controllerType' => array(
+    'controllerType' => array(
         'label' => 'Controller Type',
         'type' => 'select',
         'default' => 'falcon',
@@ -281,7 +281,7 @@ for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
 // but its keys stay in $settings and in the saved config for runtime compatibility.
 $settingGroups = array(
     'Plugin Status' => array('enabled'),
-    'Node Role' => array('nodeRole'),
+    'Operation Mode' => array('nodeRole'),
     'Moving Heads' => $headKeys,
     'Location' => array('useFPPLocation', 'latitude', 'longitude'),
     'Safety Thresholds' => array('distanceNM', 'altitudeThresholdFt', 'fetchInterval'),
@@ -371,8 +371,9 @@ if ($useFppLocationEnabled) {
     }
     .moving-head-grid {
         display: grid;
-        grid-template-columns: minmax(40px,.45fr) minmax(106px,1fr) minmax(120px,1.2fr) minmax(82px,.75fr);
-        gap: 6px 14px;
+        grid-template-columns: 40px auto 76px 56px;
+        justify-content: center;
+        gap: 6px 8px;
         align-items: center;
     }
     .moving-head-grid > div:not([data-head]) {
@@ -405,11 +406,12 @@ if ($useFppLocationEnabled) {
     }
     @media (max-width: 600px) {
         .moving-head-grid {
-            grid-template-columns: minmax(24px,.35fr) minmax(88px,1fr) minmax(82px,1.2fr) minmax(62px,.8fr);
-            column-gap: 8px;
+            grid-template-columns: 30px auto 70px 52px;
+            column-gap: 6px;
         }
     }
 </style>
+
 <form class="settings-layout" method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" style="background:#2a2a2a;padding:20px;border-radius:10px;">
     <?php foreach ($settingGroups as $groupName => $groupKeys): ?>
         <div data-group="<?php echo htmlspecialchars($groupName); ?>" style="background:#1f1f1f;padding:16px;border-radius:10px;margin-bottom:20px;">
@@ -418,8 +420,8 @@ if ($useFppLocationEnabled) {
                 <div class="moving-head-grid">
                     <div>Head</div>
                     <div>Enabled</div>
-                    <div>Shutter Channel</div>
-                    <div>Closed Value</div>
+                    <div>Shutter Ch.</div>
+                    <div>Closed</div>
                     <?php for ($headIndex = 1; $headIndex <= 8; $headIndex++): ?>
                         <?php
                             $enabledKey = 'head' . $headIndex . 'Enabled';
@@ -429,17 +431,17 @@ if ($useFppLocationEnabled) {
                         <div data-head="<?php echo $headIndex; ?>" style="display:contents;">
                             <div class="head-number"><?php echo $headIndex; ?></div>
                             <div class="head-toggle-cell">
-                            <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" data-compact="true" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
-                                <?php foreach (array('1' => 'Yes', '0' => 'No') as $toggleValue => $toggleLabel): ?>
-                                    <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ($toggleValue === '1'); ?>
-                                    <label style="display:block;cursor:pointer;">
-                                        <input type="radio" name="<?php echo htmlspecialchars($enabledKey); ?>" value="<?php echo $toggleValue; ?>" <?php echo $selected ? 'checked' : ''; ?> style="display:none;">
-                                        <span style="display:block;text-align:center;padding:5px 9px;min-width:42px;box-sizing:border-box;border-radius:5px;font-size:13px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo $selected ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
-                                            <?php echo $toggleLabel; ?>
-                                        </span>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
+                                <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" data-compact="true" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
+                                    <?php foreach (array('1' => 'Yes', '0' => 'No') as $toggleValue => $toggleLabel): ?>
+                                        <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ($toggleValue === '1'); ?>
+                                        <label style="display:block;cursor:pointer;">
+                                            <input type="radio" name="<?php echo htmlspecialchars($enabledKey); ?>" value="<?php echo $toggleValue; ?>" <?php echo $selected ? 'checked' : ''; ?> style="display:none;">
+                                            <span style="display:block;text-align:center;padding:5px 9px;min-width:42px;box-sizing:border-box;border-radius:5px;font-size:13px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo $selected ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
+                                                <?php echo $toggleLabel; ?>
+                                            </span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                             <?php foreach (array($channelKey, $closedValueKey) as $inputKey): ?>
                                 <div class="head-input-cell">
@@ -451,7 +453,7 @@ if ($useFppLocationEnabled) {
                                         min="0"
                                         <?php echo $inputKey === $closedValueKey ? 'max="255"' : ''; ?>
                                         step="1"
-                                        style="width:100%;box-sizing:border-box;padding:6px 6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
+                                        style="<?php echo $inputKey === $closedValueKey ? 'width:56px;' : 'width:76px;'; ?>box-sizing:border-box;padding:6px 6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
                                     >
                                 </div>
                             <?php endforeach; ?>
@@ -490,7 +492,7 @@ if ($useFppLocationEnabled) {
                                 </div>
                             <?php endif; ?>
                         <?php elseif ($config['type'] === 'select'): ?>
-                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;max-width:320px;padding:8px;border-radius:6px;background:#111;color:#fff;">
+                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;max-width:320px;padding:8px;border-radius:6px;background:#111;color:#fff;border:1px solid #444;">
                                 <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
                                     <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($optionLabel); ?>
