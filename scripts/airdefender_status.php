@@ -53,6 +53,7 @@ function airdefender_live_status(bool $detailed = false): array
             'error' => $state['feedError'] ?? null,
             'used' => $state['feedUsed'] ?? null,
             'onBackup' => !empty($state['feedOnBackup']),
+            'chosen' => $state['feedChosen'] ?? null,
         ],
         'master' => $master ? [
             'address' => $master['address'] ?? null,

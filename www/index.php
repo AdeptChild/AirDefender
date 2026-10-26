@@ -428,7 +428,7 @@ $pageConfig = array(
         var f = live.feed || {};
         if (live.checking === false) { return 'standby'; }
         if (f.error) { return 'feed problem'; }
-        var label = (f.used || FEED_LABEL) + (f.onBackup ? ' (backup)' : '');
+        var label = (f.used || FEED_LABEL) + (f.onBackup ? ' (backup: ' + (f.chosen || 'your chosen service') + ' not answering)' : '');
         return f.lastOkAgo !== null && f.lastOkAgo !== undefined ? label + ' · ' + ago(f.lastOkAgo) : 'not checked yet';
     }
     function renderSky() {

@@ -743,7 +743,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                     <input type="hidden" name="feedFallback" value="0">
                     <label class="ads-sw"><input type="checkbox" id="feedFallbackSw" name="feedFallback" value="1" <?php echo AirDefender_IsTruthy($v('feedFallback')) ? 'checked' : ''; ?>><span class="track"></span></label>
                 </div>
-                <div class="ads-help">If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check, and go back when it answers. Never used with a local receiver, so its location stays on this FPP.</div>
+                <div class="ads-help">If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check; try the chosen one again every minute and go back to it when it answers. Never used with a local receiver, so its location stays on this FPP.</div>
             </div>
             <div class="ads-field">
                 <label for="feedDownSw">Close heads if feed is down</label>

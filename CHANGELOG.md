@@ -1,5 +1,10 @@
 # Air Defender changelog
 
+## 0.9.1 (2026-10-26)
+
+- While on the backup flight-data service, the chosen one is now tried again every minute (was every 5 minutes), and Air Defender switches back as soon as it answers.
+- The dashboard names both services while on the backup, for example "adsb.fi (backup: adsb.lol not answering)", so it is clear which one is chosen in Settings.
+
 ## 0.9.0 (2026-10-26)
 
 First complete version, ready for live testing.

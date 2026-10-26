@@ -305,7 +305,7 @@ function airdefender_poll_master(string $address, string $password = ''): array
 /* ---------- show schedule ---------- */
 
 const AIRDEFENDER_SHOW_LEAD_SEC = 120;   // start checking this long before a scheduled show
-const AIRDEFENDER_PRIMARY_RETRY_SEC = 300; // while on the backup service, try the chosen one again this often
+const AIRDEFENDER_PRIMARY_RETRY_SEC = 60;  // while on the backup service, try the chosen one again this often
 
 /*
  * What FPP is playing, from fppd's status: whether anything is playing,
@@ -494,7 +494,7 @@ while (true) {
         $nextFetchAt = $now + $fetchInterval;
 
         // The chosen service, then its backup if it does not answer. While on
-        // the backup, the chosen one is tried only every few minutes, so a
+        // the backup, the chosen one is tried once a minute, so a
         // service that is limiting us is not asked over and over.
         $order = [$feedTemplate];
         if ($backupTemplate !== null) {
@@ -706,6 +706,7 @@ while (true) {
         'aircraftCount' => $aircraftCount,
         'feedUsed' => $feedUsed ? airdefender_feed_label($feedUsed) : null,
         'feedOnBackup' => $onBackup,
+        'feedChosen' => airdefender_feed_label($feedTemplate),
         'nearby' => $role === 'master' && $detecting ? $nearby : [],
         'limits' => ['nm' => $maxNm, 'ft' => $maxFt, 'holdSec' => $clearDelay],
         'safeSince' => $safeSince ? date('c', $safeSince) : null,

@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 0.9.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 0.9.1 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -161,7 +161,7 @@ Air Defender asks a free community ADS-B service for the aircraft near your show
 | **Local receiver** (tar1090 / dump1090-fa) | None | Reads a receiver on the FPP itself; nothing leaves the device. |
 
 With **Use the other as a backup** on (the default), if adsb.fi or adsb.lol refuses, limits or doesn't answer, Air
-Defender asks the other in the same check, so there's no gap. It tries the chosen one again every 5 minutes and goes
+Defender asks the other in the same check, so there's no gap. It tries the chosen one again every minute and goes
 back to it when it answers. A local receiver never falls back to an online service.
 
 The number of requests is your check interval over the time it checks: at 10 seconds, about 1,800 for a 5-hour show
