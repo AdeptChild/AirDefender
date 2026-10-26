@@ -1,5 +1,14 @@
 # Air Defender changelog
 
+## 0.9.6 (2026-10-26)
+
+Ready for FPP's plugin list (FPP's plugin check now reports no findings):
+- Talks to fppd through FPP's documented `/api/` address instead of fppd's internal port.
+- Plugin Manager shows the Air Defender icon before install, not just after.
+- An update asks for an FPPD restart, so changes to the Air Defender commands show up.
+- The install script stops at the first error, and starting the loop no longer waits half a second when there is
+  nothing to stop.
+
 ## 0.9.5 (2026-10-26)
 
 - Fixed: on a fresh install the detection loop did not start until FPP was rebooted, and the dashboard said Not

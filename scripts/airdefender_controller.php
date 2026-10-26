@@ -21,7 +21,9 @@
 
 class AirDefenderOutputs
 {
-    const FPPD_API = 'http://127.0.0.1:32322';
+    // fppd's API through FPP's own /api proxy (Apache), the documented route
+    // for plugins; requests from the FPP itself need no UI password.
+    const FPPD_API = 'http://127.0.0.1/api';
 
     /* Channels this object has overlaid, channel => value. */
     protected $applied = [];
@@ -112,7 +114,7 @@ class AirDefenderOutputs
         if ($response === false || $status !== 200) {
             $this->lastError = $status
                 ? "fppd answered {$status} for {$path}: " . trim((string) $response)
-                : "Could not reach fppd at " . self::FPPD_API . " ({$path})";
+                : "Could not reach fppd through " . self::FPPD_API . " ({$path})";
             return false;
         }
 

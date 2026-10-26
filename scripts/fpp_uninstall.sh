@@ -17,7 +17,7 @@ if [ -f "${PLUGIN_DIR}/state.json" ]; then
         foreach (array_keys($s["appliedChannels"] ?? []) as $ch) { echo (int) $ch, "\n"; }
     ' "${PLUGIN_DIR}/state.json" 2>/dev/null | while read -r CH; do
         [ -n "${CH}" ] && curl -s -m 3 -X PUT -H 'Content-Type: application/json' \
-            -d '{"delete":true}' "http://127.0.0.1:32322/overlays/range/${CH}" >/dev/null
+            -d '{"delete":true}' "http://127.0.0.1/api/overlays/range/${CH}" >/dev/null
     done
 fi
 

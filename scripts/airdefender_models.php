@@ -34,7 +34,7 @@ function airdefender_fpp_models(): ?array
 
     // fppd's live list.
     $context = stream_context_create(['http' => ['timeout' => 2, 'ignore_errors' => true]]);
-    $body = @file_get_contents('http://127.0.0.1:32322/models', false, $context);
+    $body = @file_get_contents('http://127.0.0.1/api/models', false, $context);
     $json = $body !== false ? json_decode($body, true) : null;
     if (is_array($json) && ($json === [] || array_keys($json) === range(0, count($json) - 1))) {
         $list = $json;

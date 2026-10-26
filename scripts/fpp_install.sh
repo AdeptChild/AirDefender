@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 # Air Defender install script. FPP runs this (as root) after a fresh install.
 # (Updates run scripts/fpp_upgrade.sh instead.)
 

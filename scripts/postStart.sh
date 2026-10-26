@@ -13,7 +13,11 @@ LOG="/home/fpp/media/logs/airdefender.log"
 # Stop copies left over from before: the watchdog first, so it cannot restart the loop.
 pkill -f "${SUPERVISOR}" 2>/dev/null
 pkill -f "${LOOP}" 2>/dev/null
-sleep 0.5
+# Give them up to a second to go, without waiting when there was nothing to stop.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -f "${LOOP}" >/dev/null 2>&1 || break
+    sleep 0.1
+done
 
 if [ "$(id -u)" = "0" ] && id fpp >/dev/null 2>&1; then
     RUN_AS="runuser -u fpp --"

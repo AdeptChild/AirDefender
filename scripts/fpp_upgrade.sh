@@ -17,4 +17,8 @@ if pgrep -x fppd >/dev/null 2>&1; then
 else
     echo "fppd is not running; the Air Defender loop will start with it"
 fi
+
+# fppd reads commands/descriptions.json only when it starts, so ask for a
+# restart in case the Air Defender commands changed.
+( set +u; source "${FPPDIR:-/opt/fpp}/scripts/common" && setSetting restartFlag 1 ) || true
 exit 0

@@ -6,6 +6,7 @@
     "homeURL": "https://github.com/AdeptChild/AirDefender",
     "srcURL": "https://github.com/AdeptChild/AirDefender.git",
     "bugURL": "https://github.com/AdeptChild/AirDefender/issues",
+    "iconURL": "https://raw.githubusercontent.com/AdeptChild/AirDefender/master/icon.png",
     "releaseNotesStyle": "script",
     "versions": [
         {
