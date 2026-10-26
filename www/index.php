@@ -60,57 +60,45 @@ function AirDefender_StateFile() {
 }
 
 function AirDefender_ReadState() {
+    $default = [
+        'safetyMode' => false,
+        'lastEvent' => 'No events yet.',
+        'lastAircraft' => null,
+        'lastDistanceNm' => null,
+        'lastAltitudeFt' => null,
+        'lastUpdated' => null,
+    ];
+
     $path = AirDefender_StateFile();
     if (!file_exists($path)) {
-        return [
-            'safetyMode' => false,
-            'lastEvent' => 'No events yet.',
-            'lastAircraft' => null,
-            'lastDistanceNm' => null,
-            'lastAltitudeFt' => null,
-            'lastUpdated' => null,
-        ];
+        return $default;
     }
 
     $content = @file_get_contents($path);
     if ($content === false || trim($content) === '') {
-        return [
-            'safetyMode' => false,
-            'lastEvent' => 'No events yet.',
-            'lastAircraft' => null,
-            'lastDistanceNm' => null,
-            'lastAltitudeFt' => null,
-            'lastUpdated' => null,
-        ];
+        return $default;
     }
 
     $data = json_decode($content, true);
     if (!is_array($data)) {
-        return [
-            'safetyMode' => false,
-            'lastEvent' => 'No events yet.',
-            'lastAircraft' => null,
-            'lastDistanceNm' => null,
-            'lastAltitudeFt' => null,
-            'lastUpdated' => null,
-        ];
+        return $default;
     }
 
     return $data;
 }
 
 $enabled = AirDefender_StoredValue("AirDefender", "enabled", false);
-$safetyMode = AirDefender_StoredValue("AirDefender", "safetyMode", false);
-$useFPPLocation = AirDefender_StoredValue("AirDefender", "useFPPLocation", true);
-$latitude = AirDefender_StoredValue("AirDefender", "latitude", "");
-$longitude = AirDefender_StoredValue("AirDefender", "longitude", "");
 $distanceNM = AirDefender_StoredValue("AirDefender", "distanceNM", 5);
 $altitudeThresholdFt = AirDefender_StoredValue("AirDefender", "altitudeThresholdFt", 3000);
-$fetchInterval = AirDefender_StoredValue("AirDefender", "fetchInterval", 10);
 $adsbSourceUrl = AirDefender_StoredValue("AirDefender", "adsbSourceUrl", "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}");
-$controllerType = AirDefender_StoredValue("AirDefender", "controllerType", "falcon");
-$blackoutStartChannel = AirDefender_StoredValue("AirDefender", "blackoutStartChannel", 0);
-$blackoutEndChannel = AirDefender_StoredValue("AirDefender", "blackoutEndChannel", 0);
+$nodeRole = AirDefender_StoredValue("AirDefender", "nodeRole", "standalone");
+
+$modeLabels = array(
+    'standalone' => 'Standalone',
+    'master' => 'Master',
+    'remote' => 'Remote',
+);
+$modeLabel = isset($modeLabels[$nodeRole]) ? $modeLabels[$nodeRole] : ucfirst((string) $nodeRole);
 
 $state = AirDefender_ReadState();
 $lastLog = isset($state['lastEvent']) ? $state['lastEvent'] : 'No log entries yet.';
@@ -139,87 +127,57 @@ if (file_exists($logFile)) {
     </div>
 </div>
 
-<div style="display:flex;flex-wrap:wrap;">
-    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
+<div style="display:flex;flex-wrap:wrap;justify-content:center;">
+    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
         <h3 style="color:<?php echo !empty($enabled) ? '#4caf50' : '#f44336'; ?>;margin:0 0 10px 0;font-size:18px;">
             Plugin Enabled
         </h3>
-        <p style="color:#eee;font-size:16px;margin:0;">
+        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
             <?php echo !empty($enabled) ? "Yes" : "No"; ?>
         </p>
     </div>
 
-    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
+    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
         <h3 style="color:<?php echo !empty($state['safetyMode']) ? '#ff9800' : '#888'; ?>;margin:0 0 10px 0;font-size:18px;">
             Safety Mode
         </h3>
-        <p style="color:#eee;font-size:16px;margin:0;">
+        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
             <?php echo !empty($state['safetyMode']) ? "Active" : "Inactive"; ?>
         </p>
     </div>
+</div>
 
-    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
+<div style="display:flex;flex-wrap:wrap;justify-content:center;margin-top:20px;">
+    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
+        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Mode</h3>
+        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
+            <?php echo htmlspecialchars($modeLabel); ?>
+        </p>
+    </div>
+
+    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
         <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Distance Threshold</h3>
-        <p style="color:#eee;font-size:16px;margin:0;">
+        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
             <?php echo isset($distanceNM) ? $distanceNM : 0; ?> NM
         </p>
     </div>
 
-    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
+    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
         <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Altitude Threshold</h3>
-        <p style="color:#eee;font-size:16px;margin:0;">
+        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
             <?php echo isset($altitudeThresholdFt) ? $altitudeThresholdFt : 3000; ?> ft
         </p>
     </div>
-</div>
 
-<div style="display:flex;flex-wrap:wrap;margin-top:20px;">
-    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Location Source</h3>
-        <p style="color:#eee;font-size:16px;margin:0;">
-            <?php echo !empty($useFPPLocation) ? "FPP" : "Manual"; ?>
+    <?php if (!empty($adsbSourceUrl)): ?>
+    <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:5px;display:inline-block;text-align:center;">
+        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">ADS-B Feed</h3>
+        <p style="color:#eee;font-size:16px;margin:0;white-space:nowrap;">
+            <?php echo htmlspecialchars((string) $adsbSourceUrl); ?>
         </p>
     </div>
-
-    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Controller</h3>
-        <p style="color:#eee;font-size:16px;margin:0;">
-            <?php echo htmlspecialchars((string) $controllerType ?: "falcon"); ?>
-        </p>
-    </div>
-
-    <div style="flex:1;background:#2a2a2a;padding:15px;border-radius:8px;margin:5px;">
-        <h3 style="color:#6cf;margin:0 0 10px 0;font-size:18px;">Blackout Range</h3>
-        <p style="color:#eee;font-size:16px;margin:0;">
-            <?php
-                $start = (int) $blackoutStartChannel;
-                $end = (int) $blackoutEndChannel;
-                if ($start > 0 || $end > 0) {
-                    echo htmlspecialchars((string) $start . " - " . $end);
-                } else {
-                    echo "Not configured";
-                }
-            ?>
-        </p>
-    </div>
+    <?php endif; ?>
 </div>
-
-<?php if (!empty($latitude) || !empty($longitude)): ?>
-<div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
-    <h3 style="color:#6cf;margin:0 0 10px 0;">Location</h3>
-    <p style="color:#eee;margin:0;">Latitude: <?php echo htmlspecialchars((string) $latitude ?: "Not set"); ?></p>
-    <p style="color:#eee;margin:0;">Longitude: <?php echo htmlspecialchars((string) $longitude ?: "Not set"); ?></p>
-</div>
-<?php endif; ?>
-
-<?php if (!empty($adsbSourceUrl)): ?>
-<div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
-    <h3 style="color:#6cf;margin:0 0 10px 0;">ADS-B Feed URL</h3>
-    <p style="color:#eee;margin:0;word-break:break-all;">
-        <?php echo htmlspecialchars((string) $adsbSourceUrl); ?>
-    </p>
-</div>
-<?php endif; ?>
 
 <?php if (!empty($lastAircraft)): ?>
 <div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
@@ -232,9 +190,9 @@ if (file_exists($logFile)) {
 </div>
 <?php endif; ?>
 
-<div style="background:#2a2a2a;padding:15px;border-radius:8px;margin-top:20px;">
+<div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:20px auto 0 auto;display:table;text-align:center;">
     <h3 style="color:#6cf;margin:0 0 10px 0;">Last Event</h3>
-    <p style="color:#eee;margin:0;">
+    <p style="color:#eee;margin:0;white-space:nowrap;">
         <?php echo htmlspecialchars($lastLog); ?>
     </p>
 </div>
