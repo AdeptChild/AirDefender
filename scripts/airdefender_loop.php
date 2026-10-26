@@ -417,6 +417,8 @@ while (true) {
     $role = strtolower((string) airdefender_setting($settings, 'nodeRole', 'master')) === 'remote' ? 'remote' : 'master';
     $maxNm = max(0.1, (float) airdefender_setting($settings, 'distanceNM', 5));
     $maxFt = max(0, (float) airdefender_setting($settings, 'altitudeThresholdFt', 3000));
+    // Heights are compared above the show, not above sea level.
+    $elevationFt = airdefender_clamp_elevation(airdefender_setting($settings, 'showElevationFt', 0));
     $fetchInterval = max(5, (int) airdefender_setting($settings, 'fetchInterval', 10));
     $clearDelay = max(0, (int) airdefender_setting($settings, 'clearDelaySec', AIRDEFENDER_DEFAULT_CLEAR_DELAY));
     $feedDownSafe = airdefender_truthy(airdefender_setting($settings, 'feedDownSafe', '0'));
@@ -545,6 +547,7 @@ while (true) {
             }
             $lastFetchOkAt = $now;
             $aircraftCount = count($planes);
+            $planes = airdefender_above_show($planes, $elevationFt);
             $nearby = airdefender_nearby($lat, $lon, $maxNm, $maxFt, $planes);
             airdefender_log_once('feed', null);
             $hit = airdefender_find_trigger($lat, $lon, $maxNm, $maxFt, $planes);
@@ -633,7 +636,7 @@ while (true) {
         $safe = true;
         $reason = 'aircraft';
         $event = "Aircraft {$lastTrigger['id']} at {$lastTrigger['distanceNm']} NM, "
-            . round($lastTrigger['altFt']) . " ft";
+            . round($lastTrigger['altFt']) . " ft" . ($elevationFt ? " above the show" : "");
     } elseif ($feedError !== null && $lastTriggerAt > 0 && $lastTriggerAt >= ($lastFetchOkAt ?? 0)) {
         // The feed's last good answer had a plane in range and it has said
         // nothing since, so the plane may still be there. Decided from the
@@ -708,7 +711,7 @@ while (true) {
         'feedOnBackup' => $onBackup,
         'feedChosen' => airdefender_feed_label($feedTemplate),
         'nearby' => $role === 'master' && $detecting ? $nearby : [],
-        'limits' => ['nm' => $maxNm, 'ft' => $maxFt, 'holdSec' => $clearDelay],
+        'limits' => ['nm' => $maxNm, 'ft' => $maxFt, 'holdSec' => $clearDelay, 'elevationFt' => $elevationFt],
         'safeSince' => $safeSince ? date('c', $safeSince) : null,
         'enabled' => $enabled,
         'checking' => $checking,

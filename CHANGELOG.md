@@ -1,5 +1,12 @@
 # Air Defender changelog
 
+## 0.9.4 (2026-10-26)
+
+- New **Show elevation** setting: aircraft report their height above sea level, so Air Defender now subtracts your
+  ground's elevation and the altitude limit means height above your show. **Look it up** fills it in from Open-Meteo
+  for the location in use (FPP's or your own). Left at 0, nothing changes.
+- The dashboard, radar, Test connection, log and command-line check show heights above the show once it is set.
+
 ## 0.9.3 (2026-10-26)
 
 Fixes for a fresh install:

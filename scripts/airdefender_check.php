@@ -9,7 +9,9 @@
  *
  * Any of them can be overridden:
  *   --url "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}"
- *   --lat 34.685 --lon -82.953 --distance 5 --altitude 3000
+ *   --lat 34.685 --lon -82.953 --distance 5 --altitude 3000 --elevation 800
+ *
+ * Heights are shown above the show, using the show elevation from Settings.
  *
  * Exit code: 0 clear, 1 an aircraft is inside the limits, 2 could not check.
  */
@@ -21,9 +23,9 @@ if (PHP_SAPI !== 'cli') {
 require_once(__DIR__ . "/airdefender_adsb.php");
 require_once(__DIR__ . "/airdefender_feeds.php");
 
-$opts = getopt('', ['url:', 'lat:', 'lon:', 'distance:', 'altitude:', 'help']);
+$opts = getopt('', ['url:', 'lat:', 'lon:', 'distance:', 'altitude:', 'elevation:', 'help']);
 if (isset($opts['help'])) {
-    echo "Usage: php airdefender_check.php [--url TEMPLATE] [--lat N] [--lon N] [--distance NM] [--altitude FT]\n";
+    echo "Usage: php airdefender_check.php [--url TEMPLATE] [--lat N] [--lon N] [--distance NM] [--altitude FT] [--elevation FT]\n";
     exit(0);
 }
 
@@ -47,6 +49,7 @@ $lat = $opts['lat'] ?? ($useFpp ? ($fpp['Latitude'] ?? '') : ($settings['latitud
 $lon = $opts['lon'] ?? ($useFpp ? ($fpp['Longitude'] ?? '') : ($settings['longitude'] ?? ''));
 $maxNm = (float) ($opts['distance'] ?? ($settings['distanceNM'] ?? 5));
 $maxFt = (float) ($opts['altitude'] ?? ($settings['altitudeThresholdFt'] ?? 3000));
+$elevationFt = airdefender_clamp_elevation($opts['elevation'] ?? ($settings['showElevationFt'] ?? 0));
 [$template] = airdefender_effective_feed($opts['url'] ?? ($settings['adsbSourceUrl'] ?? ''));
 
 if (!is_numeric($lat) || !is_numeric($lon)) {
@@ -58,13 +61,14 @@ $lon = (float) $lon;
 
 $url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))], $template);
 echo "Asking {$url}\n";
-echo "Limits: {$maxNm} NM, {$maxFt} ft\n\n";
+echo "Limits: {$maxNm} NM, {$maxFt} ft" . ($elevationFt ? " above the show (show at {$elevationFt} ft above sea level)" : "") . "\n\n";
 
 [$planes, $error] = airdefender_fetch_feed($url);
 if ($planes === null) {
     fwrite(STDERR, "Could not check: {$error}\n");
     exit(2);
 }
+$planes = airdefender_above_show($planes, $elevationFt);
 
 $rows = [];
 foreach ($planes as $p) {

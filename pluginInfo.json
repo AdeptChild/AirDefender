@@ -37,6 +37,12 @@
                 "alwaysOn": false
             },
             {
+                "to": "api.open-meteo.com",
+                "what": "your show's location",
+                "why": "to look up the ground elevation there, only when you press Look it up in Settings",
+                "alwaysOn": false
+            },
+            {
                 "to": "http://the master FPP on your network",
                 "what": "a request for its status, with the master's UI password if you enter one",
                 "why": "so a Remote closes its heads when the master does",

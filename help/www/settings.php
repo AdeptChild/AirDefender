@@ -49,12 +49,18 @@ until you pick the model again.</p>
         dashboard (or the Air Defender: Check Now command): it checks for the time you pick, then turns itself off.</li>
     <li><b>Use FPP's location</b>: uses the latitude and longitude in FPP's own settings. Turn it off to enter a
         different location. <b>Check it on a map</b> opens the spot in OpenStreetMap so you can make sure it is right.</li>
+    <li><b>Show elevation</b>: your ground's height above sea level, in feet. Aircraft report their height above sea
+        level, so Air Defender subtracts this to make the altitude limit count from your show. <b>Look it up</b> fills
+        it in for the location above (FPP's or the one you entered), from Open-Meteo's elevation data (Copernicus DEM);
+        that sends the location to api.open-meteo.com once, only when you press it. You can also type it in from a map
+        or your phone. Left at 0, heights are measured above sea level, as before.</li>
 </ul>
 
 <h3>4. Safety limits</h3>
 <ul>
     <li><b>Distance</b> (nautical miles) and <b>Altitude</b> (feet): heads close when an aircraft is inside the
-        distance <i>and</i> below the altitude. The kilometres and metres are shown for reference.</li>
+        distance <i>and</i> below the altitude. With a <b>Show elevation</b> set, the altitude is measured above your
+        show, and the hint shows what that is above sea level. The kilometres and metres are shown for reference.</li>
     <li><b>Hold after it leaves</b>: how long, in seconds, heads stay closed after the last aircraft leaves
         (0&ndash;600, default 30), so one on the edge of the area does not flash them on and off.</li>
     <li><b>Check every</b>: how often, in seconds, to ask for new flight data (5 or more). The estimate below it shows

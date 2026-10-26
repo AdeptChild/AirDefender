@@ -90,6 +90,7 @@ function AirDefender_ReadState() {
 $distanceNM = (float) AirDefender_StoredValue("AirDefender", "distanceNM", 5);
 $altitudeThresholdFt = (int) AirDefender_StoredValue("AirDefender", "altitudeThresholdFt", 3000);
 $holdSec = (int) AirDefender_StoredValue("AirDefender", "clearDelaySec", 30);
+$showElevationFt = (int) AirDefender_StoredValue("AirDefender", "showElevationFt", 0);
 require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
 list($adsbSourceUrl) = airdefender_effective_feed((string) AirDefender_StoredValue("AirDefender", "adsbSourceUrl", ""));
 $feedOptions = airdefender_feed_options();
@@ -109,7 +110,7 @@ $pageConfig = array(
     'test' => $test,
     'live' => $live,
     'lastEvent' => $lastEvent,
-    'limits' => array('nm' => $distanceNM, 'ft' => $altitudeThresholdFt, 'holdSec' => $holdSec),
+    'limits' => array('nm' => $distanceNM, 'ft' => $altitudeThresholdFt, 'holdSec' => $holdSec, 'elevationFt' => $showElevationFt),
 );
 ?>
 <style>
@@ -296,7 +297,7 @@ $pageConfig = array(
     }
     function limits() {
         var l = (live && live.limits && live.limits.nm !== null) ? live.limits : cfg.limits;
-        return { nm: l.nm, ft: l.ft, holdSec: l.holdSec };
+        return { nm: l.nm, ft: l.ft, holdSec: l.holdSec, elevationFt: l.elevationFt || 0 };
     }
 
     /* ---------- banner ---------- */
@@ -502,7 +503,7 @@ $pageConfig = array(
     function renderFooter(lastEvent) {
         if (typeof lastEvent === 'string') { $('adLastEvent').textContent = lastEvent; }
         var lim = limits();
-        $('adLimits').textContent = lim.nm + ' NM · ' + num(lim.ft) + ' ft · hold ' + lim.holdSec + ' s'
+        $('adLimits').textContent = lim.nm + ' NM · ' + num(lim.ft) + ' ft' + (lim.elevationFt ? ' above show' : '') + ' · hold ' + lim.holdSec + ' s'
             + (live && live.role === 'remote' ? '' : ' · ' + FEED_LABEL);
     }
 

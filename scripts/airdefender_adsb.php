@@ -7,6 +7,60 @@
 
 const AIRDEFENDER_FEET_PER_METER = 3.28084;
 
+// Open-Meteo's elevation lookup (Copernicus DEM, 90 m), used only when the
+// owner presses Look it up in Settings.
+const AIRDEFENDER_ELEVATION_URL = "https://api.open-meteo.com/v1/elevation?latitude={lat}&longitude={lon}";
+const AIRDEFENDER_ELEVATION_MIN_FT = -1500;
+const AIRDEFENDER_ELEVATION_MAX_FT = 15000;
+
+/* A saved show elevation in feet, kept to a sensible range (0 if unset). */
+function airdefender_clamp_elevation($value): int
+{
+    return is_numeric($value)
+        ? (int) max(AIRDEFENDER_ELEVATION_MIN_FT, min(AIRDEFENDER_ELEVATION_MAX_FT, round((float) $value)))
+        : 0;
+}
+
+/*
+ * Aircraft report their height above sea level. Subtracting the show's own
+ * elevation makes 'altFt' the height above the show, which is what the
+ * altitude limit means. With an elevation of 0 nothing changes.
+ */
+function airdefender_above_show(array $planes, float $elevationFt): array
+{
+    if ($elevationFt == 0) {
+        return $planes;
+    }
+    foreach ($planes as $i => $p) {
+        if ($p['altFt'] !== null) {
+            $planes[$i]['altFt'] = $p['altFt'] - $elevationFt;
+        }
+    }
+    return $planes;
+}
+
+/* Ground elevation at a point, in feet: [feet, null] or [null, error]. */
+function airdefender_lookup_elevation(float $lat, float $lon): array
+{
+    $url = str_replace(['{lat}', '{lon}'], [round($lat, 5), round($lon, 5)], AIRDEFENDER_ELEVATION_URL);
+    $context = stream_context_create(['http' => [
+        'timeout' => 8,
+        'header' => "User-Agent: FPP-AirDefender\r\nAccept: application/json\r\n",
+        'ignore_errors' => true,
+    ]]);
+    $body = @file_get_contents($url, false, $context);
+    if ($body === false) {
+        return [null, "No answer from the elevation service (api.open-meteo.com). Check the FPP has internet access, or enter the elevation yourself."];
+    }
+    $data = json_decode($body, true);
+    $meters = $data['elevation'][0] ?? null;
+    if (!is_numeric($meters)) {
+        $why = is_array($data) && isset($data['reason']) ? ": " . rtrim((string) $data['reason'], '. ') : '';
+        return [null, "The elevation service could not answer{$why}. Enter the elevation yourself."];
+    }
+    return [airdefender_clamp_elevation((float) $meters * AIRDEFENDER_FEET_PER_METER), null];
+}
+
 function airdefender_distance_nm(float $lat1, float $lon1, float $lat2, float $lon2): float
 {
     $earthRadiusNm = 3440.065;

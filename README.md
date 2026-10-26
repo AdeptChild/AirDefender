@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 0.9.3 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 0.9.4 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -60,7 +60,7 @@ itself. **Release Notes** in Plugin Manager shows the changelog.
    from xLights. Then enter the **shutter channel** from the fixture's DMX chart (for example 7) and the **closed**
    value (often 0). The row shows the FPP channel it works out, for example `→ FPP ch 82454`.
 4. **When and where:** check your location (FPP's own location is used by default; **Check it on a map** confirms
-   it).
+   it), then press **Look it up** beside **Show elevation** so heights are measured from your show.
 5. **Flight data:** press **Test connection**. You should see `OK · N aircraft nearby`.
 6. Save, open the **dashboard**, and run a **Test**: the heads should close within a second and open again when the
    timer ends.
@@ -73,7 +73,7 @@ Every page has help behind FPP's **?** button.
 |---|---|
 | **1. Air Defender** | Enabled; **Role** (Master or Remote); on a Remote, the master's address and UI password. |
 | **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
-| **3. When and where** | **When to check** (scheduled shows, whenever FPP is playing, or always) and the show location. |
+| **3. When and where** | **When to check** (scheduled shows, whenever FPP is playing, or always), the show location and its elevation. |
 | **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
 | **5. Flight data** | The service, **Test connection**, automatic backup, and **Close heads if feed is down**. |
 
@@ -89,6 +89,18 @@ create models for DMX fixtures by itself, and xLights changes spaces in model na
 Heads picked by model are looked up by name, so a head re-patched in xLights and uploaded again is followed
 automatically. If a model is renamed or deleted, its row turns red and Air Defender keeps protecting the channel it
 last found for it until you pick the model again.
+
+### Show elevation
+
+Aircraft report their height above sea level, not above your yard. Set **Show elevation** (feet above sea level) and
+Air Defender subtracts it, so the altitude limit means height above your show: with the show at 800 ft and a 3,000 ft
+limit, heads close for aircraft below 3,800 ft above sea level. This matters most on high ground; in Denver, at
+5,300 ft, a 3,000 ft limit measured from sea level would never trigger.
+
+**Look it up** fills it in for whichever location is in use (FPP's, or the one you entered) from Open-Meteo's
+elevation data (Copernicus DEM, 90 m). It sends that location to api.open-meteo.com once, only when you press it. Left
+at 0, heights are measured above sea level. The dashboard, radar, log and command-line check all show heights above
+the show once it is set.
 
 ### When it checks
 
@@ -174,6 +186,7 @@ is switched to the default automatically.
 
 - Your **show's location** and search radius go to the flight-data service you pick (adsb.fi, adsb.lol, or neither
   with a local receiver), only while Air Defender is checking.
+- Pressing **Look it up** beside Show elevation sends the location once to api.open-meteo.com.
 - A Remote asks its master for its status over your local network, with the master's UI password if you entered one.
 - The log (`/home/fpp/media/logs/airdefender.log`) records the callsigns, distance and height of low aircraft that
   passed near your show. It keeps **7 days** and can be deleted with **Clear log**.
@@ -206,7 +219,7 @@ aircraft, marking those inside your limits.
 php /home/fpp/media/plugins/AirDefender/scripts/airdefender_check.php
 ```
 
-Options `--url`, `--lat`, `--lon`, `--distance` and `--altitude` override the saved settings. Exit code: 0 clear,
+Options `--url`, `--lat`, `--lon`, `--distance`, `--altitude` and `--elevation` override the saved settings. Exit code: 0 clear,
 1 an aircraft is inside the limits, 2 could not check.
 
 ## How it works (for developers)

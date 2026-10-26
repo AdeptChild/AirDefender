@@ -12,7 +12,9 @@
  *   POST action=clear_log                -> empty the Air Defender log
  *   POST action=override&minutes=<n>     -> check for aircraft now, for n minutes
  *   POST action=override_off             -> end that early
- *   POST action=feed_test&url=&lat=&lon=&nm=&ft=
+ *   POST action=elevation&lat=&lon=        -> ground elevation there, in feet (Settings'
+ *                                           Look it up), from api.open-meteo.com
+ *   POST action=feed_test&url=&lat=&lon=&nm=&ft=&elev=
  *                                        -> ask a flight-data service once (Settings'
  *                                           Test connection); only offered services
  *
@@ -59,6 +61,17 @@ switch ($action) {
         airdefender_override_stop();
         $status = airdefender_test_status();
         break;
+    case 'elevation':
+        require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
+        $lat = $_POST['lat'] ?? null;
+        $lon = $_POST['lon'] ?? null;
+        if (!is_numeric($lat) || !is_numeric($lon) || abs((float) $lat) > 90 || abs((float) $lon) > 180) {
+            echo json_encode(['ok' => false, 'error' => 'Set the show location first.']);
+            exit;
+        }
+        [$feet, $error] = airdefender_lookup_elevation((float) $lat, (float) $lon);
+        echo json_encode($feet === null ? ['ok' => false, 'error' => $error] : ['ok' => true, 'feet' => $feet]);
+        exit;
     case 'feed_test':
         require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
         require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
@@ -92,6 +105,7 @@ switch ($action) {
             echo json_encode(['ok' => false, 'error' => $error, 'ms' => $ms]);
             exit;
         }
+        $planes = airdefender_above_show($planes, airdefender_clamp_elevation($_POST['elev'] ?? 0));
         $airborne = 0;
         $inside = 0;
         $nearest = null;

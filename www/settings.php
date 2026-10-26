@@ -18,6 +18,7 @@ $pluginName = "AirDefender";
 
 require_once(dirname(__DIR__) . "/scripts/airdefender_models.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_version.php");
 $airdefenderModels = airdefender_fpp_models();
 $airdefenderState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
@@ -227,6 +228,11 @@ $settings = array(
         'type' => 'string',
         'default' => '',
     ),
+    'showElevationFt' => array(
+        'label' => 'Show elevation (ft above sea level)',
+        'type' => 'int',
+        'default' => 0,
+    ),
     'distanceNM' => array(
         'label' => 'Distance Threshold (NM)',
         'type' => 'int',
@@ -344,7 +350,7 @@ $settingGroups = array(
     'Plugin Status' => array('enabled'),
     'Operation Mode' => array('nodeRole', 'masterAddress'),
     'Moving Heads' => $headKeys,
-    'Location' => array('useFPPLocation', 'latitude', 'longitude'),
+    'Location' => array('useFPPLocation', 'latitude', 'longitude', 'showElevationFt'),
     'Safety Thresholds' => array('checkWhen', 'distanceNM', 'altitudeThresholdFt', 'fetchInterval', 'clearDelaySec'),
     'ADS-B Feed' => array('adsbSourceUrl', 'feedDownSafe'),
 );
@@ -387,6 +393,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $intValue = max(0, min(600, $intValue));
             } elseif ($key === 'fetchInterval') {
                 $intValue = max(5, $intValue);
+            } elseif ($key === 'showElevationFt') {
+                $intValue = airdefender_clamp_elevation($intValue);
             }
             $toSave[$key] = (string) $intValue;
         } elseif ($config['type'] === 'select') {
@@ -684,6 +692,14 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 </div>
                 <div class="ads-help" id="locHelp"></div>
             </div>
+            <div class="ads-field">
+                <label for="showElevationFt">Show elevation</label>
+                <div class="ads-unit">
+                    <input type="number" name="showElevationFt" id="showElevationFt" value="<?php echo htmlspecialchars((string) $v('showElevationFt')); ?>" min="<?php echo AIRDEFENDER_ELEVATION_MIN_FT; ?>" max="<?php echo AIRDEFENDER_ELEVATION_MAX_FT; ?>" step="1" style="width:100px;"><span>ft above sea level</span>
+                    <button type="button" class="ads-btn" id="elevLookup" style="margin-left:8px;">Look it up</button>
+                </div>
+                <div class="ads-help" id="elevHelp"></div>
+            </div>
             </div>
         </div>
 
@@ -698,7 +714,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             <div class="ads-field">
                 <label for="altitudeThresholdFt">Altitude</label>
                 <div class="ads-unit"><input type="number" name="altitudeThresholdFt" id="altitudeThresholdFt" value="<?php echo htmlspecialchars((string) $v('altitudeThresholdFt')); ?>" min="0" step="100"><span>ft</span> <span id="mHint"></span></div>
-                <div class="ads-help">Heads close when an aircraft is inside the distance <i>and</i> below the altitude.</div>
+                <div class="ads-help" id="altHelp">Heads close when an aircraft is inside the distance <i>and</i> below the altitude.</div>
             </div>
             <div class="ads-field">
                 <label for="clearDelaySec">Hold after it leaves</label>
@@ -918,6 +934,53 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         }
     }
 
+    function elevation() {
+        var e = parseInt($('showElevationFt').value, 10);
+        return isNaN(e) ? 0 : e;
+    }
+    function updateElevation() {
+        var e = elevation(), ft = parseFloat($('altitudeThresholdFt').value);
+        var help = $('elevHelp');
+        if (elevMsg) {
+            help.textContent = elevMsg.text; help.style.color = elevMsg.color;
+        } else {
+            help.style.color = '';
+            help.textContent = e === 0
+                ? 'Aircraft report their height above sea level. Enter your ground’s elevation, or press Look it up, so the altitude limit counts from your show.'
+                : 'The altitude limit counts from here.';
+        }
+        $('altHelp').innerHTML = '';
+        $('altHelp').appendChild(document.createTextNode(e !== 0 && ft >= 0
+            ? 'Heads close when an aircraft is inside the distance and less than ' + Math.round(ft).toLocaleString()
+              + ' ft above your show (below ' + Math.round(ft + e).toLocaleString() + ' ft above sea level).'
+            : 'Heads close when an aircraft is inside the distance and below the altitude.'));
+    }
+    var elevMsg = null;
+    ['showElevationFt', 'latitude', 'longitude', 'useFppSw'].forEach(function (id) {
+        $(id).addEventListener(id === 'useFppSw' ? 'change' : 'input', function () { elevMsg = null; });
+    });
+    $('elevLookup').addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        elevMsg = { text: 'Looking it up…', color: '' };
+        updateElevation();
+        var body = new URLSearchParams({ action: 'elevation', lat: $('latitude').value, lon: $('longitude').value });
+        fetch(API, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.ok) {
+                    $('showElevationFt').value = d.feet;
+                    elevMsg = { text: 'Found ' + d.feet.toLocaleString() + ' ft at ' + $('latitude').value + ', ' + $('longitude').value
+                        + '. Save to use it. Elevation data: Open-Meteo, Copernicus DEM.', color: '#7dffb4' };
+                } else {
+                    elevMsg = { text: d.error || 'No answer', color: '#ffb74d' };
+                }
+            })
+            .catch(function (e) { elevMsg = { text: 'Could not look it up: ' + e.message, color: '#ffb74d' }; })
+            .then(function () { btn.disabled = false; refreshAll(); dirty(); });
+    });
+
     /* ---------- section 4 ---------- */
     function updateRate() {
         var nm = parseFloat($('distanceNM').value), ft = parseFloat($('altitudeThresholdFt').value);
@@ -938,7 +1001,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         var body = new URLSearchParams({
             action: 'feed_test', url: $('adsbSourceUrl').value,
             lat: $('latitude').value, lon: $('longitude').value,
-            nm: $('distanceNM').value, ft: $('altitudeThresholdFt').value
+            nm: $('distanceNM').value, ft: $('altitudeThresholdFt').value, elev: elevation()
         });
         fetch(API, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
                      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
@@ -947,7 +1010,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 if (d.ok) {
                     out.className = 'ads-test-out ok';
                     out.textContent = 'OK · ' + d.aircraft + ' aircraft nearby'
-                        + (d.nearest ? ' · nearest ' + d.nearest.id + ' at ' + d.nearest.nm + ' NM' + (d.nearest.ft !== null ? ', ' + d.nearest.ft.toLocaleString() + ' ft' : '') : '')
+                        + (d.nearest ? ' · nearest ' + d.nearest.id + ' at ' + d.nearest.nm + ' NM' + (d.nearest.ft !== null ? ', ' + d.nearest.ft.toLocaleString() + ' ft' + (elevation() ? ' above the show' : '') : '') : '')
                         + (d.inside ? ' · ' + d.inside + ' inside your limits' : '') + ' (' + d.ms + ' ms)';
                 } else {
                     out.className = 'ads-test-out err';
@@ -978,7 +1041,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         if (!submitting && snapshot() !== initial) { e.preventDefault(); e.returnValue = ''; }
     });
 
-    function refreshAll() { updateTop(); allHeads(); updateWhen(); updateLocation(); updateRate(); }
+    function refreshAll() { updateTop(); allHeads(); updateWhen(); updateLocation(); updateElevation(); updateRate(); }
     refreshAll();
     initial = snapshot();
     var msg = $('adsMsg');

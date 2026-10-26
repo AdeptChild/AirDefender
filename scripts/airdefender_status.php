@@ -70,6 +70,7 @@ function airdefender_live_status(bool $detailed = false): array
             'nm' => isset($limits['nm']) ? (float) $limits['nm'] : null,
             'ft' => isset($limits['ft']) ? (int) $limits['ft'] : null,
             'holdSec' => isset($limits['holdSec']) ? (int) $limits['holdSec'] : null,
+            'elevationFt' => isset($limits['elevationFt']) ? (int) $limits['elevationFt'] : 0,
         ],
         'aircraft' => $detailed && is_array($state['nearby'] ?? null) ? $state['nearby'] : null,
         'checking' => !array_key_exists('checking', $state) || !empty($state['checking']),
