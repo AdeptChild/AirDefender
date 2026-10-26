@@ -64,9 +64,14 @@ A remote finds its master automatically from FPP's MultiSync list, or uses the *
 
 Older settings saved as "Standalone" run as Master.
 
-## Moving Heads (Step 2 UI)
+## Moving Heads
 
-The settings page has a compact **Moving Heads** section with up to 8 heads (MH1–MH8), each with an enabled toggle, shutter channel and closed value. The open value is automatically the opposite of the closed value. **Node Role** appears near the top, after Plugin Status. The old Controller group is hidden from the UI, but its legacy keys (`controllerType`, `blackoutStartChannel`, `blackoutEndChannel`) are still kept in the config.
+The settings page has up to 8 heads (MH1–MH8). For each, turn it on, then either:
+
+- pick its **model** from FPP's model list (uploaded from xLights by FPP Connect, or added on FPP's Pixel Overlay Models page) and enter the **shutter's channel within the fixture** from its DMX chart (e.g. 6). The resulting FPP channel is shown next to it. Heads are looked up by model name, so re-patching in xLights and uploading again is followed automatically; or
+- choose **Manual channel** and type the shutter's absolute FPP channel.
+
+Set the **closed value** (0–255) from the fixture's DMX chart. If a model is renamed or deleted, the row is flagged and Air Defender keeps protecting the channel it last resolved to, and logs a warning.
 
 ## How the blackout works
 

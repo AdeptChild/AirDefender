@@ -16,6 +16,11 @@ if (!function_exists("GetSetting")) {
 
 $pluginName = "AirDefender";
 
+require_once(dirname(__DIR__) . "/scripts/airdefender_models.php");
+$airdefenderModels = airdefender_fpp_models();
+$airdefenderState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
+$airdefenderLastKnown = is_array($airdefenderState['lastKnownChannels'] ?? null) ? $airdefenderState['lastKnownChannels'] : array();
+
 // Snapshot FPP's own global $settings array before this page defines its own $settings below.
 $AirDefenderFppSettings = (isset($GLOBALS['settings']) && is_array($GLOBALS['settings'])) ? $GLOBALS['settings'] : array();
 
@@ -262,6 +267,17 @@ for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
         'type' => 'bool',
         'default' => false,
     );
+    $settings['head' . $headIndex . 'Model'] = array(
+        'label' => 'MH' . $headIndex . ' Model',
+        'type' => 'string',
+        'default' => '',
+    );
+    $settings['head' . $headIndex . 'Offset'] = array(
+        'label' => 'MH' . $headIndex . ' Shutter Channel in Fixture',
+        'type' => 'int',
+        'default' => 1,
+    );
+    // The manual channel; for a head set by model, the channel it last resolved to.
     $settings['head' . $headIndex . 'Channel'] = array(
         'label' => 'MH' . $headIndex . ' Shutter Channel',
         'type' => 'int',
@@ -276,7 +292,7 @@ for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
 
 $headKeys = array();
 for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
-    foreach (array('Enabled', 'Channel', 'ClosedValue') as $headField) {
+    foreach (array('Enabled', 'Model', 'Offset', 'Channel', 'ClosedValue') as $headField) {
         $headKeys[] = 'head' . $headIndex . $headField;
     }
 }
@@ -312,6 +328,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $intValue = max(0, min(255, $intValue));
             } elseif (preg_match('/^head[1-8]Channel$/', $key)) {
                 $intValue = max(0, $intValue);
+            } elseif (preg_match('/^head[1-8]Offset$/', $key)) {
+                $intValue = max(1, $intValue);
             }
             $toSave[$key] = (string) $intValue;
         } elseif ($config['type'] === 'select') {
@@ -321,6 +339,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } else {
             $toSave[$key] = trim((string) $postedValue);
+        }
+    }
+
+    // A head set by model also stores the channel it resolves to now, as its
+    // last known channel in case the model later disappears.
+    for ($headIndex = 1; $headIndex <= 8; $headIndex++) {
+        if (($toSave['head' . $headIndex . 'Model'] ?? '') === '') {
+            continue;
+        }
+        $head = airdefender_resolve_head($toSave, $headIndex, $airdefenderModels);
+        if ($head['status'] === 'ok') {
+            $toSave['head' . $headIndex . 'Channel'] = (string) $head['channel'];
         }
     }
 
@@ -375,12 +405,13 @@ if ($useFppLocationEnabled) {
     .settings-layout > [data-group="Location"],
     .settings-layout > [data-group="Safety Thresholds"],
     .settings-layout > [data-group="ADS-B Feed"],
+    .settings-layout > [data-group="Moving Heads"],
     .settings-layout > .settings-actions {
         grid-column: 1 / -1;
     }
     .moving-head-grid {
         display: grid;
-        grid-template-columns: 40px auto 76px 56px;
+        grid-template-columns: 34px auto minmax(150px, 230px) 76px 56px minmax(0, 1fr);
         justify-content: start;
         gap: 6px 8px;
         align-items: center;
@@ -413,9 +444,37 @@ if ($useFppLocationEnabled) {
             grid-column: 1;
         }
     }
+    .moving-head-grid select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #444;
+        background: #111;
+        color: #fff;
+    }
+    .moving-head-grid .head-result {
+        font-size: 13px;
+        color: #8fd18f;
+        white-space: nowrap;
+    }
+    .moving-head-grid .head-result.warn {
+        color: #ffb74d;
+        white-space: normal;
+    }
+    .moving-head-grid .head-result.err {
+        color: #ff7b72;
+        white-space: normal;
+    }
+    @media (max-width: 600px) {
+        .moving-head-grid .head-result {
+            grid-column: 3 / -1;
+            margin-top: -2px;
+        }
+    }
     @media (max-width: 600px) {
         .moving-head-grid {
-            grid-template-columns: 30px auto 70px 52px;
+            grid-template-columns: 26px auto minmax(110px, 1fr) 64px 52px;
             column-gap: 6px;
         }
     }
@@ -429,20 +488,31 @@ if ($useFppLocationEnabled) {
                 <div class="moving-head-grid">
                     <div>Head</div>
                     <div>Enabled</div>
+                    <div>Model</div>
                     <div>Shutter Ch.</div>
                     <div>Closed</div>
+                    <div></div>
                     <?php for ($headIndex = 1; $headIndex <= 8; $headIndex++): ?>
                         <?php
                             $enabledKey = 'head' . $headIndex . 'Enabled';
                             $channelKey = 'head' . $headIndex . 'Channel';
                             $closedValueKey = 'head' . $headIndex . 'ClosedValue';
+                            $modelKey = 'head' . $headIndex . 'Model';
+                            $offsetKey = 'head' . $headIndex . 'Offset';
+                            $headModel = (string) $settings[$modelKey]['value'];
+                            $headModelMissing = $headModel !== '' && is_array($airdefenderModels) && !isset($airdefenderModels[$headModel]);
+                            // For a head set by model, show (and keep on save) the channel the
+                            // detection loop last resolved it to, which follows re-patches.
+                            if ($headModel !== '' && !empty($airdefenderLastKnown[$headIndex])) {
+                                $settings[$channelKey]['value'] = (string) (int) $airdefenderLastKnown[$headIndex];
+                            }
                         ?>
                         <div data-head="<?php echo $headIndex; ?>" style="display:contents;">
                             <div class="head-number"><?php echo $headIndex; ?></div>
                             <div class="head-toggle-cell">
                                 <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" data-compact="true" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
                                     <?php foreach (array('1' => 'Yes', '0' => 'No') as $toggleValue => $toggleLabel): ?>
-                                        <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ($toggleValue === '1'); ?>
+                                        <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ((string) $toggleValue === '1'); ?>
                                         <label style="display:block;cursor:pointer;">
                                             <input type="radio" name="<?php echo htmlspecialchars($enabledKey); ?>" value="<?php echo $toggleValue; ?>" <?php echo $selected ? 'checked' : ''; ?> style="display:none;">
                                             <span style="display:block;text-align:center;padding:5px 9px;min-width:42px;box-sizing:border-box;border-radius:5px;font-size:13px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo $selected ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
@@ -452,22 +522,45 @@ if ($useFppLocationEnabled) {
                                     <?php endforeach; ?>
                                 </div>
                             </div>
-                            <?php foreach (array($channelKey, $closedValueKey) as $inputKey): ?>
-                                <div class="head-input-cell">
-                                    <input
-                                        type="number"
-                                        name="<?php echo htmlspecialchars($inputKey); ?>"
-                                        id="<?php echo htmlspecialchars($inputKey); ?>"
-                                        value="<?php echo htmlspecialchars((string) $settings[$inputKey]['value']); ?>"
-                                        min="0"
-                                        <?php echo $inputKey === $closedValueKey ? 'max="255"' : ''; ?>
-                                        step="1"
-                                        style="<?php echo $inputKey === $closedValueKey ? 'width:56px;' : 'width:76px;'; ?>box-sizing:border-box;padding:6px 6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;"
-                                    >
-                                </div>
-                            <?php endforeach; ?>
+                            <div class="head-input-cell">
+                                <select name="<?php echo htmlspecialchars($modelKey); ?>" id="<?php echo htmlspecialchars($modelKey); ?>" data-head-model="<?php echo $headIndex; ?>">
+                                    <option value="" <?php echo $headModel === '' ? 'selected' : ''; ?>>Manual channel</option>
+                                    <?php if ($headModelMissing): ?>
+                                        <option value="<?php echo htmlspecialchars($headModel); ?>" selected><?php echo htmlspecialchars($headModel); ?> (not found)</option>
+                                    <?php endif; ?>
+                                    <?php foreach ((array) $airdefenderModels as $modelName => $modelInfo): ?>
+                                        <option value="<?php echo htmlspecialchars($modelName); ?>" <?php echo $headModel === (string) $modelName ? 'selected' : ''; ?>><?php echo htmlspecialchars($modelName); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="head-input-cell">
+                                <input type="number" name="<?php echo htmlspecialchars($offsetKey); ?>" id="<?php echo htmlspecialchars($offsetKey); ?>"
+                                    value="<?php echo htmlspecialchars((string) max(1, (int) $settings[$offsetKey]['value'])); ?>" min="1" step="1"
+                                    title="The shutter's channel number in the fixture's DMX chart"
+                                    style="width:76px;box-sizing:border-box;padding:6px 6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo $headModel === '' ? 'display:none;' : ''; ?>">
+                                <input type="number" name="<?php echo htmlspecialchars($channelKey); ?>" id="<?php echo htmlspecialchars($channelKey); ?>"
+                                    value="<?php echo htmlspecialchars((string) $settings[$channelKey]['value']); ?>" min="0" step="1"
+                                    title="The absolute FPP channel of the shutter"
+                                    style="width:76px;box-sizing:border-box;padding:6px 6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo $headModel === '' ? '' : 'display:none;'; ?>">
+                            </div>
+                            <div class="head-input-cell">
+                                <input type="number" name="<?php echo htmlspecialchars($closedValueKey); ?>" id="<?php echo htmlspecialchars($closedValueKey); ?>"
+                                    value="<?php echo htmlspecialchars((string) $settings[$closedValueKey]['value']); ?>" min="0" max="255" step="1"
+                                    style="width:56px;box-sizing:border-box;padding:6px 6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;">
+                            </div>
+                            <div class="head-result" id="head<?php echo $headIndex; ?>Result"></div>
                         </div>
                     <?php endfor; ?>
+                </div>
+                <div style="margin-top:12px;color:#aaa;font-size:13px;line-height:1.5;max-width:760px;">
+                    Pick each head's <b>model</b> and enter the shutter's channel number <b>in the fixture</b>, from its DMX chart (for example 6).
+                    Air Defender works out the FPP channel, and follows the model if you re-patch it in xLights and upload again.
+                    Choose <b>Manual channel</b> to type the absolute FPP channel instead.
+                    <?php if ($airdefenderModels === null): ?>
+                        <br><span style="color:#ffb74d;">Could not read FPP's model list right now; only Manual channel can be checked.</span>
+                    <?php elseif (!$airdefenderModels): ?>
+                        <br><span style="color:#ffb74d;">No models found in FPP. Upload them from xLights with FPP Connect, or add them on FPP's Pixel Overlay Models page; until then, use Manual channel.</span>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
@@ -626,15 +719,68 @@ if ($useFppLocationEnabled) {
         });
     }
 
+    var adModels = <?php echo json_encode(is_array($airdefenderModels) ? $airdefenderModels : new stdClass()); ?>;
+    var adModelsKnown = <?php echo $airdefenderModels === null ? 'false' : 'true'; ?>;
+
+    function updateHeadRow(n) {
+        var select = document.getElementById('head' + n + 'Model');
+        var offsetInput = document.getElementById('head' + n + 'Offset');
+        var channelInput = document.getElementById('head' + n + 'Channel');
+        var result = document.getElementById('head' + n + 'Result');
+        if (!select || !offsetInput || !channelInput || !result) {
+            return;
+        }
+        var name = select.value;
+        var manual = name === '';
+        offsetInput.style.display = manual ? 'none' : '';
+        channelInput.style.display = manual ? '' : 'none';
+
+        var text = '';
+        var cls = '';
+        if (manual) {
+            var ch = parseInt(channelInput.value, 10);
+            text = ch > 0 ? 'FPP ch ' + ch : 'Enter the FPP channel';
+            cls = ch > 0 ? '' : 'warn';
+        } else if (!adModelsKnown) {
+            text = 'Model list unavailable';
+            cls = 'warn';
+        } else if (!Object.prototype.hasOwnProperty.call(adModels, name)) {
+            var last = parseInt(channelInput.value, 10);
+            text = 'Model not found: pick it again' + (last > 0 ? ' (still protecting ch ' + last + ')' : '');
+            cls = 'err';
+        } else {
+            var m = adModels[name];
+            var off = parseInt(offsetInput.value, 10);
+            if (!(off >= 1)) {
+                text = 'Enter the shutter channel in the fixture';
+                cls = 'warn';
+            } else if (off > m.count) {
+                text = 'Past the end of this model (' + m.count + ' ch)';
+                cls = 'err';
+            } else {
+                text = '\u2192 FPP ch ' + (m.start + off - 1);
+            }
+        }
+        result.textContent = text;
+        result.className = 'head-result' + (cls ? ' ' + cls : '');
+    }
+
     function updateHeadState() {
         for (var n = 1; n <= 8; n++) {
+            updateHeadRow(n);
             var group = document.querySelector('[data-boolean-group="head' + n + 'Enabled"]');
             if (!group) {
                 continue;
             }
             var yes = group.querySelector('input[type="radio"][value="1"]');
             var on = yes && yes.checked;
-            ['Channel', 'ClosedValue'].forEach(function (field) {
+            if (!on) {
+                var unused = document.getElementById('head' + n + 'Result');
+                if (unused) {
+                    unused.textContent = '';
+                }
+            }
+            ['Model', 'Offset', 'Channel', 'ClosedValue', 'Result'].forEach(function (field) {
                 var input = document.getElementById('head' + n + field);
                 if (!input) {
                     return;
@@ -701,6 +847,15 @@ if ($useFppLocationEnabled) {
         var roleSelect = document.getElementById('nodeRole');
         if (roleSelect) {
             roleSelect.addEventListener('change', updateNodeRoleState);
+        }
+
+        for (var h = 1; h <= 8; h++) {
+            ['Model', 'Offset', 'Channel'].forEach(function (field) {
+                var el = document.getElementById('head' + h + field);
+                if (el) {
+                    el.addEventListener(field === 'Model' ? 'change' : 'input', updateHeadState);
+                }
+            });
         }
     });
 })();

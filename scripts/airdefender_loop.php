@@ -26,6 +26,7 @@ if (PHP_SAPI !== 'cli') {
 require_once(__DIR__ . "/airdefender_time.php");
 require_once(__DIR__ . "/airdefender_controller.php");
 require_once(__DIR__ . "/airdefender_test.php");
+require_once(__DIR__ . "/airdefender_models.php");
 
 const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_FEED = "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}";
@@ -360,6 +361,14 @@ if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
 
 $state = airdefender_read_state();
 $outputs = new AirDefenderOutputs(is_array($state['appliedChannels'] ?? null) ? $state['appliedChannels'] : []);
+// Channel each head last resolved to (head number => channel), so a head whose
+// model disappears keeps being protected, across restarts too.
+$lastKnown = [];
+foreach ((is_array($state['lastKnownChannels'] ?? null) ? $state['lastKnownChannels'] : []) as $n => $ch) {
+    $lastKnown[(int) $n] = (int) $ch;
+}
+$models = null;              // FPP's model list, last good read
+$modelsAt = 0;
 
 $safe = false;
 $lastTriggerAt = 0;          // last time an aircraft was inside the thresholds
@@ -392,7 +401,30 @@ while (true) {
     $fetchInterval = max(5, (int) airdefender_setting($settings, 'fetchInterval', 10));
     $clearDelay = max(0, (int) airdefender_setting($settings, 'clearDelaySec', AIRDEFENDER_DEFAULT_CLEAR_DELAY));
     $feedTemplate = (string) airdefender_setting($settings, 'adsbSourceUrl', AIRDEFENDER_DEFAULT_FEED);
-    $heads = AirDefenderOutputs::headsFromSettings($settings);
+    // Re-read FPP's models every 10 s, so a head re-patched in xLights and
+    // re-uploaded is followed. A failed read keeps the last good list.
+    if ($now - $modelsAt >= 10) {
+        $modelsAt = $now;
+        $fresh = airdefender_fpp_models();
+        if ($fresh !== null) {
+            $models = $fresh;
+        }
+    }
+    $resolved = airdefender_resolve_heads($settings, $models, $lastKnown);
+    $heads = [];             // channel => closed value, for every enabled head
+    foreach ($resolved as $n => $h) {
+        if (in_array($h['status'], ['ok', 'manual'], true)) {
+            if (($lastKnown[$n] ?? null) !== $h['channel'] && $h['status'] === 'ok' && isset($lastKnown[$n])) {
+                airdefender_log("MH{$n} ({$h['model']}) moved from channel {$lastKnown[$n]} to {$h['channel']}; following it.");
+            }
+            $lastKnown[$n] = $h['channel'];
+        }
+        if ($h['enabled'] && $h['channel'] !== null) {
+            $heads[$h['channel']] = $h['closed'];
+        }
+        airdefender_log_once("head{$n}", $h['enabled'] && $h['message'] !== '' ? $h['message'] . '.' : null);
+    }
+    ksort($heads);
     [$lat, $lon] = airdefender_location($settings);
 
     $test = airdefender_test_status();
@@ -569,6 +601,10 @@ while (true) {
             'error' => $masterError,
         ] : null,
         'headsConfigured' => count($heads),
+        'heads' => array_map(function ($h) {
+            return ['model' => $h['model'], 'channel' => $h['channel'], 'status' => $h['status'], 'problem' => $h['message']];
+        }, array_filter($resolved, function ($h) { return $h['enabled']; })),
+        'lastKnownChannels' => $lastKnown,
         'appliedChannels' => $outputs->applied(),
         'outputError' => $outputsOk ? null : $outputs->lastError,
         'lastUpdated' => date('c', $now),

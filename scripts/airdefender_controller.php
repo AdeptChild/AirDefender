@@ -39,29 +39,6 @@ class AirDefenderOutputs
     }
 
     /*
-     * Enabled heads from the plugin settings, as channel => closed value.
-     * Heads with no channel set are skipped.
-     */
-    public static function headsFromSettings(array $settings): array
-    {
-        $heads = [];
-        for ($i = 1; $i <= 8; $i++) {
-            $enabled = $settings["head{$i}Enabled"] ?? '0';
-            if (!in_array(strtolower(trim((string) $enabled)), ['1', 'true', 'yes', 'on', 'y'], true)) {
-                continue;
-            }
-            $channel = (int) ($settings["head{$i}Channel"] ?? 0);
-            if ($channel < 1) {
-                continue;
-            }
-            $closed = max(0, min(255, (int) ($settings["head{$i}ClosedValue"] ?? 0)));
-            $heads[$channel] = $closed;
-        }
-        ksort($heads);
-        return $heads;
-    }
-
-    /*
      * Make the outputs match $safe. $heads is channel => closed value.
      * Returns true if fppd accepted every request.
      */
