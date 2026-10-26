@@ -2,7 +2,7 @@
     "repoName": "AirDefender",
     "name": "Air Defender",
     "author": "G Hancox",
-    "description": "Closes your moving heads' shutters while low aircraft fly near your show, using live ADS-B flight data.",
+    "description": "Closes your moving heads' shutters while low aircraft fly near your show. Sends your show's location to adsb.fi (free flight data) to find aircraft nearby; only if you use them, to adsb.lol as a backup and to Open-Meteo to look up your ground elevation.",
     "homeURL": "https://github.com/G-Hancox/AirDefender",
     "srcURL": "https://github.com/G-Hancox/AirDefender.git",
     "bugURL": "https://github.com/G-Hancox/AirDefender/issues",
@@ -23,18 +23,18 @@
         "plugins": []
     },
     "privacy": {
-        "summary": "Checks a free online flight-tracking service for low aircraft near your show and closes your moving heads' shutters while one is close. Your show's location is sent to that service.",
+        "summary": "Checks adsb.fi, a free flight-tracking service, for low aircraft near your show and closes your moving heads' shutters while one is close. Your show's location is sent to adsb.fi.",
         "sends": [
             {
                 "to": "api.adsb.lol",
                 "what": "your show's location and search radius",
-                "why": "to get the aircraft near your show, if you pick it or as the backup",
+                "why": "to get the aircraft near your show, only if you choose it, or turn on Use the other as a backup",
                 "alwaysOn": false
             },
             {
                 "to": "opendata.adsb.fi",
                 "what": "your show's location and search radius",
-                "why": "to get the aircraft flying near your show (the default service)",
+                "why": "to get the aircraft flying near your show (the default service), only while Air Defender is checking",
                 "alwaysOn": false
             },
             {
@@ -56,7 +56,7 @@
                 "about": "third-parties",
                 "keptDays": 7,
                 "canDelete": true,
-                "where": "plugin log (/home/fpp/media/logs/airdefender.log)"
+                "where": "plugin log (/home/fpp/media/logs/plugin-AirDefender.log), rotated by FPP"
             }
         ],
         "sensors": [],
@@ -68,6 +68,6 @@
             }
         ],
         "closedCode": false,
-        "other": "While an aircraft is near, or during a test, it overrides the shutter channels of the moving heads you list using FPP's channel overlays. A read-only status page on FPP's web server lets Remote FPPs check the master."
+        "other": "While an aircraft is near, or during a test, it overrides the shutter channels of the moving heads you list using FPP's channel overlays. A read-only status page on FPP's web server lets Remote FPPs check the master. On a Remote, the master's UI password is kept in plugindata, readable only by the fpp user. adsb.lol is sent the location too only if you choose it or turn it on as a backup."
     }
 }

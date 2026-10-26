@@ -24,9 +24,7 @@ function airdefender_test_file(): string
 
 function airdefender_test_log(string $message): void
 {
-    $logFile = "/home/fpp/media/logs/airdefender.log";
-    $timestamp = date("Y-m-d H:i:s");
-    @file_put_contents($logFile, "[{$timestamp}] {$message}\n", FILE_APPEND | LOCK_EX);
+    airdefender_write_log($message);
 }
 
 /*

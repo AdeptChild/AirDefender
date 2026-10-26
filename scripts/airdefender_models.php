@@ -1,4 +1,5 @@
 <?php
+require_once(__DIR__ . "/airdefender_paths.php");
 /*
  * Moving heads by model name.
  *
@@ -42,7 +43,7 @@ function airdefender_fpp_models(): ?array
 
     // fppd not running: the file it loads them from.
     if ($list === null) {
-        $file = json_decode((string) @file_get_contents('/home/fpp/media/config/model-overlays.json'), true);
+        $file = json_decode((string) @file_get_contents(airdefender_media_dir() . '/config/model-overlays.json'), true);
         if (is_array($file) && isset($file['models']) && is_array($file['models'])) {
             $list = $file['models'];
         }

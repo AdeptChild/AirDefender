@@ -4,3 +4,4 @@ test.json
 last_event.json
 *.tmp
 override.json
+loop.lock

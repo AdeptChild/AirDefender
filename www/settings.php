@@ -1,5 +1,6 @@
 <?php
 require_once("/opt/fpp/www/common.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_paths.php");
 require_once("/opt/fpp/www/api/lib/limonade.php");
 
 if (!function_exists("GetSetting")) {
@@ -7,8 +8,8 @@ if (!function_exists("GetSetting")) {
 }
 
 if (!function_exists("GetSetting")) {
-    echo "<div style='padding:20px;background:#3a1f1f;color:#fff;border-radius:8px;'>";
-    echo "<h2 style='margin:0 0 10px 0;'>AirDefender requires the FPP settings API</h2>";
+    echo "<div class='alert alert-danger'>";
+    echo "<h2 class='h5'>Air Defender requires the FPP settings API</h2>";
     echo "<p style='margin:0;'>This page is not running inside a valid FPP plugin environment.</p>";
     echo "</div>";
     exit;
@@ -19,6 +20,7 @@ $pluginName = "AirDefender";
 require_once(dirname(__DIR__) . "/scripts/airdefender_models.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_secret.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_version.php");
 $airdefenderModels = airdefender_fpp_models();
 $airdefenderState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
@@ -47,9 +49,7 @@ function AirDefender_NormalizeValue($value, $default) {
 }
 
 function AirDefender_ConfigPath($pluginName) {
-    global $mediaDirectory;
-    $dir = !empty($mediaDirectory) ? $mediaDirectory : '/home/fpp/media';
-    return $dir . '/config/plugin.' . $pluginName;
+    return airdefender_config_file();
 }
 
 function AirDefender_LoadAll($pluginName) {
@@ -110,7 +110,7 @@ function AirDefender_ParseCoordinate($value, $min, $max) {
 }
 
 function AirDefender_ReadFPPSettingsFile($name) {
-    $paths = array('/home/fpp/media/settings', '/media/settings');
+    $paths = array(airdefender_fpp_settings_file());
     foreach ($paths as $path) {
         if (!is_readable($path)) {
             continue;
@@ -200,7 +200,8 @@ $settings = array(
         'default' => '',
     ),
     // The master's FPP UI password, for a Remote whose master has one. Never
-    // shown back on the page; a blank field keeps the saved one.
+    // shown back on the page; a blank field keeps the saved one. Kept in
+    // plugindata (0600), not in the config file: see airdefender_secret.php.
     'masterPassword' => array(
         'label' => "Master's UI Password",
         'type' => 'string',
@@ -266,7 +267,9 @@ $settings = array(
     'feedFallback' => array(
         'label' => 'Use the Other Service as a Backup',
         'type' => 'bool',
-        'default' => true,
+        // Off until switched on: FPP's guidelines allow only the one service the
+        // plugin exists for (the chosen one) to be sent anything by default.
+        'default' => false,
     ),
     'feedDownSafe' => array(
         'label' => 'Close Heads If Feed Is Down',
@@ -356,6 +359,10 @@ $settingGroups = array(
 );
 
 $statusMessage = '';
+// Reading it also moves a password saved by an older version out of the
+// config file, before a save below writes that file again.
+airdefender_master_password();
+$passwordSaved = true;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $toSave = array();
@@ -367,10 +374,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($key === 'masterPassword') {
             // Blank keeps the saved password; the Remove box clears it.
             if (!empty($_POST['masterPasswordClear'])) {
-                $toSave[$key] = '';
+                $passwordSaved = airdefender_set_master_password('');
             } elseif ((string) $_POST[$key] !== '') {
-                // Stored encoded: the settings file cannot hold every character a password may use.
-                $toSave[$key] = 'b64:' . base64_encode((string) $_POST[$key]);
+                $passwordSaved = airdefender_set_master_password((string) $_POST[$key]);
             }
             continue;
         }
@@ -425,7 +431,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (AirDefender_SaveAll($pluginName, $toSave)) {
-        $statusMessage = "Settings saved.";
+        $statusMessage = $passwordSaved ? "Settings saved."
+            : "ERROR: settings saved, but the master's password could not be saved in " . airdefender_plugindata_dir() . " (check file permissions).";
     } else {
         $statusMessage = "ERROR: could not write " . AirDefender_ConfigPath($pluginName) . " (check file permissions).";
     }
@@ -435,6 +442,7 @@ foreach ($settings as $key => $config) {
     $value = AirDefender_StoredValue($pluginName, $key, $config['default']);
     $settings[$key]['value'] = $value;
 }
+$hasMasterPassword = airdefender_master_password() !== '';
 
 // A retired feed (airplanes.live) shows as its replacement, which is what runs.
 list($settings['adsbSourceUrl']['value'], $airdefenderFeedNote) = airdefender_effective_feed((string) $settings['adsbSourceUrl']['value']);
@@ -472,71 +480,105 @@ if (!in_array(true, $headsShown, true)) {
 $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessage, 'ERROR') !== 0;
 ?>
 <style>
-    .ads { --card:#0f1f18; --card2:#0b1712; --line:#1f3d2d; --text:#e3f2e8; --muted:#8fb09c; --accent:#7dffb4;
-           --warn:#ff9800; --ok:#2fbf71; --bad:#f44336; color:var(--text); max-width:1100px; padding-bottom:80px; }
+    /* Colours follow FPP's light/dark theme (data-bs-theme on the page):
+       light uses FPP's and Bootstrap's own colour variables; dark keeps the
+       radar-scope green of the plugin's icon. Nothing below sets a colour
+       directly, only these variables. */
+    .ads {
+        --card: var(--fpp-bg-card, var(--bs-body-bg)); --card2: var(--bs-body-bg); --line: var(--bs-border-color);
+        --text: var(--bs-body-color); --soft: var(--bs-secondary-color); --muted: var(--bs-secondary-color);
+        --accent: var(--bs-success-text-emphasis); --accent-bg: var(--bs-success); --on-accent: var(--bs-white);
+        --input-line: var(--bs-border-color); --input-text: var(--bs-body-color); --disabled-bg: var(--bs-secondary-bg);
+        --seg: var(--bs-tertiary-bg); --track: var(--bs-secondary-bg); --knob: var(--bs-white); --knob-off: var(--bs-secondary);
+        --ok: var(--bs-success); --good-text: var(--bs-success-text-emphasis); --warn: var(--fpp-header-attention, var(--bs-orange));
+        --caution-text: var(--bs-warning-text-emphasis); --err: var(--bs-danger-text-emphasis);
+        --msg-ok-bg: var(--bs-success-bg-subtle); --msg-ok: var(--bs-success-text-emphasis);
+        --msg-err-bg: var(--bs-danger-bg-subtle); --msg-err: var(--bs-danger-text-emphasis);
+        --bar-bg: var(--bs-warning-bg-subtle); --bar-text: var(--bs-warning-text-emphasis);
+        color: var(--text); max-width: 70rem; padding-bottom: 5rem;
+    }
+    [data-bs-theme="dark"] .ads {
+        --card: #0f1f18; --card2: #0b1712; --line: #1f3d2d; --text: #e3f2e8; --soft: #c6dccd; --muted: #8fb09c;
+        --accent: #7dffb4; --accent-bg: #7dffb4; --on-accent: #0b1712;
+        --input-line: #2a5a40; --input-text: #fff; --disabled-bg: #0b1712;
+        --seg: #0b1712; --track: #2a5a40; --knob: #fff; --knob-off: #c6dccd;
+        --ok: #2fbf71; --good-text: #7dffb4; --warn: #ff9800; --caution-text: #ffb74d; --err: #ff7b72;
+        --msg-ok-bg: #1f3a24; --msg-ok: #cfeed6; --msg-err-bg: #4a1f1f; --msg-err: #ffd7d3;
+        --bar-bg: #3a2a10; --bar-text: #ffcc80;
+    }
     .ads * { box-sizing:border-box; }
     .ads-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .ads-top h2 { color:var(--accent); margin:0; }
+    .ads-ver { font-size:13px; color:var(--muted); font-weight:normal; }
     .ads-btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:6px; padding:7px 12px;
-           font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; }
-    .ads-btn.primary { background:var(--accent); color:#0b1712; border-color:var(--accent); font-weight:bold; }
+           font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; min-height:2.25rem; }
+    .ads-btn.primary { background:var(--accent-bg); color:var(--on-accent); border-color:var(--accent-bg); font-weight:bold; }
     .ads-msg { padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:14px; }
-    .ads-msg.ok { background:#1f3a24; color:#cfeed6; } .ads-msg.err { background:#4a1f1f; color:#ffd7d3; }
+    .ads-msg.ok { background:var(--msg-ok-bg); color:var(--msg-ok); } .ads-msg.err { background:var(--msg-err-bg); color:var(--msg-err); }
     .ads-sec { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:12px; }
     .ads-sec h3 { margin:0 0 12px 0; font-size:16px; color:var(--accent); display:flex; align-items:baseline; gap:10px; }
     .ads-sec h3 .n { color:var(--muted); font-size:13px; font-weight:normal; }
-    .ads-fields { display:grid; grid-template-columns:repeat(auto-fit, minmax(440px, 1fr)); gap:0 28px; align-items:start; }
+    .ads-fields { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 27.5rem), 1fr)); gap:0 28px; align-items:start; }
     .ads-fields .ads-field:last-child { margin-bottom:12px; }
-    .ads-field { display:grid; grid-template-columns:150px minmax(0,1fr); gap:6px 12px; align-items:center; margin-bottom:12px; }
+    .ads-field { display:grid; grid-template-columns:9.5rem minmax(0,1fr); gap:6px 12px; align-items:center; margin-bottom:12px; }
     .ads-field:last-child { margin-bottom:0; }
-    .ads-field > label { color:#c6dccd; font-size:14px; }
+    .ads-field > label { color:var(--soft); font-size:14px; }
     .ads-help { grid-column:2; font-size:12px; color:var(--muted); line-height:1.45; }
-    .ads input[type=text], .ads input[type=number], .ads select { padding:7px 9px; border-radius:6px; border:1px solid #2a5a40;
-           background:#0b1712; color:#fff; font-size:14px; height:auto; line-height:1.3; }
+    .ads input[type=text], .ads input[type=number], .ads input[type=password], .ads select { padding:7px 9px; border-radius:6px;
+           border:1px solid var(--input-line); background:var(--card2); color:var(--input-text); font-size:14px; height:auto; line-height:1.3;
+           max-width:100%; }
     .ads select { padding-right:28px; }
-    .ads input:disabled { background:#0b1712; color:#8fb09c; cursor:not-allowed; }
-    .ads-unit { display:inline-flex; align-items:center; gap:6px; }
-    .ads-unit input { width:95px; }
+    .ads input:disabled { background:var(--disabled-bg); color:var(--muted); cursor:not-allowed; }
+    .ads-unit { display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; max-width:100%; }
+    .ads-unit input { width:6rem; }
+    .ads-unit input.wide { width:7.5rem; }
     .ads-unit span { color:var(--muted); font-size:13px; white-space:nowrap; }
+    .ads-w-md { width:100%; max-width:17.5rem; }
+    .ads-w-sm { width:100%; max-width:16rem; }
     .ads-field > div, .ads-field > select { min-width:0; }
-    .ads-seg { display:inline-flex; justify-self:start; background:#0b1712; border-radius:8px; padding:3px; gap:3px; flex-wrap:wrap; }
+    .ads-seg { display:inline-flex; justify-self:start; background:var(--seg); border-radius:8px; padding:3px; gap:3px; flex-wrap:wrap; }
     .ads-seg label { position:relative; }
     .ads-seg input { position:absolute; opacity:0; pointer-events:none; }
-    .ads-seg span { display:block; padding:6px 12px; border-radius:6px; color:#c6dccd; font-size:13px; font-weight:bold; cursor:pointer; }
-    .ads-seg input:checked + span { background:var(--accent); color:#0b1712; }
+    .ads-seg span { display:block; padding:6px 12px; border-radius:6px; color:var(--soft); font-size:13px; font-weight:bold; cursor:pointer; min-height:2rem; }
+    .ads-seg input:checked + span { background:var(--accent-bg); color:var(--on-accent); }
     .ads-seg input:focus-visible + span { outline:2px solid var(--accent); }
-    .ads-sw { position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; }
+    .ads-sw { position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; min-height:2rem; }
     .ads-sw input { position:absolute; opacity:0; pointer-events:none; }
-    .ads-sw .track { width:40px; height:22px; border-radius:11px; background:#2a5a40; position:relative; transition:background .15s; flex:none; }
-    .ads-sw .track::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#c6dccd; transition:left .15s; }
+    .ads-sw .track { width:2.5rem; height:1.375rem; border-radius:11px; background:var(--track); position:relative; transition:background .15s; flex:none; }
+    .ads-sw .track::after { content:""; position:absolute; top:3px; left:3px; width:1rem; height:1rem; border-radius:50%; background:var(--knob-off); transition:left .15s; }
     .ads-sw input:checked + .track { background:var(--ok); }
-    .ads-sw input:checked + .track::after { left:21px; background:#fff; }
+    .ads-sw input:checked + .track::after { left:calc(100% - 1rem - 3px); background:var(--knob); }
     .ads-sw input:focus-visible + .track { outline:2px solid var(--accent); }
+    .ads-small { margin-left:10px; font-size:13px; color:var(--soft); }
+    .ads-soft { font-size:14px; color:var(--soft); }
+    .ads-caution { color:var(--caution-text); }
+    .ads-good { color:var(--good-text); }
+    .ads a.ads-link { color:var(--good-text); }
     .ads-heads { overflow-x:auto; }
-    .ads-heads table { width:100%; border-collapse:collapse; min-width:780px; }
+    .ads-heads table { width:100%; border-collapse:collapse; min-width:48rem; }
     .ads-heads th { text-align:left; font-size:12px; color:var(--muted); font-weight:bold; padding:0 6px 6px 0; }
     .ads-heads td { padding:5px 6px 5px 0; border-top:1px solid var(--line); vertical-align:middle; }
-    .ads-heads td input[type=text] { width:100%; min-width:110px; }
-    .ads-heads td input[type=number] { width:86px; }
-    .ads-heads td.closed input { width:62px; }
-    .ads-heads td select { width:100%; min-width:140px; }
+    .ads-heads td input[type=text] { width:100%; min-width:7rem; }
+    .ads-heads td input[type=number] { width:5.5rem; }
+    .ads-heads td.closed input { width:4rem; }
+    .ads-heads td select { width:100%; min-width:9rem; }
     .ads-heads tr.off td:not(.keep) { opacity:.45; }
-    .ads-res { font-size:13px; color:#7dffb4; white-space:nowrap; }
-    .ads-res.warn { color:#ffb74d; white-space:normal; } .ads-res.err { color:#ff7b72; white-space:normal; }
-    .ads-x { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:2px 6px; }
-    .ads-x:hover { color:#ff7b72; }
+    .ads-res { font-size:13px; color:var(--good-text); white-space:nowrap; }
+    .ads-res.warn { color:var(--caution-text); white-space:normal; } .ads-res.err { color:var(--err); white-space:normal; }
+    .ads-x { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:2px 6px; min-width:2rem; min-height:2rem; }
+    .ads-x:hover { color:var(--err); }
     .ads-add { margin-top:10px; }
     .ads-note { font-size:12px; color:var(--muted); line-height:1.5; margin-top:10px; }
     .ads-test { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px; }
-    .ads-test-out { font-size:13px; } .ads-test-out.ok { color:#7dffb4; } .ads-test-out.err { color:#ff7b72; }
+    .ads-test-out { font-size:13px; } .ads-test-out.ok { color:var(--good-text); } .ads-test-out.err { color:var(--err); }
     .ads-remote-only, .ads.remote .ads-master-only { display:none; }
     .ads.remote .ads-remote-only { display:block; }
     .ads-bar { position:sticky; bottom:0; z-index:5; display:none; justify-content:space-between; align-items:center; gap:12px;
-           flex-wrap:wrap; margin-top:12px; padding:10px 16px; border-radius:12px; background:#3a2a10; border:1px solid var(--warn); }
+           flex-wrap:wrap; margin-top:12px; padding:10px 16px; border-radius:12px; background:var(--bar-bg); border:1px solid var(--warn); }
     .ads-bar.show { display:flex; }
-    .ads-bar span { color:#ffcc80; font-size:14px; }
-    @media (max-width:520px) { .ads-fields { grid-template-columns:1fr; } }
-    @media (max-width:600px) {
+    .ads-bar span { color:var(--bar-text); font-size:14px; }
+    .ads-bar-actions { display:flex; gap:8px; }
+    @media (max-width:37.5rem) {
         .ads-field { grid-template-columns:1fr; }
         .ads-help { grid-column:1; }
     }
@@ -544,7 +586,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
 
 <form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" class="ads<?php echo $isRemote ? ' remote' : ''; ?>" id="ads" novalidate>
     <div class="ads-top">
-        <h2>Air Defender settings <span style="font-size:13px;color:#8fb09c;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
+        <h2>Air Defender settings <span class="ads-ver">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
         <a class="ads-btn" href="plugin.php?plugin=AirDefender&page=www/index.php">Dashboard</a>
     </div>
 
@@ -576,16 +618,16 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         </div>
         <div class="ads-field ads-remote-only" style="display:none;" id="masterRow">
             <label for="masterAddress">Master FPP address</label>
-            <input type="text" name="masterAddress" id="masterAddress" value="<?php echo htmlspecialchars((string) $v('masterAddress')); ?>" placeholder="Blank finds it automatically" style="max-width:280px;">
+            <input type="text" name="masterAddress" id="masterAddress" value="<?php echo htmlspecialchars((string) $v('masterAddress')); ?>" placeholder="Blank finds it automatically" class="ads-w-md">
             <div class="ads-help">IP or hostname of the master. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one player FPP.</div>
         </div>
         <div class="ads-field ads-remote-only" style="display:none;" id="masterPwRow">
             <label for="masterPassword">Master's UI password</label>
             <div>
-                <input type="password" name="masterPassword" id="masterPassword" value="" autocomplete="new-password" style="max-width:280px;"
-                    placeholder="<?php echo (string) $v('masterPassword') !== '' ? 'Saved: type to change' : 'Only if the master has one'; ?>">
-                <?php if ((string) $v('masterPassword') !== ''): ?>
-                    <label style="margin-left:10px;font-size:13px;color:#c6dccd;"><input type="checkbox" name="masterPasswordClear" value="1"> Remove saved password</label>
+                <input type="password" name="masterPassword" id="masterPassword" value="" autocomplete="new-password" class="ads-w-md"
+                    placeholder="<?php echo $hasMasterPassword ? 'Saved: type to change' : 'Only if the master has one'; ?>">
+                <?php if ($hasMasterPassword): ?>
+                    <label class="ads-small"><input type="checkbox" name="masterPasswordClear" value="1"> Remove saved password</label>
                 <?php endif; ?>
             </div>
             <div class="ads-help">Only needed if the master FPP has a UI password (Settings &rarr; UI on the master). The Remote logs in as admin with it to read the master's status, on your local network.</div>
@@ -649,9 +691,9 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             Pick the head's <b>model</b>, or choose <b>Manual channel</b> and enter its <b>start channel</b> from xLights. <b>Shutter ch.</b> is the shutter's
             channel in the fixture's DMX chart (for example 7), and <b>Closed</b> the value that closes it. Air Defender works out the FPP channel.
             <?php if ($airdefenderModels === null): ?>
-                <br><span style="color:#ffb74d;">Could not read FPP's model list right now; Manual channel still works.</span>
+                <br><span class="ads-caution">Could not read FPP's model list right now; Manual channel still works.</span>
             <?php elseif (!$airdefenderModels): ?>
-                <br><span style="color:#ffb74d;">No models in FPP yet: upload from xLights with FPP Connect's <b>Models</b> column set to <b>All</b>, or add them on FPP's Pixel Overlay Models page.</span>
+                <br><span class="ads-caution">No models in FPP yet: upload from xLights with FPP Connect's <b>Models</b> column set to <b>All</b>, or add them on FPP's Pixel Overlay Models page.</span>
             <?php else: ?>
                 Head not in the list? In FPP Connect, set the <b>Models</b> column to <b>All</b> (Local leaves out heads on other controllers) and upload again.
             <?php endif; ?>
@@ -660,7 +702,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
 
     <div class="ads-sec ads-remote-only" style="display:none;">
         <h3>On a Remote</h3>
-        <div style="font-size:14px;color:#c6dccd;">When to check, location, safety limits and flight data are set on the <b>master</b>; this Remote follows it.</div>
+        <div class="ads-soft">When to check, location, safety limits and flight data are set on the <b>master</b>; this Remote follows it.</div>
     </div>
 
     <div class="ads-master-only">
@@ -687,16 +729,16 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             <div class="ads-field">
                 <label for="latitude">Latitude, longitude</label>
                 <div class="ads-unit">
-                    <input type="text" name="latitude" id="latitude" value="<?php echo htmlspecialchars((string) $v('latitude')); ?>" data-fpp="<?php echo $fppLat !== null ? $fppLat : ''; ?>" style="width:120px;" inputmode="decimal" aria-label="Latitude">
-                    <input type="text" name="longitude" id="longitude" value="<?php echo htmlspecialchars((string) $v('longitude')); ?>" data-fpp="<?php echo $fppLon !== null ? $fppLon : ''; ?>" style="width:120px;" inputmode="decimal" aria-label="Longitude">
+                    <input type="text" name="latitude" id="latitude" value="<?php echo htmlspecialchars((string) $v('latitude')); ?>" data-fpp="<?php echo $fppLat !== null ? $fppLat : ''; ?>" class="wide" inputmode="decimal" aria-label="Latitude">
+                    <input type="text" name="longitude" id="longitude" value="<?php echo htmlspecialchars((string) $v('longitude')); ?>" data-fpp="<?php echo $fppLon !== null ? $fppLon : ''; ?>" class="wide" inputmode="decimal" aria-label="Longitude">
                 </div>
                 <div class="ads-help" id="locHelp"></div>
             </div>
             <div class="ads-field">
                 <label for="showElevationFt">Show elevation</label>
                 <div class="ads-unit">
-                    <input type="number" name="showElevationFt" id="showElevationFt" value="<?php echo htmlspecialchars((string) $v('showElevationFt')); ?>" min="<?php echo AIRDEFENDER_ELEVATION_MIN_FT; ?>" max="<?php echo AIRDEFENDER_ELEVATION_MAX_FT; ?>" step="1" style="width:100px;"><span>ft above sea level</span>
-                    <button type="button" class="ads-btn" id="elevLookup" style="margin-left:8px;">Look it up</button>
+                    <input type="number" name="showElevationFt" id="showElevationFt" value="<?php echo htmlspecialchars((string) $v('showElevationFt')); ?>" min="<?php echo AIRDEFENDER_ELEVATION_MIN_FT; ?>" max="<?php echo AIRDEFENDER_ELEVATION_MAX_FT; ?>" step="1" ><span>ft above sea level</span>
+                    <button type="button" class="ads-btn" id="elevLookup">Look it up</button>
                 </div>
                 <div class="ads-help" id="elevHelp"></div>
             </div>
@@ -735,16 +777,16 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             <div class="ads-fields">
             <div class="ads-field">
                 <label for="adsbSourceUrl">Service</label>
-                <select name="adsbSourceUrl" id="adsbSourceUrl" style="max-width:260px;">
+                <select name="adsbSourceUrl" id="adsbSourceUrl" class="ads-w-sm">
                     <?php foreach ($feedOptionsList as $val => $lab): ?>
                         <option value="<?php echo htmlspecialchars($val); ?>" <?php echo $v('adsbSourceUrl') === $val ? 'selected' : ''; ?>><?php echo htmlspecialchars($lab); ?></option>
                     <?php endforeach; ?>
                 </select>
                 <div class="ads-help">
-                    <?php if (!empty($airdefenderFeedNote)): ?><span style="color:#ffb74d;"><?php echo htmlspecialchars($airdefenderFeedNote); ?></span><br><?php endif; ?>
+                    <?php if (!empty($airdefenderFeedNote)): ?><span class="ads-caution"><?php echo htmlspecialchars($airdefenderFeedNote); ?></span><br><?php endif; ?>
                     Free community services for personal, non-commercial use: data from
-                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#7dffb4;">adsb.fi</a> and
-                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#7dffb4;">adsb.lol</a> (ODbL). A local receiver sends nothing off this FPP.
+                    <a href="https://adsb.fi" target="_blank" rel="noopener" class="ads-link">adsb.fi</a> and
+                    <a href="https://adsb.lol" target="_blank" rel="noopener" class="ads-link">adsb.lol</a> (ODbL). A local receiver sends nothing off this FPP.
                 </div>
             </div>
             <div class="ads-field">
@@ -761,7 +803,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                     <input type="hidden" name="feedFallback" value="0">
                     <label class="ads-sw"><input type="checkbox" id="feedFallbackSw" name="feedFallback" value="1" <?php echo AirDefender_IsTruthy($v('feedFallback')) ? 'checked' : ''; ?>><span class="track"></span></label>
                 </div>
-                <div class="ads-help">If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check; try the chosen one again every minute and go back to it when it answers. Never used with a local receiver, so its location stays on this FPP.</div>
+                <div class="ads-help">If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check; try the chosen one again every minute and go back to it when it answers. Off by default, because turning it on means the other service is sent your show's location too. Never used with a local receiver, so its location stays on this FPP.</div>
             </div>
             <div class="ads-field">
                 <label for="feedDownSw">Close heads if feed is down</label>
@@ -777,7 +819,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
 
     <div class="ads-bar" id="saveBar">
         <span>Unsaved changes</span>
-        <span style="display:flex;gap:8px;">
+        <span class="ads-bar-actions">
             <button type="button" class="ads-btn" id="discard">Discard</button>
             <button type="submit" class="ads-btn primary">Save settings</button>
         </span>
@@ -923,14 +965,14 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         help.textContent = '';
         if (isNaN(lat) || isNaN(lon)) {
             help.textContent = useFpp ? "FPP has no location set: set it in FPP's settings, or turn this off and enter one." : 'Enter the show’s latitude and longitude.';
-            help.style.color = '#ffb74d';
+            help.className = 'ads-help ads-caution';
         } else {
-            help.style.color = '';
+            help.className = 'ads-help';
             help.appendChild(document.createTextNode(useFpp
                 ? "From FPP's settings, which can be miles off. Make sure the pin is on your show: " : ''));
             var a = document.createElement('a');
             a.href = 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=15/' + lat + '/' + lon;
-            a.target = '_blank'; a.rel = 'noopener'; a.style.color = '#7dffb4'; a.textContent = 'Check it on a map';
+            a.target = '_blank'; a.rel = 'noopener'; a.className = 'ads-link'; a.textContent = 'Check it on a map';
             help.appendChild(a);
         }
     }
@@ -943,9 +985,9 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         var e = elevation(), ft = parseFloat($('altitudeThresholdFt').value);
         var help = $('elevHelp');
         if (elevMsg) {
-            help.textContent = elevMsg.text; help.style.color = elevMsg.color;
+            help.textContent = elevMsg.text; help.className = 'ads-help' + (elevMsg.cls ? ' ' + elevMsg.cls : '');
         } else {
-            help.style.color = '';
+            help.className = 'ads-help';
             help.textContent = e === 0
                 ? 'Aircraft report their height above sea level. Enter your ground’s elevation, or press Look it up, so the altitude limit counts from your show.'
                 : 'The altitude limit counts from here.';
@@ -963,7 +1005,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
     $('elevLookup').addEventListener('click', function () {
         var btn = this;
         btn.disabled = true;
-        elevMsg = { text: 'Looking it up…', color: '' };
+        elevMsg = { text: 'Looking it up…', cls: '' };
         updateElevation();
         var body = new URLSearchParams({ action: 'elevation', lat: $('latitude').value, lon: $('longitude').value });
         fetch(API, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
@@ -973,12 +1015,12 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 if (d.ok) {
                     $('showElevationFt').value = d.feet;
                     elevMsg = { text: 'Found ' + d.feet.toLocaleString() + ' ft at ' + $('latitude').value + ', ' + $('longitude').value
-                        + '. Save to use it. Elevation data: Open-Meteo, Copernicus DEM.', color: '#7dffb4' };
+                        + '. Save to use it. Elevation data: Open-Meteo, Copernicus DEM.', cls: 'ads-good' };
                 } else {
-                    elevMsg = { text: d.error || 'No answer', color: '#ffb74d' };
+                    elevMsg = { text: d.error || 'No answer', cls: 'ads-caution' };
                 }
             })
-            .catch(function (e) { elevMsg = { text: 'Could not look it up: ' + e.message, color: '#ffb74d' }; })
+            .catch(function (e) { elevMsg = { text: 'Could not look it up: ' + e.message, cls: 'ads-caution' }; })
             .then(function () { btn.disabled = false; refreshAll(); dirty(); });
     });
 

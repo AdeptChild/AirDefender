@@ -9,11 +9,13 @@
  * this, so the log, the dashboard and the remotes all agree with FPP's clock.
  */
 
+require_once(__DIR__ . "/airdefender_paths.php");
+
 function airdefender_fpp_timezone(): ?string
 {
     $valid = timezone_identifiers_list();
 
-    $lines = @file('/home/fpp/media/settings', FILE_IGNORE_NEW_LINES);
+    $lines = @file(airdefender_fpp_settings_file(), FILE_IGNORE_NEW_LINES);
     foreach (is_array($lines) ? $lines : [] as $line) {
         $parts = explode('=', $line, 2);
         if (count($parts) === 2 && trim($parts[0]) === 'TimeZone') {

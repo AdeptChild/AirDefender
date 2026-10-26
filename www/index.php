@@ -1,5 +1,6 @@
 <?php
 require_once("/opt/fpp/www/common.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_paths.php");
 require_once("/opt/fpp/www/api/lib/limonade.php");
 
 if (!function_exists("GetSetting")) {
@@ -7,9 +8,9 @@ if (!function_exists("GetSetting")) {
 }
 
 if (!function_exists("GetSetting")) {
-    echo "<div style='padding:20px;background:#3a1f1f;color:#fff;border-radius:8px;'>";
-    echo "<h2 style='margin:0 0 10px 0;'>AirDefender requires the FPP settings API</h2>";
-    echo "<p style='margin:0;'>This page is not running inside a valid FPP plugin environment.</p>";
+    echo "<div class='alert alert-danger'>";
+    echo "<h2 class='h5'>Air Defender requires the FPP settings API</h2>";
+    echo "<p class='mb-0'>This page is not running inside a valid FPP plugin environment.</p>";
     echo "</div>";
     exit;
 }
@@ -17,9 +18,7 @@ if (!function_exists("GetSetting")) {
 $pluginName = "AirDefender";
 
 function AirDefender_ConfigPath($pluginName) {
-    global $mediaDirectory;
-    $dir = !empty($mediaDirectory) ? $mediaDirectory : '/home/fpp/media';
-    return $dir . '/config/plugin.' . $pluginName;
+    return airdefender_config_file();
 }
 
 function AirDefender_LoadAll($pluginName) {
@@ -56,7 +55,7 @@ function AirDefender_StoredValue($pluginName, $key, $default) {
 }
 
 function AirDefender_StateFile() {
-    return "/home/fpp/media/plugins/AirDefender/state.json";
+    return dirname(__DIR__) . "/state.json";
 }
 
 function AirDefender_ReadState() {
@@ -114,63 +113,103 @@ $pageConfig = array(
 );
 ?>
 <style>
-    .ad { --card:#0f1f18; --card2:#0b1712; --line:#1f3d2d; --text:#e3f2e8; --muted:#8fb09c; --accent:#7dffb4;
-          --warn:#ff9800; --ok:#2fbf71; --bad:#f44336; --test:#42a5f5; color:var(--text); max-width:1100px; }
+    /* Colours follow FPP's light/dark theme (data-bs-theme on the page):
+       light uses FPP's and Bootstrap's own colour variables; dark keeps the
+       radar-scope green of the plugin's icon. Nothing below sets a colour
+       directly, only these variables. */
+    .ad {
+        --card: var(--fpp-bg-card, var(--bs-body-bg)); --card2: var(--bs-tertiary-bg); --line: var(--bs-border-color);
+        --text: var(--bs-body-color); --soft: var(--bs-secondary-color); --muted: var(--bs-secondary-color);
+        --accent: var(--bs-success-text-emphasis); --accent-bg: var(--bs-success); --on-accent: var(--bs-white);
+        --chip: var(--bs-secondary-bg); --preset: var(--bs-tertiary-bg); --preset-line: var(--bs-border-color);
+        --input-line: var(--bs-border-color);
+        --ok: var(--bs-success); --warn: var(--fpp-header-attention, var(--bs-orange)); --on-warn: var(--bs-black);
+        --bad: var(--bs-danger); --on-bad: var(--bs-white); --err: var(--bs-danger-text-emphasis);
+        --test: var(--bs-primary);
+        --safe-bg: var(--bs-warning-bg-subtle); --test-bg: var(--bs-primary-bg-subtle); --down-bg: var(--bs-danger-bg-subtle);
+        --down-text: var(--bs-danger-text-emphasis); --caution: var(--bs-warning); --caution-text: var(--bs-warning-text-emphasis);
+        --standby: var(--bs-secondary); --standby-text: var(--bs-secondary-color);
+        --scope-bg: var(--bs-success-bg-subtle); --scope-ring: var(--bs-success); --scope-grid: var(--bs-success-border-subtle);
+        --scope-beam: var(--bs-success); --plane: var(--bs-secondary-color);
+        color: var(--text); max-width: 70rem;
+    }
+    [data-bs-theme="dark"] .ad {
+        --card: #0f1f18; --card2: #0b1712; --line: #1f3d2d; --text: #e3f2e8; --soft: #c6dccd; --muted: #8fb09c;
+        --accent: #7dffb4; --accent-bg: #7dffb4; --on-accent: #0b1712;
+        --chip: #0b1712; --preset: #183424; --preset-line: #2f6648; --input-line: #2a5a40;
+        --ok: #2fbf71; --warn: #ff9800; --on-warn: #0b1712; --bad: #f44336; --on-bad: #fff; --err: #ff7b72;
+        --test: #42a5f5;
+        --safe-bg: #3a2a10; --test-bg: #13283a; --down-bg: #3a1414; --down-text: #ff8a80; --caution: #c9a227; --caution-text: #e6c34a;
+        --standby: #78909c; --standby-text: #b0bec5;
+        --scope-bg: #0a2a1c; --scope-ring: #2fbf71; --scope-grid: #1e8a52; --scope-beam: #7dffb4; --plane: #5f9c7a;
+    }
     .ad * { box-sizing:border-box; }
     .ad-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .ad-top h2 { color:var(--accent); margin:0; }
-    .ad-switch { display:inline-flex; background:#0b1712; border-radius:8px; padding:3px; gap:3px; }
+    .ad-ver { font-size:13px; color:var(--muted); font-weight:normal; }
+    .ad-switch { display:inline-flex; background:var(--card2); border:1px solid var(--line); border-radius:8px; padding:3px; gap:3px; }
     .ad-switch button, .ad-btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:6px;
-          padding:7px 12px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; }
-    .ad-switch button { border:none; background:transparent; color:#c6dccd; font-weight:bold; }
-    .ad-switch button.on { background:var(--accent); color:#0b1712; }
+          padding:7px 12px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; min-height:2.25rem; }
+    .ad-switch button { border:none; background:transparent; color:var(--soft); font-weight:bold; }
+    .ad-switch button.on { background:var(--accent-bg); color:var(--on-accent); }
     .ad-banner { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; border-radius:12px;
           padding:14px 18px; margin-bottom:12px; border:2px solid var(--line); background:var(--card); }
     .ad-banner .t { font-size:22px; font-weight:bold; }
-    .ad-banner .s { font-size:14px; margin-top:4px; color:#c6dccd; }
+    .ad-banner .s { font-size:14px; margin-top:4px; color:var(--soft); }
     .ad-banner.clear { border-color:var(--ok); } .ad-banner.clear .t { color:var(--ok); }
-    .ad-banner.safe { border-color:var(--warn); background:#3a2a10; } .ad-banner.safe .t { color:var(--warn); }
-    .ad-banner.test { border-color:var(--test); background:#13283a; } .ad-banner.test .t { color:var(--test); }
-    .ad-banner.down { border-color:var(--bad); background:#3a1414; } .ad-banner.down .t { color:#ff8a80; }
-    .ad-banner.warn { border-color:#c9a227; } .ad-banner.warn .t { color:#e6c34a; }
+    .ad-banner.safe { border-color:var(--warn); background:var(--safe-bg); } .ad-banner.safe .t { color:var(--warn); }
+    .ad-banner.test { border-color:var(--test); background:var(--test-bg); } .ad-banner.test .t { color:var(--test); }
+    .ad-banner.down { border-color:var(--bad); background:var(--down-bg); } .ad-banner.down .t { color:var(--down-text); }
+    .ad-banner.warn { border-color:var(--caution); } .ad-banner.warn .t { color:var(--caution-text); }
     .ad-banner.off .t { color:var(--muted); }
-    .ad-banner.standby { border-color:#78909c; } .ad-banner.standby .t { color:#b0bec5; }
+    .ad-banner.standby { border-color:var(--standby); } .ad-banner.standby .t { color:var(--standby-text); }
     .ad-override { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-    .ad-override select { width:auto; min-width:118px; height:auto; min-height:34px; line-height:1.3;
-          padding:6px 30px 6px 10px; border-radius:6px; background-color:#0b1712; color:#fff; border:1px solid #2a5a40;
+    .ad-override select { width:auto; min-width:7.5rem; height:auto; min-height:2.25rem; line-height:1.3;
+          padding:6px 30px 6px 10px; border-radius:6px; background-color:var(--card2); color:var(--text); border:1px solid var(--input-line);
           font-size:14px; text-overflow:clip; }
     .ad-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
     .ad-chips { display:flex; gap:6px; flex-wrap:wrap; }
-    .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:#0b1712; color:#c6dccd; }
-    .ad-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; }
+    .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:var(--chip); color:var(--soft); }
+    .ad-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr)); gap:12px; }
     .ad-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0; }
     .ad-card h3 { margin:0 0 10px 0; font-size:15px; color:var(--accent); display:flex; justify-content:space-between; gap:8px; }
     .ad-card h3 small { font-size:12px; font-weight:normal; color:var(--muted); }
     .ad-note { font-size:12px; color:var(--muted); margin-top:8px; }
     .ad-presets { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; }
-    .ad-presets button { border:1px solid #2f6648; background:#183424; color:#c6dccd; border-radius:6px; padding:5px 9px; font-size:13px; cursor:pointer; }
-    .ad-presets button.on { background:var(--accent); color:#0b1712; border-color:var(--accent); font-weight:bold; }
+    .ad-presets button { border:1px solid var(--preset-line); background:var(--preset); color:var(--soft); border-radius:6px;
+          padding:5px 9px; font-size:13px; cursor:pointer; min-height:2.25rem; }
+    .ad-presets button.on { background:var(--accent-bg); color:var(--on-accent); border-color:var(--accent-bg); font-weight:bold; }
     .ad-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .ad-row input { width:80px; padding:7px; border-radius:6px; background:#0b1712; color:#fff; border:1px solid #2a5a40; }
-    .ad-start { background:var(--warn); color:#0b1712; border:none; font-weight:bold; }
-    .ad-stop { background:var(--bad); color:#fff; border:none; font-weight:bold; }
+    .ad-row input { width:5rem; max-width:100%; padding:7px; border-radius:6px; background:var(--card2); color:var(--text); border:1px solid var(--input-line); }
+    .ad-start { background:var(--warn); color:var(--on-warn); border:none; font-weight:bold; }
+    .ad-stop { background:var(--bad); color:var(--on-bad); border:none; font-weight:bold; }
     .ad-count { font-family:monospace; font-size:40px; font-weight:bold; color:var(--test); line-height:1; }
-    .ad-bar { height:7px; background:#0b1712; border-radius:4px; overflow:hidden; margin:10px 0; }
+    .ad-bar { height:7px; background:var(--card2); border-radius:4px; overflow:hidden; margin:10px 0; }
     .ad-bar div { height:100%; width:0; background:var(--test); transition:width .5s linear; }
-    .ad-err { color:#ff7b72; font-size:13px; margin-top:8px; }
+    .ad-err { color:var(--err); font-size:13px; margin-top:8px; }
+    .ad-problem { color:var(--err); }
     .ad-head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
     .ad-head:last-child { border-bottom:none; }
     .ad-head .ch { color:var(--muted); font-size:12px; margin-left:6px; }
     .ad-badge { font-size:11px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; }
-    .ad-badge.closed { background:var(--warn); color:#0b1712; } .ad-badge.open { background:#183424; color:#8fb09c; }
-    .ad-prob { color:#ff7b72; font-size:12px; margin:-2px 0 6px 0; }
-    .ad-radar { width:100%; max-width:260px; display:block; margin:0 auto; }
+    .ad-badge.closed { background:var(--warn); color:var(--on-warn); } .ad-badge.open { background:var(--preset); color:var(--muted); }
+    .ad-prob { color:var(--err); font-size:12px; margin:-2px 0 6px 0; }
+    .ad-radar { width:100%; max-width:16rem; display:block; margin:0 auto; }
+    .ad-radar .scope { fill:var(--scope-bg); stroke:var(--scope-ring); }
+    .ad-radar .grid { fill:none; stroke:var(--scope-grid); }
+    .ad-radar .wedge { fill:var(--scope-ring); opacity:.25; }
+    .ad-radar .beam { stroke:var(--scope-beam); }
+    .ad-radar .centre { fill:var(--scope-beam); }
+    .ad-radar .limit { fill:none; stroke:var(--warn); }
+    .ad-radar .label { fill:var(--muted); }
+    .ad-radar .limit-label, .ad-radar .plane.in { fill:var(--warn); }
+    .ad-radar .plane { fill:var(--plane); }
     .ad-sweep { transform-origin:100px 100px; animation:ad-spin 6s linear infinite; }
     @keyframes ad-spin { to { transform:rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .ad-sweep { animation:none; } }
     .ad-foot { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px;
           background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 16px; font-size:14px; }
-    .ad-foot .ev { overflow-wrap:anywhere; flex:1; min-width:240px; }
+    .ad-foot .ev { overflow-wrap:anywhere; flex:1; min-width:min(100%, 15rem); }
     .ad-foot .lim { color:var(--muted); font-size:13px; }
     .ad.lite .ad-detail { display:none; }
     .ad:not(.lite) .ad-liteonly { display:none; }
@@ -179,7 +218,7 @@ $pageConfig = array(
 
 <div class="ad lite" id="ad">
     <div class="ad-top">
-        <h2>Air Defender <span style="font-size:13px;color:#8fb09c;font-weight:normal;">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
+        <h2>Air Defender <span class="ad-ver">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
         <div class="ad-row">
             <div class="ad-switch" role="group" aria-label="Dashboard view">
                 <button type="button" data-view="lite" class="on" title="Refreshes every 5 seconds">Lite</button>
@@ -263,7 +302,7 @@ $pageConfig = array(
         <div class="ev"><span style="color:var(--muted);">Last event</span> &middot; <span id="adLastEvent"><?php echo htmlspecialchars($lastEvent); ?></span></div>
         <div class="ad-row">
             <span class="lim" id="adLimits"></span>
-            <button type="button" class="ad-btn" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. It keeps only the last 7 days on its own.">Clear log</button>
+            <button type="button" class="ad-btn" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. FPP keeps only the last 7 days of it on its own.">Clear log</button>
         </div>
     </div>
 </div>
@@ -419,7 +458,7 @@ $pageConfig = array(
             : heads.length + (heads.length === 1 ? ' head' : ' heads') + ' · '
               + (closed === heads.length ? 'all closed' : closed === 0 ? 'the show controls them' : closed + ' closed');
         $('adHeadsSummary').textContent = summary + (problems ? ' · ' + problems + ' need attention (see Detailed)' : '');
-        $('adHeadsSummary').style.color = problems ? '#ff7b72' : '';
+        $('adHeadsSummary').classList.toggle('ad-problem', !!problems);
     }
 
     /* ---------- sky ---------- */
@@ -454,27 +493,28 @@ $pageConfig = array(
         }
         svg.textContent = '';
         // Drawn like the plugin's icon: a radar scope with range rings and a sweep.
-        el('circle', { cx: 100, cy: 100, r: R, fill: '#0a2a1c', stroke: '#2fbf71', 'stroke-width': 2.5 });
-        el('circle', { cx: 100, cy: 100, r: R * 2 / 3, fill: 'none', stroke: '#1e8a52', 'stroke-width': 1.2 });
-        el('circle', { cx: 100, cy: 100, r: R / 3, fill: 'none', stroke: '#1e8a52', 'stroke-width': 1.2 });
-        el('line', { x1: 100, y1: 100 - R, x2: 100, y2: 100 + R, stroke: '#1e8a52', 'stroke-width': 0.8 });
-        el('line', { x1: 100 - R, y1: 100, x2: 100 + R, y2: 100, stroke: '#1e8a52', 'stroke-width': 0.8 });
+        // Colours come from the page's theme, through the classes (see .ad-radar in the style).
+        el('circle', { cx: 100, cy: 100, r: R, 'class': 'scope', 'stroke-width': 2.5 });
+        el('circle', { cx: 100, cy: 100, r: R * 2 / 3, 'class': 'grid', 'stroke-width': 1.2 });
+        el('circle', { cx: 100, cy: 100, r: R / 3, 'class': 'grid', 'stroke-width': 1.2 });
+        el('line', { x1: 100, y1: 100 - R, x2: 100, y2: 100 + R, 'class': 'grid', 'stroke-width': 0.8 });
+        el('line', { x1: 100 - R, y1: 100, x2: 100 + R, y2: 100, 'class': 'grid', 'stroke-width': 0.8 });
         var sweep = el('g', { 'class': 'ad-sweep' });
         // Rebuilt every refresh: start each one where the turn should be, so it never jumps.
         sweep.style.animationDelay = (-(Date.now() % 6000) / 1000) + 's';
         var wedge = document.createElementNS(NS, 'path');
         wedge.setAttribute('d', 'M100 100 L100 ' + (100 - R) + ' A' + R + ' ' + R + ' 0 0 1 ' + (100 + R * Math.sin(Math.PI / 3)).toFixed(1) + ' ' + (100 - R * Math.cos(Math.PI / 3)).toFixed(1) + ' Z');
-        wedge.setAttribute('fill', '#2fbf71'); wedge.setAttribute('opacity', '0.25');
+        wedge.setAttribute('class', 'wedge');
         var beam = document.createElementNS(NS, 'line');
         beam.setAttribute('x1', 100); beam.setAttribute('y1', 100);
         beam.setAttribute('x2', (100 + R * Math.sin(Math.PI / 3)).toFixed(1)); beam.setAttribute('y2', (100 - R * Math.cos(Math.PI / 3)).toFixed(1));
-        beam.setAttribute('stroke', '#7dffb4'); beam.setAttribute('stroke-width', 2); beam.setAttribute('stroke-linecap', 'round');
+        beam.setAttribute('class', 'beam'); beam.setAttribute('stroke-width', 2); beam.setAttribute('stroke-linecap', 'round');
         sweep.appendChild(wedge); sweep.appendChild(beam);
-        el('circle', { cx: 100, cy: 100, r: R * Math.min(1, (lim.nm || outer) / outer), fill: 'none',
-                       stroke: '#ff9800', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
-        el('text', { x: 100, y: 9, fill: '#8fb09c', 'font-size': 9, 'text-anchor': 'middle' }, 'N');
-        el('text', { x: 196, y: 196, fill: '#ff9800', 'font-size': 8, 'text-anchor': 'end' }, (lim.nm || 5) + ' NM limit');
-        el('circle', { cx: 100, cy: 100, r: 4, fill: '#7dffb4' });
+        el('circle', { cx: 100, cy: 100, r: R * Math.min(1, (lim.nm || outer) / outer),
+                       'class': 'limit', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+        el('text', { x: 100, y: 9, 'class': 'label', 'font-size': 9, 'text-anchor': 'middle' }, 'N');
+        el('text', { x: 196, y: 196, 'class': 'limit-label', 'font-size': 8, 'text-anchor': 'end' }, (lim.nm || 5) + ' NM limit');
+        el('circle', { cx: 100, cy: 100, r: 4, 'class': 'centre' });
 
         if (live.role === 'remote') {
             $('adSkyNote').textContent = 'This Remote follows its master, which checks the sky.';
@@ -488,7 +528,7 @@ $pageConfig = array(
         planes.forEach(function (p) {
             var r = Math.min(1, p.nm / outer) * R, a = p.brg * Math.PI / 180;
             var c = el('circle', { cx: (100 + r * Math.sin(a)).toFixed(1), cy: (100 - r * Math.cos(a)).toFixed(1),
-                                   r: p.in ? 5 : 3, fill: p.in ? '#ff9800' : '#5f9c7a' });
+                                   r: p.in ? 5 : 3, 'class': p.in ? 'plane in' : 'plane' });
             var t = document.createElementNS(NS, 'title');
             t.textContent = p.id + ' · ' + p.nm + ' NM · ' + (p.ft === null ? '? ft' : num(p.ft) + ' ft');
             c.appendChild(t);

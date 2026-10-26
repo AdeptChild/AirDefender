@@ -1,13 +1,12 @@
 <?php
 /*
  * What the dashboard shows about the detection loop right now, read from the
- * state.json it writes every second, plus clearing the log.
+ * state.json it writes every second, plus clearing the log. FPP rotates the
+ * log itself (daily, keeping 7), as its plugin guidelines ask.
  */
 
 require_once(__DIR__ . "/airdefender_test.php");
 
-const AIRDEFENDER_LOG_FILE = "/home/fpp/media/logs/airdefender.log";
-const AIRDEFENDER_LOG_KEEP_DAYS = 7;
 const AIRDEFENDER_LOOP_STALE_SEC = 15;
 
 /*
@@ -89,8 +88,8 @@ function airdefender_live_status(bool $detailed = false): array
 function airdefender_clear_log(): bool
 {
     $ok = true;
-    if (file_exists(AIRDEFENDER_LOG_FILE)) {
-        $fh = @fopen(AIRDEFENDER_LOG_FILE, 'c');
+    if (file_exists(airdefender_log_file())) {
+        $fh = @fopen(airdefender_log_file(), 'c');
         if ($fh && flock($fh, LOCK_EX)) {
             ftruncate($fh, 0);
             flock($fh, LOCK_UN);
@@ -101,7 +100,7 @@ function airdefender_clear_log(): bool
             fclose($fh);
         }
     }
-    foreach (glob(AIRDEFENDER_LOG_FILE . ".*") ?: [] as $rotated) {
+    foreach (glob(airdefender_log_file() . ".*") ?: [] as $rotated) {
         @unlink($rotated);
     }
     @unlink(airdefender_last_event_file());
@@ -109,43 +108,4 @@ function airdefender_clear_log(): bool
         airdefender_test_log("Log cleared from the dashboard.");
     }
     return $ok;
-}
-
-/*
- * Drop log lines older than AIRDEFENDER_LOG_KEEP_DAYS. The loop runs this
- * now and then; lines it cannot date are kept.
- */
-function airdefender_trim_log(): void
-{
-    $fh = @fopen(AIRDEFENDER_LOG_FILE, 'c+');
-    if (!$fh) {
-        return;
-    }
-    if (flock($fh, LOCK_EX)) {
-        $cutoff = date("Y-m-d H:i:s", time() - AIRDEFENDER_LOG_KEEP_DAYS * 86400);
-        $kept = [];
-        $dropped = 0;
-        while (($line = fgets($fh)) !== false) {
-            if (preg_match('/^\[(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)\]/', $line, $m) && $m[1] < $cutoff) {
-                $dropped++;
-                continue;
-            }
-            $kept[] = $line;
-        }
-        if ($dropped > 0) {
-            ftruncate($fh, 0);
-            rewind($fh);
-            fwrite($fh, implode('', $kept));
-            fflush($fh);
-        }
-        flock($fh, LOCK_UN);
-    }
-    fclose($fh);
-
-    // Copies FPP's log rotation made are older still.
-    foreach (glob(AIRDEFENDER_LOG_FILE . ".*") ?: [] as $rotated) {
-        if (@filemtime($rotated) < time() - AIRDEFENDER_LOG_KEEP_DAYS * 86400) {
-            @unlink($rotated);
-        }
-    }
 }

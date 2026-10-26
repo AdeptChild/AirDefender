@@ -8,7 +8,13 @@
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUPERVISOR="${PLUGIN_DIR}/scripts/airdefender_supervise.sh"
 LOOP="${PLUGIN_DIR}/scripts/airdefender_loop.php"
-LOG="/home/fpp/media/logs/airdefender.log"
+
+# FPP's folders, the way FPP provides them (a relocated media folder works).
+: "${FPPDIR:=/opt/fpp}"
+. "${FPPDIR}/scripts/common" >/dev/null 2>&1 || true
+: "${MEDIADIR:=/home/fpp/media}"
+: "${LOGDIR:=${MEDIADIR}/logs}"
+LOG="${LOGDIR}/plugin-AirDefender.log"
 
 # Stop copies left over from before: the watchdog first, so it cannot restart the loop.
 pkill -f "${SUPERVISOR}" 2>/dev/null
@@ -44,5 +50,6 @@ echo "Starting Air Defender detection loop"
         fd=${fd##*/}
         [ "${fd}" -gt 2 ] 2>/dev/null && eval "exec ${fd}>&-" 2>/dev/null
     done
-    exec nohup setsid ${RUN_AS} bash "${SUPERVISOR}" >>"${LOG}" 2>/dev/null </dev/null
+    exec nohup setsid ${RUN_AS} env FPPDIR="${FPPDIR}" MEDIADIR="${MEDIADIR}" LOGDIR="${LOGDIR}" \
+        bash "${SUPERVISOR}" >>"${LOG}" 2>/dev/null </dev/null
 ) &

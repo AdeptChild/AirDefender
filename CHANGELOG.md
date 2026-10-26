@@ -1,5 +1,20 @@
 # Air Defender changelog
 
+## 0.10.0 (2026-10-26)
+
+Brought in line with FPP's plugin guidelines, ready for FPP's plugin list:
+- **Light and dark:** the dashboard and settings follow FPP's theme. Light uses FPP's own colours; dark keeps the
+  radar-scope green. Widths scale, so the pages fit a phone.
+- **Log:** now `plugin-AirDefender.log` in FPP's logs folder, rotated by FPP (daily, 7 kept) instead of by Air
+  Defender. The old log from earlier versions is left alone; delete it in File Manager → Logs.
+- **Backup service off by default:** only the chosen service (adsb.fi) is sent anything unless you turn the backup
+  on. A setting you already saved is kept.
+- **Master's password:** moved out of the settings file into FPP's `plugindata` folder, readable only by the fpp
+  user. A saved one is moved automatically. Uninstalling removes it and the log.
+- **Paths:** FPP's folders are found the way FPP provides them, so a relocated media folder works. The loop's lock
+  file is in the plugin folder, not `/tmp`.
+- **Plugin card:** the description names every outside service and what it is sent.
+
 ## 0.9.6 (2026-10-26)
 
 Ready for FPP's plugin list (FPP's plugin check now reports no findings):

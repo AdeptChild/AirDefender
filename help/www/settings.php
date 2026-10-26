@@ -15,8 +15,8 @@ need a restart.</p>
         for 5 seconds it closes its heads until the master is back. Install Air Defender on every Remote with heads.</li>
     <li><b>Master FPP address</b> (Remote only): leave blank to find the master automatically from FPP's MultiSync
         list. Enter its IP address or hostname if there is more than one player FPP on the network.</li>
-    <li><b>Master's UI password</b> (Remote only): needed only if the master has an FPP UI password. It is stored
-        encoded and never shown; leave it blank to keep the saved one, or tick <b>Remove saved password</b> to clear it.</li>
+    <li><b>Master's UI password</b> (Remote only): needed only if the master has an FPP UI password. It is kept in
+        its own file in FPP's plugindata folder that only the fpp user can read, and never shown; leave it blank to keep the saved one, or tick <b>Remove saved password</b> to clear it.</li>
 </ul>
 <p>On a Remote, sections 3 to 5 are hidden: they are set on the master.</p>
 
@@ -77,8 +77,9 @@ until you pick the model again.</p>
         non-commercial use, and are sent your show's location. The local receiver options read an ADS-B receiver
         running on this FPP and send nothing off the device. (airplanes.live is no longer offered: its API now refuses
         requests without an account. A saved airplanes.live setting is switched to adsb.fi.)</li>
-    <li><b>Use the other as a backup</b>: on (the default), if adsb.fi or adsb.lol does not answer, Air Defender asks
-        the other in the same check. It tries your chosen service again every minute and goes back to it when it
+    <li><b>Use the other as a backup</b>: off until you turn it on, because it means the other service is also sent
+        your show's location. When on, if adsb.fi or adsb.lol does not answer, Air Defender asks the other in the same
+        check. It tries your chosen service again every minute and goes back to it when it
         answers. A local receiver never falls back to an online service.</li>
     <li><b>Test connection</b>: asks the service once, right away, using the location and limits on the page (saved or
         not), and shows how many aircraft it sees, the nearest one, how many are inside your limits, or the exact

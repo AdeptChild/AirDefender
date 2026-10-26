@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 0.9.6 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 0.10.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -76,7 +76,7 @@ Every page has help behind FPP's **?** button.
 | **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
 | **3. When and where** | **When to check** (scheduled shows, whenever FPP is playing, or always), the show location and its elevation. |
 | **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
-| **5. Flight data** | The service, **Test connection**, automatic backup, and **Close heads if feed is down**. |
+| **5. Flight data** | The service, **Test connection**, an optional backup service, and **Close heads if feed is down**. |
 
 Changes take effect within a second of saving; no restart is needed.
 
@@ -144,7 +144,9 @@ a remote with no heads enabled does nothing.
 
 A Remote finds its master automatically from FPP's MultiSync list; enter the **Master FPP address** if there is more
 than one player on the network. If the master has an FPP **UI password**, enter it as **Master's UI password** on the
-Remote (it logs in as `admin`, over your local network). The password is stored encoded and never shown on the page.
+Remote (it logs in as `admin`, over your local network). The password is kept in its own file in FPP's `plugindata`
+folder that only the fpp user can read (not with the other settings, which FPP's backups and crash reports copy), and
+is never shown on the page.
 
 ## The dashboard
 
@@ -187,9 +189,10 @@ Air Defender asks a free community ADS-B service for the aircraft near your show
 | **adsb.lol** | None published; some users report about 500 a day | Data from [adsb.lol](https://adsb.lol) under the ODbL. |
 | **Local receiver** (tar1090 / dump1090-fa) | None | Reads a receiver on the FPP itself; nothing leaves the device. |
 
-With **Use the other as a backup** on (the default), if adsb.fi or adsb.lol refuses, limits or doesn't answer, Air
-Defender asks the other in the same check, so there's no gap. It tries the chosen one again every minute and goes
-back to it when it answers. A local receiver never falls back to an online service.
+Turn on **Use the other as a backup** (it is off until you do, since it means the other service is also sent your
+location) and, if adsb.fi or adsb.lol refuses, limits or doesn't answer, Air Defender asks the other in the same
+check, so there's no gap. It tries the chosen one again every minute and goes back to it when it answers. A local
+receiver never falls back to an online service.
 
 The number of requests is your check interval over the time it checks: at 10 seconds, about 1,800 for a 5-hour show
 night. The settings page shows the estimate as you change it.
@@ -203,8 +206,11 @@ is switched to the default automatically.
   with a local receiver), only while Air Defender is checking.
 - Pressing **Look it up** beside Show elevation sends the location once to api.open-meteo.com.
 - A Remote asks its master for its status over your local network, with the master's UI password if you entered one.
-- The log (`/home/fpp/media/logs/airdefender.log`) records the callsigns, distance and height of low aircraft that
-  passed near your show. It keeps **7 days** and can be deleted with **Clear log**.
+- The log (`plugin-AirDefender.log` in FPP's logs folder) records the callsigns, distance and height of low aircraft
+  that passed near your show. FPP rotates it daily and keeps **7 days**; **Clear log** deletes it now.
+- Nothing is sent anywhere until you switch Air Defender on. The backup service and the elevation lookup are off
+  until you use them.
+- Uninstalling removes the log and the saved master password.
 - Air Defender runs a background process while FPP is running, and holds the shutter channels you list while
   aircraft are near or during a test.
 
@@ -213,13 +219,13 @@ The full disclosure is in `pluginInfo.json` and is shown by Plugin Manager befor
 ## Troubleshooting
 
 Start with the dashboard banner and **Last Event**; the full log (**Content Setup → File Manager → Logs →
-airdefender.log**) explains every change.
+plugin-AirDefender.log**) explains every change.
 
 | You see | What to do |
 |---|---|
 | **Not running** | Restart FPPD (or reboot). If it keeps happening, the log shows why the loop stopped. |
 | **Can't check the sky** / "No answer from the ADS-B feed" | Check the FPP has internet access. Try **Test connection**, or the other service. |
-| "refused the request (HTTP 403)" or "(HTTP 429)" | The service is refusing or limiting requests. Leave **backup** on, raise **Check every**, or switch service. |
+| "refused the request (HTTP 403)" or "(HTTP 429)" | The service is refusing or limiting requests. Turn on **backup**, raise **Check every**, or switch service. |
 | "No show location" | Set the location in FPP's settings, or turn off **Use FPP's location** and enter one. |
 | Aircraft right overhead aren't counted, or the radar looks wrong | The show location is probably off. Press **Check it on a map**; see [Check your location](#check-your-location). |
 | A head's row is red: "Model not found" | The model was renamed or deleted in xLights. Pick it again; until then the last channel is still protected. |
@@ -248,13 +254,16 @@ Options `--url`, `--lat`, `--lon`, `--distance`, `--altitude` and `--elevation` 
 | Heads by model or manual channel | `scripts/airdefender_models.php` |
 | Flight-data services, backup, fetching and parsing | `scripts/airdefender_feeds.php`, `scripts/airdefender_adsb.php` |
 | Tests, Check now, Last Event, log | `scripts/airdefender_test.php`, `scripts/airdefender_status.php` |
+| FPP's folders (media, logs, config), found the way FPP provides them | `scripts/airdefender_paths.php` |
+| The master's UI password, in `plugindata/AirDefender/` (0600) | `scripts/airdefender_secret.php` |
 | Dashboard and its endpoint | `www/index.php`, `www/test_api.php` |
 | Settings page | `www/settings.php` |
 | Status a Remote reads from its master | `www/master_status.php` |
 | Install, update and uninstall hooks | `scripts/fpp_install.sh`, `scripts/fpp_upgrade.sh`, `scripts/fpp_uninstall.sh` |
 
-Runtime files written on the device (not in git): `state.json`, `test.json`, `override.json`, `last_event.json` in
-the plugin folder, and the log in `/home/fpp/media/logs/`.
+Runtime files written on the device (not in git): `state.json`, `test.json`, `override.json`, `last_event.json` and
+`loop.lock` in the plugin folder, `plugin-AirDefender.log` in FPP's logs folder, and the master password in
+`plugindata/AirDefender/`. The pages follow FPP's light and dark themes through CSS variables.
 
 ## License
 

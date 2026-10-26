@@ -6,6 +6,7 @@
  *
  * With no options it uses your saved settings (service, location, limits):
  *   php /home/fpp/media/plugins/AirDefender/scripts/airdefender_check.php
+ *   (or wherever your media folder is)
  *
  * Any of them can be overridden:
  *   --url "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}"
@@ -20,6 +21,7 @@ if (PHP_SAPI !== 'cli') {
     exit(2);
 }
 
+require_once(__DIR__ . "/airdefender_paths.php");
 require_once(__DIR__ . "/airdefender_adsb.php");
 require_once(__DIR__ . "/airdefender_feeds.php");
 
@@ -29,20 +31,8 @@ if (isset($opts['help'])) {
     exit(0);
 }
 
-$settings = [];
-foreach ((array) @file("/home/fpp/media/config/plugin.AirDefender", FILE_IGNORE_NEW_LINES) as $line) {
-    $parts = explode('=', (string) $line, 2);
-    if (count($parts) === 2) {
-        $settings[trim($parts[0])] = trim(trim($parts[1]), "\"' ");
-    }
-}
-$fpp = [];
-foreach ((array) @file("/home/fpp/media/settings", FILE_IGNORE_NEW_LINES) as $line) {
-    $parts = explode('=', (string) $line, 2);
-    if (count($parts) === 2) {
-        $fpp[trim($parts[0])] = trim(trim($parts[1]), "\"' ");
-    }
-}
+$settings = airdefender_read_kv_file(airdefender_config_file());
+$fpp = airdefender_read_kv_file(airdefender_fpp_settings_file());
 
 $useFpp = !in_array(strtolower($settings['useFPPLocation'] ?? '1'), ['0', 'false', 'no', 'off'], true);
 $lat = $opts['lat'] ?? ($useFpp ? ($fpp['Latitude'] ?? '') : ($settings['latitude'] ?? ''));

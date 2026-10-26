@@ -6,7 +6,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOOP="${SCRIPT_DIR}/airdefender_loop.php"
-LOG="/home/fpp/media/logs/airdefender.log"
+# postStart.sh passes on FPP's LOGDIR, so the log is where FPP keeps logs.
+LOG="${LOGDIR:-${MEDIADIR:-/home/fpp/media}/logs}/plugin-AirDefender.log"
 
 note() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "${LOG}"

@@ -66,6 +66,6 @@ with the <b>Air Defender: Start Test</b> and <b>Air Defender: Stop Test</b> comm
 <h3>Last Event</h3>
 <p>The most recent time Safety Mode turned on or off, or a test started or ended, in this FPP's time zone. Other
 notes (a head re-patched, the flight-data service coming back, and so on) are only in the full log,
-<code>/home/fpp/media/logs/airdefender.log</code>, under <b>Content Setup &rarr; File Manager &rarr; Logs</b>.</p>
-<p>The log lists aircraft that passed near your show, so it keeps only the last 7 days. <b>Clear log</b> deletes it
-now.</p>
+<code>plugin-AirDefender.log</code>, under <b>Content Setup &rarr; File Manager &rarr; Logs</b>.</p>
+<p>The log lists aircraft that passed near your show. FPP rotates it daily and keeps only the last 7 days;
+<b>Clear log</b> deletes it now.</p>

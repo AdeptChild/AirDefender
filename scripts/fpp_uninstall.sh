@@ -25,3 +25,10 @@ fi
 # commands stay listed until it restarts. Ask for one.
 . ${FPPDIR}/scripts/common
 setSetting restartFlag 1
+
+# Remove what Air Defender kept outside its folder: the master's UI password
+# and the log (which lists aircraft that passed near the show).
+: "${MEDIADIR:=/home/fpp/media}"
+: "${LOGDIR:=${MEDIADIR}/logs}"
+rm -rf "${MEDIADIR}/plugindata/AirDefender" 2>/dev/null
+rm -f "${LOGDIR}/plugin-AirDefender.log" "${LOGDIR}/plugin-AirDefender.log".* 2>/dev/null

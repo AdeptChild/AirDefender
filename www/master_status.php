@@ -16,15 +16,8 @@ header('Cache-Control: no-store');
 
 $now = time();
 
-$settings = [];
-$lines = @file("/home/fpp/media/config/plugin.AirDefender", FILE_IGNORE_NEW_LINES);
-foreach (is_array($lines) ? $lines : [] as $line) {
-    $parts = explode('=', $line, 2);
-    if (count($parts) === 2) {
-        $settings[trim($parts[0])] = trim(trim($parts[1]), "\"' ");
-    }
-}
-$role = strtolower($settings['nodeRole'] ?? 'master') === 'remote' ? 'remote' : 'master';
+$pluginSettings = airdefender_read_kv_file(airdefender_config_file());
+$role = strtolower($pluginSettings['nodeRole'] ?? 'master') === 'remote' ? 'remote' : 'master';
 
 $state = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
 $state = is_array($state) ? $state : [];

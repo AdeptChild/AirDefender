@@ -76,13 +76,7 @@ switch ($action) {
         require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
         require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
         $template = (string) ($_POST['url'] ?? '');
-        $saved = '';
-        foreach ((array) @file("/home/fpp/media/config/plugin.AirDefender", FILE_IGNORE_NEW_LINES) as $line) {
-            $parts = explode('=', $line, 2);
-            if (count($parts) === 2 && trim($parts[0]) === 'adsbSourceUrl') {
-                $saved = trim(trim($parts[1]), "\"' ");
-            }
-        }
+        $saved = airdefender_read_kv_file(airdefender_config_file())['adsbSourceUrl'] ?? '';
         // Only the services Settings offers, or the one already saved: never an arbitrary address.
         if (!array_key_exists($template, airdefender_feed_options()) && $template !== airdefender_effective_feed($saved)[0]) {
             http_response_code(400);

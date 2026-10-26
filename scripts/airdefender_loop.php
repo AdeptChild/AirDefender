@@ -31,6 +31,7 @@ require_once(__DIR__ . "/airdefender_status.php");
 require_once(__DIR__ . "/airdefender_feeds.php");
 require_once(__DIR__ . "/airdefender_adsb.php");
 require_once(__DIR__ . "/airdefender_version.php");
+require_once(__DIR__ . "/airdefender_secret.php");
 
 const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_CLEAR_DELAY = 30;
@@ -64,9 +65,7 @@ function airdefender_write_state(array $state): void
 
 function airdefender_log(string $message): void
 {
-    $logFile = "/home/fpp/media/logs/airdefender.log";
-    $timestamp = date("Y-m-d H:i:s");
-    @file_put_contents($logFile, "[{$timestamp}] {$message}\n", FILE_APPEND | LOCK_EX);
+    airdefender_write_log($message);
 }
 
 /* Log a problem once, not every second while it lasts. */
@@ -88,7 +87,7 @@ function airdefender_log_once(string $key, ?string $message): void
 function airdefender_load_settings(): array
 {
     $settings = [];
-    $lines = @file("/home/fpp/media/config/plugin." . AIRDEFENDER_PLUGIN, FILE_IGNORE_NEW_LINES);
+    $lines = @file(airdefender_config_file(), FILE_IGNORE_NEW_LINES);
     foreach (is_array($lines) ? $lines : [] as $line) {
         $parts = explode('=', $line, 2);
         if (count($parts) === 2) {
@@ -113,7 +112,7 @@ function airdefender_fpp_location(): array
 {
     $lat = null;
     $lon = null;
-    $lines = @file('/home/fpp/media/settings', FILE_IGNORE_NEW_LINES);
+    $lines = @file(airdefender_fpp_settings_file(), FILE_IGNORE_NEW_LINES);
     foreach (is_array($lines) ? $lines : [] as $line) {
         $parts = explode('=', $line, 2);
         if (count($parts) !== 2) {
@@ -361,7 +360,7 @@ function airdefender_should_check(string $mode, ?array $show, ?int $overrideUnti
 // A lock file left by another user (a copy once run as root) can still be
 // locked through a read-only handle; if it cannot be opened at all, that is
 // not "already running", so exit 1 and let the watchdog log it and retry.
-$lockFile = sys_get_temp_dir() . "/airdefender_loop.lock";
+$lockFile = dirname(__DIR__) . "/loop.lock";
 $lock = @fopen($lockFile, "c") ?: @fopen($lockFile, "r");
 if (!$lock) {
     airdefender_log("Cannot open the lock file {$lockFile}; delete it and restart FPPD.");
@@ -381,7 +380,6 @@ foreach ((is_array($state['lastKnownChannels'] ?? null) ? $state['lastKnownChann
 }
 $models = null;              // FPP's model list, last good read
 $modelsAt = 0;
-$trimmedAt = 0;              // last time the log was trimmed to AIRDEFENDER_LOG_KEEP_DAYS
 $nearby = [];                // aircraft from the last good fetch, for the radar
 $show = null;                // what FPP is playing, re-read every 2 s
 $showAt = 0;
@@ -415,11 +413,6 @@ while (true) {
     $settings = airdefender_load_settings();
 
     // Keep only the last week of log (it records nearby aircraft).
-    if ($now - $trimmedAt >= 3600) {
-        $trimmedAt = $now;
-        airdefender_trim_log();
-    }
-
     $enabled = airdefender_truthy(airdefender_setting($settings, 'enabled', '0'));
     // "standalone" from older settings is a master.
     $role = strtolower((string) airdefender_setting($settings, 'nodeRole', 'master')) === 'remote' ? 'remote' : 'master';
@@ -435,7 +428,7 @@ while (true) {
         $checkWhen = 'scheduled';
     }
     [$feedTemplate, $feedNote] = airdefender_effective_feed((string) airdefender_setting($settings, 'adsbSourceUrl', ''));
-    $backupTemplate = airdefender_truthy(airdefender_setting($settings, 'feedFallback', '1')) ? airdefender_feed_backup($feedTemplate) : null;
+    $backupTemplate = airdefender_truthy(airdefender_setting($settings, 'feedFallback', '0')) ? airdefender_feed_backup($feedTemplate) : null;
     airdefender_log_once('feed-choice', $feedNote);
     // Re-read FPP's models every 10 s, so a head re-patched in xLights and
     // re-uploaded is followed. A failed read keeps the last good list.
@@ -584,10 +577,7 @@ while (true) {
         }
 
         if ($masterAddress !== null) {
-            $masterPassword = (string) ($settings['masterPassword'] ?? '');
-            if (strpos($masterPassword, 'b64:') === 0) {
-                $masterPassword = (string) base64_decode(substr($masterPassword, 4));
-            }
+            $masterPassword = airdefender_master_password();
             [$answer, $masterError] = airdefender_poll_master($masterAddress, $masterPassword);
             if ($answer !== null) {
                 $master = $answer;
