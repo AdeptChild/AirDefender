@@ -105,16 +105,8 @@ require_once(dirname(__DIR__) . "/scripts/airdefender_test.php");
 $state = AirDefender_ReadState();
 $test = airdefender_test_status();
 $safetyActive = !empty($state['safetyMode']) || $test['active'];
-$lastLog = isset($state['lastEvent']) ? $state['lastEvent'] : 'No log entries yet.';
+$lastLog = airdefender_last_log_line(isset($state['lastEvent']) ? $state['lastEvent'] : 'No log entries yet.');
 $lastAircraft = $state['lastAircraft'] ?? null;
-
-$logFile = "/home/fpp/media/logs/airdefender.log";
-if (file_exists($logFile)) {
-    $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    if ($lines && count($lines) > 0) {
-        $lastLog = end($lines);
-    }
-}
 ?>
 <div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
     <div>
@@ -289,6 +281,12 @@ if (file_exists($logFile)) {
         if (typeof data.loopSafety === 'boolean') {
             realSafety = data.loopSafety;
         }
+        if (typeof data.lastEvent === 'string') {
+            var lastEvent = document.getElementById('adLastEvent');
+            if (lastEvent && lastEvent.textContent.trim() !== data.lastEvent) {
+                lastEvent.textContent = data.lastEvent;
+            }
+        }
         clockOffset = data.serverTime - Date.now() / 1000;
         render();
     }
@@ -339,7 +337,7 @@ if (file_exists($logFile)) {
     markChips();
     render();
     setInterval(render, 250);                                  // smooth countdown
-    setInterval(function () { request('GET').catch(function () {}); }, 5000); // stay in sync with other browsers
+    setInterval(function () { request('GET').catch(function () {}); }, 2000); // live status, Last Event, other browsers
 })();
 </script>
 
@@ -388,7 +386,7 @@ if (file_exists($logFile)) {
 
 <div style="background:#2a2a2a;padding:15px 20px;border-radius:8px;margin:20px 0 0 0;display:table;text-align:center;">
     <h3 style="color:#6cf;margin:0 0 10px 0;">Last Event</h3>
-    <p style="color:#eee;margin:0;white-space:nowrap;">
+    <p id="adLastEvent" style="color:#eee;margin:0;white-space:nowrap;">
         <?php echo htmlspecialchars($lastLog); ?>
     </p>
 </div>

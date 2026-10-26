@@ -45,5 +45,6 @@ if ($action === 'start' && !$status['active']) {
 // Let the dashboard follow the detection loop's safety state too.
 $loopState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
 $status['loopSafety'] = is_array($loopState) && !empty($loopState['safetyMode']) && empty($loopState['testActive']);
+$status['lastEvent'] = airdefender_last_log_line(is_array($loopState) ? ($loopState['lastEvent'] ?? 'No log entries yet.') : 'No log entries yet.');
 
 echo json_encode($status);

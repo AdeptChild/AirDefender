@@ -128,3 +128,29 @@ function airdefender_test_stop(): array
 
     return airdefender_test_status();
 }
+
+/*
+ * The newest line of airdefender.log, for the dashboard's Last Event, or
+ * $fallback if there is none. Reads only the end of the file, since the log
+ * keeps growing through the season.
+ */
+function airdefender_last_log_line(string $fallback = 'No log entries yet.'): string
+{
+    $fh = @fopen("/home/fpp/media/logs/airdefender.log", "r");
+    if (!$fh) {
+        return $fallback;
+    }
+    $size = fstat($fh)['size'] ?? 0;
+    $chunk = min($size, 8192);
+    if ($chunk <= 0) {
+        fclose($fh);
+        return $fallback;
+    }
+    fseek($fh, -$chunk, SEEK_END);
+    $tail = (string) fread($fh, $chunk);
+    fclose($fh);
+
+    $lines = preg_split('/\r?\n/', trim($tail));
+    $last = trim((string) end($lines));
+    return $last !== '' ? $last : $fallback;
+}
