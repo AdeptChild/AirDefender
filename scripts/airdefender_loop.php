@@ -23,6 +23,7 @@ if (PHP_SAPI !== 'cli') {
     exit(1);
 }
 
+require_once(__DIR__ . "/airdefender_time.php");
 require_once(__DIR__ . "/airdefender_controller.php");
 require_once(__DIR__ . "/airdefender_test.php");
 

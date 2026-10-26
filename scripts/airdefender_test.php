@@ -10,6 +10,7 @@
  * refresh or a loop restart picks up exactly where the test was.
  */
 
+require_once(__DIR__ . "/airdefender_time.php");
 if (!defined('AIRDEFENDER_TEST_MIN_SEC')) {
     define('AIRDEFENDER_TEST_MIN_SEC', 5);
     define('AIRDEFENDER_TEST_MAX_SEC', 1800);   // 30 minutes
