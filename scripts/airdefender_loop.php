@@ -502,7 +502,10 @@ while (true) {
         $reason = 'aircraft';
         $event = "Aircraft {$lastTrigger['id']} at {$lastTrigger['distanceNm']} NM, "
             . round($lastTrigger['altFt']) . " ft";
-    } elseif ($feedError !== null && $wasSafe) {
+    } elseif ($feedError !== null && $lastTriggerAt > 0 && $lastTriggerAt >= ($lastFetchOkAt ?? 0)) {
+        // The feed's last good answer had a plane in range and it has said
+        // nothing since, so the plane may still be there. Decided from the
+        // feed alone, so a test starting or ending meanwhile changes nothing.
         $safe = true;
         $reason = 'feed-hold';
         $event = "Feed down while an aircraft was near: staying safe until it answers ({$feedError})";
