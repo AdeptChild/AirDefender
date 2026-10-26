@@ -24,13 +24,32 @@ This plugin is designed for FPP 10+ and supports Raspberry Pi, BeagleBone, and o
 
 ## 📦 Installation
 
-### **Developer Plugin Loader (recommended)**
+### From FPP's Plugin Manager (recommended)
 
-1. SSH into your FPP device  
-2. Navigate to the plugin directory:
+1. In FPP, open **Content Setup → Plugin Manager**.
+2. Paste this into the plugin info URL box and press **Retrieve Plugin Info**:
 
-   ```bash
-   cd /home/fpp/media/plugins/
+   ```
+   https://raw.githubusercontent.com/AdeptChild/AirDefender/master/pluginInfo.json
+   ```
+
+3. Press **Install**, then restart fppd when FPP asks.
+
+### By hand (SSH)
+
+```bash
+cd /home/fpp/media/plugins/
+git clone https://github.com/AdeptChild/AirDefender.git
+```
+
+Then restart fppd. To update later, press **Update** for Air Defender in Plugin Manager; the detection loop restarts with the new code by itself.
+
+## FPP Commands
+
+Air Defender adds two commands you can use in playlists, schedules and command presets (they appear after fppd restarts once following install):
+
+- **Air Defender: Start Test** – closes the shutters for the given number of seconds (5–1800), exactly like Start Test on the dashboard. On the master it closes every Remote's heads too.
+- **Air Defender: Stop Test** – ends a running test early.
 
 ## Node Role
 

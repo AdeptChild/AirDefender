@@ -1,10 +1,24 @@
-{
-    "off": {
-        "name": "Turn Off",
-        "description": "Turns off Air Defender output."
+[
+    {
+        "name": "Air Defender: Start Test",
+        "description": "Closes the moving-head shutters for the given time, on this FPP and, if it is the master, on every Remote, then hands them back to the sequence. The same as Start Test on the dashboard.",
+        "script": "test_start.sh",
+        "args": [
+            {
+                "name": "Seconds",
+                "description": "Test length (seconds)",
+                "type": "int",
+                "min": 5,
+                "max": 1800,
+                "default": "60",
+                "optional": false
+            }
+        ]
     },
-    "on": {
-        "name": "Turn On",
-        "description": "Turns on Air Defender output."
+    {
+        "name": "Air Defender: Stop Test",
+        "description": "Ends a running test early.",
+        "script": "test_stop.sh",
+        "args": []
     }
-}
+]

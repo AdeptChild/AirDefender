@@ -3,16 +3,9 @@
     "name": "Air Defender",
     "author": "G Hancox",
     "description": "ADS-B aircraft monitoring and DMX safety automation plugin for FPP.",
-    "license": "MIT",
-
     "homeURL": "https://github.com/AdeptChild/AirDefender",
     "srcURL": "https://github.com/AdeptChild/AirDefender.git",
     "bugURL": "https://github.com/AdeptChild/AirDefender/issues",
-
-    "settings": {
-        "file": "AirDefender.settings.php"
-    },
-
     "versions": [
         {
             "minFPPVersion": "10.0",
@@ -21,22 +14,58 @@
             "sha": ""
         }
     ],
-
     "dependencies": {
         "packages": [],
         "python": [],
         "scripts": [],
         "plugins": []
     },
-
     "privacy": {
-        "sendsData": [],
-        "collectsData": [],
-        "cameraMic": [],
-        "remoteAccess": [],
-        "systemChanges": [],
-        "other": [],
-        "thirdParty": [],
-        "reviewed": []
+        "summary": "Checks an online flight-tracking service for low aircraft near your show and closes your moving heads' shutters while one is close. Your show's location is sent to that service.",
+        "sends": [
+            {
+                "to": "api.airplanes.live",
+                "what": "your show's location and search radius",
+                "why": "to get the aircraft flying near your show (the default service)",
+                "alwaysOn": false
+            },
+            {
+                "to": "api.adsb.lol",
+                "what": "your show's location and search radius",
+                "why": "to get the aircraft flying near your show, if you pick this service",
+                "alwaysOn": false
+            },
+            {
+                "to": "opendata.adsb.fi",
+                "what": "your show's location and search radius",
+                "why": "to get the aircraft flying near your show, if you pick this service",
+                "alwaysOn": false
+            },
+            {
+                "to": "http://the master FPP on your network",
+                "what": "a request for its Air Defender status",
+                "why": "so a Remote closes its heads when the master does",
+                "alwaysOn": false
+            }
+        ],
+        "collects": [
+            {
+                "what": "callsigns, distance and height of low aircraft that passed near your show",
+                "about": "third-parties",
+                "keptDays": null,
+                "canDelete": false,
+                "where": "plugin log (/home/fpp/media/logs/airdefender.log)"
+            }
+        ],
+        "sensors": [],
+        "remoteAccess": "none",
+        "systemChanges": [
+            {
+                "kind": "service",
+                "what": "runs a background process while FPP is running, to watch for aircraft and control the shutters"
+            }
+        ],
+        "closedCode": false,
+        "other": "While an aircraft is near, or during a test, it overrides the shutter channels of the moving heads you list using FPP's channel overlays. A read-only status page on FPP's web server lets Remote FPPs check the master."
     }
 }
