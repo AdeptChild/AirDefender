@@ -926,7 +926,8 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             help.style.color = '#ffb74d';
         } else {
             help.style.color = '';
-            help.appendChild(document.createTextNode(useFpp ? "From FPP's settings. " : ''));
+            help.appendChild(document.createTextNode(useFpp
+                ? "From FPP's settings, which can be miles off. Make sure the pin is on your show: " : ''));
             var a = document.createElement('a');
             a.href = 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=15/' + lat + '/' + lon;
             a.target = '_blank'; a.rel = 'noopener'; a.style.color = '#7dffb4'; a.textContent = 'Check it on a map';

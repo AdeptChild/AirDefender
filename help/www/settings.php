@@ -48,7 +48,10 @@ until you pick the model again.</p>
         and the shutters are left to the show. To test a sequence at another time, use <b>Check now</b> on the
         dashboard (or the Air Defender: Check Now command): it checks for the time you pick, then turns itself off.</li>
     <li><b>Use FPP's location</b>: uses the latitude and longitude in FPP's own settings. Turn it off to enter a
-        different location. <b>Check it on a map</b> opens the spot in OpenStreetMap so you can make sure it is right.</li>
+        different location. <b>Check it on a map</b> opens the spot in OpenStreetMap: always check that the pin is on
+        your show, not just your town. FPP's location is often rough and can be miles off, and every distance (and the
+        show elevation) is measured from this point. To enter your own, right-click your yard in Google Maps and click
+        the numbers at the top of the menu to copy them.</li>
     <li><b>Show elevation</b>: your ground's height above sea level, in feet. Aircraft report their height above sea
         level, so Air Defender subtracts this to make the altitude limit count from your show. <b>Look it up</b> fills
         it in for the location above (FPP's or the one you entered), from Open-Meteo's elevation data (Copernicus DEM);

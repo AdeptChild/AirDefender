@@ -54,13 +54,14 @@ itself. **Release Notes** in Plugin Manager shows the changelog.
 ## Quick start
 
 1. Open **Air Defender → Settings** (from the Content Setup menu, or the dashboard's Settings button).
-2. **Air Defender:** switch it **On** (a new install starts off), with **Role: Master** (see [Master and Remote](#master-and-remote) if
-   you have FPP remotes).
+2. **Air Defender:** switch it **On** (a new install starts off), with **Role: Master** (see
+   [Master and Remote](#master-and-remote) if you have FPP remotes).
 3. **Moving heads:** add each head. Pick its **model**, or choose **Manual channel** and enter its **start channel**
    from xLights. Then enter the **shutter channel** from the fixture's DMX chart (for example 7) and the **closed**
    value (often 0). The row shows the FPP channel it works out, for example `→ FPP ch 82454`.
-4. **When and where:** check your location (FPP's own location is used by default; **Check it on a map** confirms
-   it), then press **Look it up** beside **Show elevation** so heights are measured from your show.
+4. **When and where:** press **Check it on a map** and make sure the pin is on **your show**, not just your town (see
+   [Check your location](#check-your-location)). Then press **Look it up** beside **Show elevation** so heights are
+   measured from your show.
 5. **Flight data:** press **Test connection**. You should see `OK · N aircraft nearby`.
 6. Save, open the **dashboard**, and run a **Test**: the heads should close within a second and open again when the
    timer ends.
@@ -89,6 +90,20 @@ create models for DMX fixtures by itself, and xLights changes spaces in model na
 Heads picked by model are looked up by name, so a head re-patched in xLights and uploaded again is followed
 automatically. If a model is renamed or deleted, its row turns red and Air Defender keeps protecting the channel it
 last found for it until you pick the model again.
+
+### Check your location
+
+**Don't trust the location until you've seen it on a map.** FPP's own location (the default) is often set roughly,
+or worked out from your internet connection, and can be miles from your yard. Everything Air Defender decides is
+measured from this point: which aircraft are within your distance, and the ground elevation that heights are
+measured from. If it's off by a few miles, planes right over your show can count as outside your limits.
+
+1. Open **Settings → When and where** and press **Check it on a map**.
+2. Zoom in: the pin should be on your property.
+3. If it isn't, turn off **Use FPP's location** and enter your show's latitude and longitude. (In Google Maps,
+   right-click your yard and click the numbers at the top of the menu to copy them.) Or fix the location in FPP's
+   own settings.
+4. Press **Look it up** again for **Show elevation**, so it matches the corrected spot, and save.
 
 ### Show elevation
 
@@ -206,6 +221,7 @@ airdefender.log**) explains every change.
 | **Can't check the sky** / "No answer from the ADS-B feed" | Check the FPP has internet access. Try **Test connection**, or the other service. |
 | "refused the request (HTTP 403)" or "(HTTP 429)" | The service is refusing or limiting requests. Leave **backup** on, raise **Check every**, or switch service. |
 | "No show location" | Set the location in FPP's settings, or turn off **Use FPP's location** and enter one. |
+| Aircraft right overhead aren't counted, or the radar looks wrong | The show location is probably off. Press **Check it on a map**; see [Check your location](#check-your-location). |
 | A head's row is red: "Model not found" | The model was renamed or deleted in xLights. Pick it again; until then the last channel is still protected. |
 | Heads don't close during a test | Check each head is **On**, the **FPP channel** shown matches the shutter channel, and the **closed** value is right for the fixture. |
 | **Standby** when you expected checking | No scheduled show is on. Use **Check now**, or change **When to check**. |
