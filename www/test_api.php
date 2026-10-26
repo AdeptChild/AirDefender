@@ -12,6 +12,9 @@
  *   POST action=clear_log                -> empty the Air Defender log
  *   POST action=override&minutes=<n>     -> check for aircraft now, for n minutes
  *   POST action=override_off             -> end that early
+ *   POST action=feed_test&url=&lat=&lon=&nm=&ft=
+ *                                        -> ask a flight-data service once (Settings'
+ *                                           Test connection); only offered services
  *
  * Anything that changes state is POST only.
  */
@@ -56,6 +59,57 @@ switch ($action) {
         airdefender_override_stop();
         $status = airdefender_test_status();
         break;
+    case 'feed_test':
+        require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
+        require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
+        $template = (string) ($_POST['url'] ?? '');
+        $saved = '';
+        foreach ((array) @file("/home/fpp/media/config/plugin.AirDefender", FILE_IGNORE_NEW_LINES) as $line) {
+            $parts = explode('=', $line, 2);
+            if (count($parts) === 2 && trim($parts[0]) === 'adsbSourceUrl') {
+                $saved = trim(trim($parts[1]), "\"' ");
+            }
+        }
+        // Only the services Settings offers, or the one already saved: never an arbitrary address.
+        if (!array_key_exists($template, airdefender_feed_options()) && $template !== airdefender_effective_feed($saved)[0]) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Pick one of the listed services.']);
+            exit;
+        }
+        $lat = (float) ($_POST['lat'] ?? 0);
+        $lon = (float) ($_POST['lon'] ?? 0);
+        $nm = max(0.1, (float) ($_POST['nm'] ?? 5));
+        $ft = max(0, (float) ($_POST['ft'] ?? 3000));
+        if (!is_numeric($_POST['lat'] ?? null) || !is_numeric($_POST['lon'] ?? null) || abs($lat) > 90 || abs($lon) > 180) {
+            echo json_encode(['ok' => false, 'error' => 'Set the show location first.']);
+            exit;
+        }
+        $url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($nm))], $template);
+        $started = microtime(true);
+        [$planes, $error] = airdefender_fetch_feed($url);
+        $ms = (int) round((microtime(true) - $started) * 1000);
+        if ($planes === null) {
+            echo json_encode(['ok' => false, 'error' => $error, 'ms' => $ms]);
+            exit;
+        }
+        $airborne = 0;
+        $inside = 0;
+        $nearest = null;
+        foreach ($planes as $p) {
+            if ($p['onGround']) {
+                continue;
+            }
+            $airborne++;
+            $d = airdefender_distance_nm($lat, $lon, $p['lat'], $p['lon']);
+            if ($d <= $nm && $p['altFt'] !== null && $p['altFt'] <= $ft) {
+                $inside++;
+            }
+            if ($nearest === null || $d < $nearest['nm']) {
+                $nearest = ['id' => $p['id'], 'nm' => round($d, 1), 'ft' => $p['altFt'] !== null ? (int) round($p['altFt']) : null];
+            }
+        }
+        echo json_encode(['ok' => true, 'aircraft' => $airborne, 'inside' => $inside, 'nearest' => $nearest, 'ms' => $ms]);
+        exit;
     case 'status':
         $status = airdefender_test_status();
         break;

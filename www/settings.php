@@ -422,590 +422,505 @@ if ($useFppLocationEnabled) {
         $settings['longitude']['value'] = (string) $fppLon;
     }
 }
+
+// Values for the page.
+$v = function ($key) use ($settings) { return $settings[$key]['value']; };
+$isRemote = $v('nodeRole') === 'remote';
+$feedOptionsList = airdefender_feed_options();
+// Heads shown: enabled, or with anything set. The rest wait behind "Add head".
+$headsShown = array();
+for ($n = 1; $n <= 8; $n++) {
+    $headsShown[$n] = AirDefender_IsTruthy($v("head{$n}Enabled")) || trim((string) $v("head{$n}Name")) !== ''
+        || trim((string) $v("head{$n}Model")) !== '' || (int) $v("head{$n}Start") > 0 || (int) $v("head{$n}Channel") > 0;
+}
+if (!in_array(true, $headsShown, true)) {
+    $headsShown[1] = true;   // always show one row to start from
+}
+$airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessage, 'ERROR') !== 0;
 ?>
-
-<div style="background:#1e1e1e;padding:20px;border-radius:10px;margin-bottom:20px;">
-    <h2 style="color:#6cf;margin:0;">Air Defender Settings</h2>
-    <p style="color:#ccc;margin-top:8px;">Configure the ADS-B safety threshold and controller behavior.</p>
-</div>
-
-<?php if ($statusMessage !== ''): ?>
-<div style="background:#264d2d;padding:15px 20px;border-radius:8px;margin-bottom:20px;color:#dff7e6;">
-    <?php echo htmlspecialchars($statusMessage); ?>
-</div>
-<?php endif; ?>
-
 <style>
-    .settings-layout {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        column-gap: 20px;
-    }
-    .settings-layout > [data-group="Plugin Status"],
-    .settings-layout > [data-group="Location"],
-    .settings-layout > [data-group="Safety Thresholds"],
-    .settings-layout > [data-group="ADS-B Feed"],
-    .settings-layout > [data-group="Moving Heads"],
-    .settings-layout > .settings-actions {
-        grid-column: 1 / -1;
-    }
-    .moving-head-grid {
-        display: grid;
-        grid-template-columns: 34px auto 130px minmax(150px, 210px) 92px 76px 56px minmax(180px, 1fr);
-        justify-content: start;
-        gap: 6px 8px;
-        align-items: center;
-    }
-    .moving-head-grid > div:not([data-head]) {
-        color: #aaa;
-        font-size: 12px;
-        font-weight: bold;
-        text-align: left;
-    }
-    .moving-head-grid .head-number {
-        color: #d9d9d9;
-        font-weight: bold;
-        text-align: left;
-    }
-    .moving-head-grid .head-toggle-cell,
-    .moving-head-grid .head-input-cell {
-        display: flex;
-        justify-content: flex-start;
-    }
-    .moving-head-grid .head-toggle-cell [data-boolean-group] {
-        justify-content: flex-start;
-    }
-    @media (max-width: 850px) {
-        .settings-layout {
-            grid-template-columns: minmax(0, 1fr);
-        }
-        .settings-layout > [data-group],
-        .settings-layout > .settings-actions {
-            grid-column: 1;
-        }
-    }
-    .moving-head-grid select {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 6px;
-        border-radius: 6px;
-        border: 1px solid #444;
-        background: #111;
-        color: #fff;
-    }
-    .moving-head-grid .head-result {
-        font-size: 13px;
-        color: #8fd18f;
-        white-space: nowrap;
-    }
-    .moving-head-grid .head-result.warn {
-        color: #ffb74d;
-        white-space: normal;
-    }
-    .moving-head-grid .head-result.err {
-        color: #ff7b72;
-        white-space: normal;
-    }
-    .moving-head-scroll {
-        overflow-x: auto;
-        padding-bottom: 4px;
-    }
-    .moving-head-grid input[type=text],
-    .moving-head-grid input[type=number] {
-        box-sizing: border-box;
-        padding: 6px;
-        border-radius: 6px;
-        border: 1px solid #444;
-        background: #111;
-        color: #fff;
-        width: 100%;
-    }
-    .moving-head-grid input:disabled {
-        background: #1a1a1a;
-        color: #888;
-        cursor: not-allowed;
+    .ads { --card:#262626; --card2:#1d1d1d; --line:#3a3a3a; --text:#ececec; --muted:#9a9a9a; --accent:#6cf;
+           --warn:#ff9800; --ok:#4caf50; --bad:#f44336; color:var(--text); max-width:1100px; padding-bottom:80px; }
+    .ads * { box-sizing:border-box; }
+    .ads-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    .ads-top h2 { color:var(--accent); margin:0; }
+    .ads-btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:6px; padding:7px 12px;
+           font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; }
+    .ads-btn.primary { background:var(--accent); color:#111; border-color:var(--accent); font-weight:bold; }
+    .ads-msg { padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:14px; }
+    .ads-msg.ok { background:#1f3a24; color:#cfeed6; } .ads-msg.err { background:#4a1f1f; color:#ffd7d3; }
+    .ads-sec { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:12px; }
+    .ads-sec h3 { margin:0 0 12px 0; font-size:16px; color:var(--accent); display:flex; align-items:baseline; gap:10px; }
+    .ads-sec h3 .n { color:var(--muted); font-size:13px; font-weight:normal; }
+    .ads-fields { display:grid; grid-template-columns:repeat(auto-fit, minmax(440px, 1fr)); gap:0 28px; align-items:start; }
+    .ads-fields .ads-field:last-child { margin-bottom:12px; }
+    .ads-field { display:grid; grid-template-columns:150px minmax(0,1fr); gap:6px 12px; align-items:center; margin-bottom:12px; }
+    .ads-field:last-child { margin-bottom:0; }
+    .ads-field > label { color:#cfcfcf; font-size:14px; }
+    .ads-help { grid-column:2; font-size:12px; color:var(--muted); line-height:1.45; }
+    .ads input[type=text], .ads input[type=number], .ads select { padding:7px 9px; border-radius:6px; border:1px solid #444;
+           background:#111; color:#fff; font-size:14px; height:auto; line-height:1.3; }
+    .ads select { padding-right:28px; }
+    .ads input:disabled { background:#1a1a1a; color:#888; cursor:not-allowed; }
+    .ads-unit { display:inline-flex; align-items:center; gap:6px; }
+    .ads-unit input { width:95px; }
+    .ads-unit span { color:var(--muted); font-size:13px; white-space:nowrap; }
+    .ads-field > div, .ads-field > select { min-width:0; }
+    .ads-seg { display:inline-flex; justify-self:start; background:#111; border-radius:8px; padding:3px; gap:3px; flex-wrap:wrap; }
+    .ads-seg label { position:relative; }
+    .ads-seg input { position:absolute; opacity:0; pointer-events:none; }
+    .ads-seg span { display:block; padding:6px 12px; border-radius:6px; color:#bbb; font-size:13px; font-weight:bold; cursor:pointer; }
+    .ads-seg input:checked + span { background:var(--accent); color:#111; }
+    .ads-seg input:focus-visible + span { outline:2px solid var(--accent); }
+    .ads-sw { position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; }
+    .ads-sw input { position:absolute; opacity:0; pointer-events:none; }
+    .ads-sw .track { width:40px; height:22px; border-radius:11px; background:#444; position:relative; transition:background .15s; flex:none; }
+    .ads-sw .track::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#ddd; transition:left .15s; }
+    .ads-sw input:checked + .track { background:var(--ok); }
+    .ads-sw input:checked + .track::after { left:21px; background:#fff; }
+    .ads-sw input:focus-visible + .track { outline:2px solid var(--accent); }
+    .ads-heads { overflow-x:auto; }
+    .ads-heads table { width:100%; border-collapse:collapse; min-width:780px; }
+    .ads-heads th { text-align:left; font-size:12px; color:var(--muted); font-weight:bold; padding:0 6px 6px 0; }
+    .ads-heads td { padding:5px 6px 5px 0; border-top:1px solid var(--line); vertical-align:middle; }
+    .ads-heads td input[type=text] { width:100%; min-width:110px; }
+    .ads-heads td input[type=number] { width:86px; }
+    .ads-heads td.closed input { width:62px; }
+    .ads-heads td select { width:100%; min-width:140px; }
+    .ads-heads tr.off td:not(.keep) { opacity:.45; }
+    .ads-res { font-size:13px; color:#8fd18f; white-space:nowrap; }
+    .ads-res.warn { color:#ffb74d; white-space:normal; } .ads-res.err { color:#ff7b72; white-space:normal; }
+    .ads-x { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:2px 6px; }
+    .ads-x:hover { color:#ff7b72; }
+    .ads-add { margin-top:10px; }
+    .ads-note { font-size:12px; color:var(--muted); line-height:1.5; margin-top:10px; }
+    .ads-test { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px; }
+    .ads-test-out { font-size:13px; } .ads-test-out.ok { color:#8fd18f; } .ads-test-out.err { color:#ff7b72; }
+    .ads-remote-only, .ads.remote .ads-master-only { display:none; }
+    .ads.remote .ads-remote-only { display:block; }
+    .ads-bar { position:sticky; bottom:0; z-index:5; display:none; justify-content:space-between; align-items:center; gap:12px;
+           flex-wrap:wrap; margin-top:12px; padding:10px 16px; border-radius:12px; background:#3a2a10; border:1px solid var(--warn); }
+    .ads-bar.show { display:flex; }
+    .ads-bar span { color:#ffcc80; font-size:14px; }
+    @media (max-width:520px) { .ads-fields { grid-template-columns:1fr; } }
+    @media (max-width:600px) {
+        .ads-field { grid-template-columns:1fr; }
+        .ads-help { grid-column:1; }
     }
 </style>
 
-<form class="settings-layout" method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" style="background:#2a2a2a;padding:20px;border-radius:10px;">
-    <?php foreach ($settingGroups as $groupName => $groupKeys): ?>
-        <div data-group="<?php echo htmlspecialchars($groupName); ?>" style="background:#1f1f1f;padding:16px;border-radius:10px;margin-bottom:20px;">
-            <h3 style="margin:0 0 14px 0;color:#6cf;"><?php echo htmlspecialchars($groupName); ?></h3>
-            <?php if ($groupName === 'Moving Heads'): ?>
-                <div class="moving-head-scroll">
-                <div class="moving-head-grid">
-                    <div>Head</div>
-                    <div>Enabled</div>
-                    <div>Name</div>
-                    <div>Model</div>
-                    <div title="The head's first FPP channel, from xLights">Start Ch.</div>
-                    <div title="The shutter's channel in the fixture's DMX chart">Shutter Ch.</div>
-                    <div>Closed</div>
-                    <div></div>
-                    <?php for ($headIndex = 1; $headIndex <= 8; $headIndex++): ?>
-                        <?php
-                            $enabledKey = 'head' . $headIndex . 'Enabled';
-                            $nameKey = 'head' . $headIndex . 'Name';
-                            $startKey = 'head' . $headIndex . 'Start';
-                            $channelKey = 'head' . $headIndex . 'Channel';
-                            $closedValueKey = 'head' . $headIndex . 'ClosedValue';
-                            $modelKey = 'head' . $headIndex . 'Model';
-                            $offsetKey = 'head' . $headIndex . 'Offset';
-                            $headModel = (string) $settings[$modelKey]['value'];
-                            $headModelMissing = $headModel !== '' && is_array($airdefenderModels) && !isset($airdefenderModels[$headModel]);
-                            $headStart = (int) $settings[$startKey]['value'];
-                            $headOffset = max(1, (int) $settings[$offsetKey]['value']);
-                            // Settings from before Start existed held an absolute shutter channel:
-                            // show it as start = that channel, shutter = 1, which is the same channel.
-                            if ($headModel === '' && $headStart < 1 && (int) $settings[$channelKey]['value'] > 0) {
-                                $headStart = (int) $settings[$channelKey]['value'];
-                                $headOffset = 1;
-                            }
-                            // For a head set by model, keep the channel the detection loop last
-                            // resolved it to, which follows re-patches.
-                            if ($headModel !== '' && !empty($airdefenderLastKnown[$headIndex])) {
-                                $settings[$channelKey]['value'] = (string) (int) $airdefenderLastKnown[$headIndex];
-                            }
-                        ?>
-                        <div data-head="<?php echo $headIndex; ?>" style="display:contents;">
-                            <div class="head-number"><?php echo $headIndex; ?></div>
-                            <div class="head-toggle-cell">
-                                <div data-boolean-group="<?php echo htmlspecialchars($enabledKey); ?>" data-compact="true" style="display:inline-flex;gap:4px;background:#111;padding:3px;border-radius:7px;width:max-content;">
-                                    <?php foreach (array('1' => 'Yes', '0' => 'No') as $toggleValue => $toggleLabel): ?>
-                                        <?php $selected = AirDefender_IsTruthy($settings[$enabledKey]['value']) === ((string) $toggleValue === '1'); ?>
-                                        <label style="display:block;cursor:pointer;">
-                                            <input type="radio" name="<?php echo htmlspecialchars($enabledKey); ?>" value="<?php echo $toggleValue; ?>" <?php echo $selected ? 'checked' : ''; ?> style="display:none;">
-                                            <span style="display:block;text-align:center;padding:5px 9px;min-width:42px;box-sizing:border-box;border-radius:5px;font-size:13px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo $selected ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
-                                                <?php echo $toggleLabel; ?>
-                                            </span>
-                                        </label>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                            <div class="head-input-cell">
-                                <input type="text" name="<?php echo htmlspecialchars($nameKey); ?>" id="<?php echo htmlspecialchars($nameKey); ?>"
-                                    value="<?php echo htmlspecialchars((string) $settings[$nameKey]['value']); ?>" maxlength="40"
-                                    placeholder="MH<?php echo $headIndex; ?>" title="A name for this head, used in the log">
-                            </div>
-                            <div class="head-input-cell">
-                                <select name="<?php echo htmlspecialchars($modelKey); ?>" id="<?php echo htmlspecialchars($modelKey); ?>" data-head-model="<?php echo $headIndex; ?>" data-previous="<?php echo htmlspecialchars($headModel); ?>">
-                                    <option value="" <?php echo $headModel === '' ? 'selected' : ''; ?>>Manual channel</option>
-                                    <?php if ($headModelMissing): ?>
-                                        <option value="<?php echo htmlspecialchars($headModel); ?>" selected><?php echo htmlspecialchars($headModel); ?> (not found)</option>
-                                    <?php endif; ?>
-                                    <?php foreach ((array) $airdefenderModels as $modelName => $modelInfo): ?>
-                                        <option value="<?php echo htmlspecialchars($modelName); ?>" <?php echo $headModel === (string) $modelName ? 'selected' : ''; ?>><?php echo htmlspecialchars($modelName); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="head-input-cell">
-                                <input type="number" name="<?php echo htmlspecialchars($startKey); ?>" id="<?php echo htmlspecialchars($startKey); ?>"
-                                    value="<?php echo $headStart > 0 ? $headStart : ''; ?>" data-manual="<?php echo $headStart > 0 ? $headStart : ''; ?>"
-                                    min="1" step="1" placeholder="e.g. 82448"
-                                    title="The head's first FPP channel, from xLights (its Start Channel)">
-                            </div>
-                            <div class="head-input-cell">
-                                <input type="number" name="<?php echo htmlspecialchars($offsetKey); ?>" id="<?php echo htmlspecialchars($offsetKey); ?>"
-                                    value="<?php echo $headOffset; ?>" min="1" step="1"
-                                    title="The shutter's channel number in the fixture's DMX chart">
-                            </div>
-                            <div class="head-input-cell">
-                                <input type="number" name="<?php echo htmlspecialchars($closedValueKey); ?>" id="<?php echo htmlspecialchars($closedValueKey); ?>"
-                                    value="<?php echo htmlspecialchars((string) $settings[$closedValueKey]['value']); ?>" min="0" max="255" step="1"
-                                    title="The value that closes the shutter, from the fixture's DMX chart">
-                            </div>
-                            <div class="head-result" id="head<?php echo $headIndex; ?>Result"></div>
-                            <input type="hidden" name="<?php echo htmlspecialchars($channelKey); ?>" id="<?php echo htmlspecialchars($channelKey); ?>"
-                                value="<?php echo htmlspecialchars((string) $settings[$channelKey]['value']); ?>">
-                        </div>
-                    <?php endfor; ?>
-                </div>
-                </div>
-                <div style="margin-top:12px;color:#aaa;font-size:13px;line-height:1.5;max-width:820px;">
-                    For each head, pick its <b>model</b>, or choose <b>Manual channel</b> and enter the head's <b>Start Ch.</b> from xLights.
-                    Then enter the <b>Shutter Ch.</b>: the shutter's channel number <b>in the fixture</b>, from its DMX chart (for example 7).
-                    Air Defender works out the FPP channel and shows it at the end of the row. Heads picked by model follow the model
-                    if you re-patch it in xLights and upload again.
-                    <?php if ($airdefenderModels === null): ?>
-                        <br><span style="color:#ffb74d;">Could not read FPP's model list right now; Manual channel still works.</span>
-                    <?php elseif (!$airdefenderModels): ?>
-                        <br><span style="color:#ffb74d;">No models found in FPP. To list them here, upload from xLights with FPP Connect with the <b>Models</b> column set to <b>All</b>, or add them on FPP's Pixel Overlay Models page. Manual channel works meanwhile.</span>
-                    <?php else: ?>
-                        <br>Head not in the list? In xLights' FPP Connect, set the <b>Models</b> column to <b>All</b> (Local leaves out heads on other controllers) and upload again.
-                    <?php endif; ?>
-                </div>
-            <?php else: ?>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
-                <?php foreach ($groupKeys as $key): ?>
-                    <?php $config = $settings[$key]; ?>
-                    <div data-field="<?php echo htmlspecialchars($key); ?>" <?php if (preg_match('/^head([1-8])/', $key, $headMatch)) { echo 'data-head="' . $headMatch[1] . '" '; } ?>style="background:#171717;padding:12px;border-radius:8px;">
-                        <label for="<?php echo htmlspecialchars($key); ?>" style="display:block;color:#d9d9d9;margin-bottom:8px;font-weight:bold;">
-                            <?php echo htmlspecialchars($config['label']); ?>
-                        </label>
+<form method="POST" action="plugin.php?plugin=AirDefender&page=www/settings.php" class="ads<?php echo $isRemote ? ' remote' : ''; ?>" id="ads" novalidate>
+    <div class="ads-top">
+        <h2>Air Defender settings</h2>
+        <a class="ads-btn" href="plugin.php?plugin=AirDefender&page=www/index.php">Dashboard</a>
+    </div>
 
-                        <?php if ($config['type'] === 'bool'): ?>
-                            <div data-boolean-group="<?php echo htmlspecialchars($key); ?>" style="display:inline-flex;gap:8px;background:#111;padding:4px;border-radius:8px;">
-                                <label style="flex:0 0 auto;display:block;cursor:pointer;">
-                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:8px 12px;width:100px;box-sizing:border-box;border-radius:6px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
-                                        Yes
-                                    </span>
-                                </label>
-                                <label style="flex:0 0 auto;display:block;cursor:pointer;">
-                                    <input type="radio" name="<?php echo htmlspecialchars($key); ?>" value="0" <?php echo !AirDefender_IsTruthy($config['value']) ? 'checked' : ''; ?> style="display:none;">
-                                    <span style="display:block;text-align:center;padding:8px 12px;width:100px;box-sizing:border-box;border-radius:6px;font-weight:bold;line-height:1.1;white-space:nowrap;<?php echo !AirDefender_IsTruthy($config['value']) ? 'background:#6cf;color:#111;' : 'background:#202020;color:#bbb;'; ?>">
-                                        No
-                                    </span>
-                                </label>
-                            </div>
-                            <?php if ($key === 'feedDownSafe'): ?>
-                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
-                                    Off: if the flight-data service stops answering, heads stay as they are (unless an aircraft was near).
-                                    On: heads close until it answers again. Stricter, but an internet outage keeps them closed.
-                                </div>
-                            <?php endif; ?>
-                            <?php if ($key === 'useFPPLocation'): ?>
-                                <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;">
-                                    <div style="color:#6cf;font-weight:bold;font-size:13px;margin-bottom:4px;">Current FPP Location</div>
-                                    <div style="color:#ccc;font-size:13px;">Latitude: <?php echo $fppLat !== null ? htmlspecialchars((string) $fppLat) : 'Not detected'; ?></div>
-                                    <div style="color:#ccc;font-size:13px;">Longitude: <?php echo $fppLon !== null ? htmlspecialchars((string) $fppLon) : 'Not detected'; ?></div>
-                                </div>
-                            <?php endif; ?>
-                        <?php elseif ($config['type'] === 'select'): ?>
-                            <select name="<?php echo htmlspecialchars($key); ?>" id="<?php echo htmlspecialchars($key); ?>" style="width:100%;max-width:320px;padding:8px;border-radius:6px;background:#111;color:#fff;border:1px solid #444;">
-                                <?php foreach ($config['options'] as $optionValue => $optionLabel): ?>
-                                    <option value="<?php echo htmlspecialchars($optionValue); ?>" <?php echo ((string) $config['value'] === (string) $optionValue) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($optionLabel); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <?php if ($key === 'checkWhen'): ?>
-                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
-                                    Air Defender only asks for flight data when there is a show to protect, starting 2 minutes before a scheduled show.
-                                    Testing a sequence at another time? Use <b>Check now</b> on the dashboard: it checks for a set time, then turns itself off.
-                                </div>
-                            <?php endif; ?>
-                            <?php if ($key === 'adsbSourceUrl'): ?>
-                                <?php if (!empty($airdefenderFeedNote)): ?>
-                                    <div style="margin-top:8px;color:#ffb74d;font-size:13px;line-height:1.4;"><?php echo htmlspecialchars($airdefenderFeedNote); ?></div>
-                                <?php endif; ?>
-                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
-                                    Free community services, for personal, non-commercial use. Data from
-                                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#6cf;">adsb.lol</a> (ODbL) and
-                                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#6cf;">adsb.fi</a>.
-                                    A local receiver sends nothing off this FPP.
-                                </div>
-                            <?php endif; ?>
-                            <?php if ($key === 'nodeRole'): ?>
-                                <div style="margin-top:12px;padding:8px 10px;background:#111;border-radius:6px;color:#ccc;font-size:13px;line-height:1.5;">
-                                    <div><b>Master:</b> detects aircraft and closes its own heads. Use this on a single FPP, and on the FPP that runs the show (including when it sends to a Falcon over DDP/E1.31).</div>
-                                    <div><b>Remote:</b> for an FPP in remote (multisync) mode. Follows the master, including its tests, and closes its own heads. If it loses the master, it closes its heads until it is back.</div>
-                                </div>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <?php
-                                $fieldValue = (string) ($config['value'] !== null && $config['value'] !== '' && $config['value'] !== '[]' && strtolower((string) $config['value']) !== 'null' ? $config['value'] : $config['default']);
+    <?php if ($statusMessage !== ''): ?>
+        <div class="ads-msg <?php echo $airdefenderSaved ? 'ok' : 'err'; ?>" id="adsMsg"><?php echo htmlspecialchars($statusMessage); ?></div>
+    <?php endif; ?>
 
-                                if ($key === 'latitude' && $useFppLocationEnabled && $fppLat !== null) {
-                                    $fieldValue = (string) $fppLat;
-                                }
-                                if ($key === 'longitude' && $useFppLocationEnabled && $fppLon !== null) {
-                                    $fieldValue = (string) $fppLon;
-                                }
-                            ?>
-                            <input
-                                type="text"
-                                <?php if ($key === 'masterAddress'): ?>placeholder="Blank = find it automatically"<?php endif; ?>
-                                name="<?php echo htmlspecialchars($key); ?>"
-                                id="<?php echo htmlspecialchars($key); ?>"
-                                value="<?php echo htmlspecialchars($fieldValue); ?>"
-                                data-fpp-value="<?php echo htmlspecialchars($key === 'latitude' ? ($fppLat !== null ? (string) $fppLat : '') : ($fppLon !== null ? (string) $fppLon : '')); ?>"
-                                <?php if ($key === 'latitude' || $key === 'longitude') { ?>
-                                    <?php if ($useFppLocationEnabled): ?>
-                                        disabled
-                                    <?php endif; ?>
-                                <?php } ?>
-                                style="width:100%;padding:8px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;<?php echo (($key === 'latitude' || $key === 'longitude') && $useFppLocationEnabled) ? 'background:#1a1a1a;color:#888;cursor:not-allowed;opacity:0.45;' : ''; ?>"
-                            >
-                            <?php if ($key === 'clearDelaySec'): ?>
-                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
-                                    How long heads stay closed after the last aircraft leaves, so one on the edge of the area does not flash them on and off (0&ndash;600).
-                                </div>
-                            <?php endif; ?>
-                            <?php if ($key === 'masterAddress'): ?>
-                                <div style="margin-top:8px;color:#aaa;font-size:13px;line-height:1.4;">
-                                    IP or hostname of the master FPP. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one player on the network.
-                                </div>
-                            <?php endif; ?>
-                        <?php endif; ?>
-                    </div>
+    <!-- 1. Air Defender -->
+    <div class="ads-sec">
+        <h3>Air Defender <span class="n">1 of 5</span></h3>
+        <div class="ads-field">
+            <label for="enabledSw">Enabled</label>
+            <div>
+                <input type="hidden" name="enabled" value="0">
+                <label class="ads-sw"><input type="checkbox" id="enabledSw" name="enabled" value="1" <?php echo AirDefender_IsTruthy($v('enabled')) ? 'checked' : ''; ?>><span class="track"></span><span id="enabledText"></span></label>
+            </div>
+        </div>
+        <div class="ads-field">
+            <label>Role</label>
+            <div class="ads-seg" role="radiogroup" aria-label="Role">
+                <?php foreach ($settings['nodeRole']['options'] as $val => $lab): ?>
+                    <label><input type="radio" name="nodeRole" value="<?php echo $val; ?>" <?php echo $v('nodeRole') === $val ? 'checked' : ''; ?>><span><?php echo $lab; ?></span></label>
                 <?php endforeach; ?>
             </div>
+            <div class="ads-help">
+                <b>Master</b>: checks for aircraft. Use it on a single FPP, and on the one that runs the show (also covers heads it sends to a Falcon over DDP/E1.31).
+                <b>Remote</b>: for an FPP in remote (multisync) mode; follows the master and closes its own heads, and closes them if it loses the master.
+            </div>
+        </div>
+        <div class="ads-field ads-remote-only" style="display:none;" id="masterRow">
+            <label for="masterAddress">Master FPP address</label>
+            <input type="text" name="masterAddress" id="masterAddress" value="<?php echo htmlspecialchars((string) $v('masterAddress')); ?>" placeholder="Blank finds it automatically" style="max-width:280px;">
+            <div class="ads-help">IP or hostname of the master. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one player FPP.</div>
+        </div>
+    </div>
+
+    <!-- 2. Moving heads -->
+    <div class="ads-sec">
+        <h3>Moving heads <span class="n">2 of 5</span></h3>
+        <div class="ads-heads">
+            <table>
+                <thead><tr>
+                    <th>On</th><th>Name</th><th>Model</th>
+                    <th title="The head's first FPP channel, from xLights">Start ch.</th>
+                    <th title="The shutter's channel in the fixture's DMX chart">Shutter ch.</th>
+                    <th title="The value that closes the shutter">Closed</th><th></th><th></th>
+                </tr></thead>
+                <tbody>
+                <?php for ($n = 1; $n <= 8; $n++):
+                    $model = (string) $v("head{$n}Model");
+                    $missing = $model !== '' && is_array($airdefenderModels) && !isset($airdefenderModels[$model]);
+                    $start = (int) $v("head{$n}Start");
+                    $offset = max(1, (int) $v("head{$n}Offset"));
+                    if ($model === '' && $start < 1 && (int) $v("head{$n}Channel") > 0) {   // saved before Start existed
+                        $start = (int) $v("head{$n}Channel");
+                        $offset = 1;
+                    }
+                    $channel = (string) $v("head{$n}Channel");
+                    if ($model !== '' && !empty($airdefenderLastKnown[$n])) {
+                        $channel = (string) (int) $airdefenderLastKnown[$n];
+                    }
+                ?>
+                    <tr data-head="<?php echo $n; ?>" <?php echo $headsShown[$n] ? '' : 'hidden'; ?>>
+                        <td class="keep">
+                            <input type="hidden" name="head<?php echo $n; ?>Enabled" value="0">
+                            <label class="ads-sw" title="Protect this head"><input type="checkbox" name="head<?php echo $n; ?>Enabled" id="head<?php echo $n; ?>Enabled" value="1" <?php echo AirDefender_IsTruthy($v("head{$n}Enabled")) ? 'checked' : ''; ?>><span class="track"></span></label>
+                        </td>
+                        <td><input type="text" name="head<?php echo $n; ?>Name" id="head<?php echo $n; ?>Name" value="<?php echo htmlspecialchars((string) $v("head{$n}Name")); ?>" maxlength="40" placeholder="MH<?php echo $n; ?>"></td>
+                        <td>
+                            <select name="head<?php echo $n; ?>Model" id="head<?php echo $n; ?>Model" data-previous="<?php echo htmlspecialchars($model); ?>">
+                                <option value="" <?php echo $model === '' ? 'selected' : ''; ?>>Manual channel</option>
+                                <?php if ($missing): ?><option value="<?php echo htmlspecialchars($model); ?>" selected><?php echo htmlspecialchars($model); ?> (not found)</option><?php endif; ?>
+                                <?php foreach ((array) $airdefenderModels as $mName => $mInfo): ?>
+                                    <option value="<?php echo htmlspecialchars($mName); ?>" <?php echo $model === (string) $mName ? 'selected' : ''; ?>><?php echo htmlspecialchars($mName); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                        <td><input type="number" name="head<?php echo $n; ?>Start" id="head<?php echo $n; ?>Start" value="<?php echo $start > 0 ? $start : ''; ?>" data-manual="<?php echo $start > 0 ? $start : ''; ?>" min="1" step="1" placeholder="82448"></td>
+                        <td><input type="number" name="head<?php echo $n; ?>Offset" id="head<?php echo $n; ?>Offset" value="<?php echo $offset; ?>" min="1" step="1"></td>
+                        <td class="closed"><input type="number" name="head<?php echo $n; ?>ClosedValue" id="head<?php echo $n; ?>ClosedValue" value="<?php echo (int) $v("head{$n}ClosedValue"); ?>" min="0" max="255" step="1"></td>
+                        <td><span class="ads-res" id="head<?php echo $n; ?>Result"></span>
+                            <input type="hidden" name="head<?php echo $n; ?>Channel" id="head<?php echo $n; ?>Channel" value="<?php echo htmlspecialchars($channel); ?>"></td>
+                        <td class="keep"><button type="button" class="ads-x" data-remove="<?php echo $n; ?>" title="Remove this head" aria-label="Remove head <?php echo $n; ?>">&times;</button></td>
+                    </tr>
+                <?php endfor; ?>
+                </tbody>
+            </table>
+        </div>
+        <button type="button" class="ads-btn ads-add" id="addHead">+ Add head</button>
+        <div class="ads-note">
+            Pick the head's <b>model</b>, or choose <b>Manual channel</b> and enter its <b>start channel</b> from xLights. <b>Shutter ch.</b> is the shutter's
+            channel in the fixture's DMX chart (for example 7), and <b>Closed</b> the value that closes it. Air Defender works out the FPP channel.
+            <?php if ($airdefenderModels === null): ?>
+                <br><span style="color:#ffb74d;">Could not read FPP's model list right now; Manual channel still works.</span>
+            <?php elseif (!$airdefenderModels): ?>
+                <br><span style="color:#ffb74d;">No models in FPP yet: upload from xLights with FPP Connect's <b>Models</b> column set to <b>All</b>, or add them on FPP's Pixel Overlay Models page.</span>
+            <?php else: ?>
+                Head not in the list? In FPP Connect, set the <b>Models</b> column to <b>All</b> (Local leaves out heads on other controllers) and upload again.
             <?php endif; ?>
         </div>
-    <?php endforeach; ?>
+    </div>
 
-    <div class="settings-actions" style="margin-top:20px;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;">
-        <a href="plugin.php?plugin=AirDefender&page=www/index.php" style="display:inline-block;padding:8px 12px;border-radius:6px;background:#333;color:#fff;text-decoration:none;font-weight:bold;line-height:1.1;">
-            Dashboard
-        </a>
-        <button type="submit" style="padding:8px 12px;border-radius:6px;border:none;background:#6cf;color:#111;font-weight:bold;cursor:pointer;line-height:1.1;">
-            Save Settings
-        </button>
+    <div class="ads-sec ads-remote-only" style="display:none;">
+        <h3>On a Remote</h3>
+        <div style="font-size:14px;color:#cfcfcf;">When to check, location, safety limits and flight data are set on the <b>master</b>; this Remote follows it.</div>
+    </div>
+
+    <div class="ads-master-only">
+        <!-- 3. When and where -->
+        <div class="ads-sec">
+            <h3>When and where <span class="n">3 of 5</span></h3>
+            <div class="ads-fields">
+            <div class="ads-field">
+                <label>When to check</label>
+                <div class="ads-seg" role="radiogroup" aria-label="When to check">
+                    <?php foreach (array('scheduled' => 'Scheduled shows', 'playing' => 'When playing', 'always' => 'Always') as $val => $lab): ?>
+                        <label><input type="radio" name="checkWhen" value="<?php echo $val; ?>" <?php echo $v('checkWhen') === $val ? 'checked' : ''; ?>><span><?php echo $lab; ?></span></label>
+                    <?php endforeach; ?>
+                </div>
+                <div class="ads-help" id="checkWhenHelp"></div>
+            </div>
+            <div class="ads-field">
+                <label for="useFppSw">Use FPP's location</label>
+                <div>
+                    <input type="hidden" name="useFPPLocation" value="0">
+                    <label class="ads-sw"><input type="checkbox" id="useFppSw" name="useFPPLocation" value="1" <?php echo $useFppLocationEnabled ? 'checked' : ''; ?>><span class="track"></span></label>
+                </div>
+            </div>
+            <div class="ads-field">
+                <label for="latitude">Latitude, longitude</label>
+                <div class="ads-unit">
+                    <input type="text" name="latitude" id="latitude" value="<?php echo htmlspecialchars((string) $v('latitude')); ?>" data-fpp="<?php echo $fppLat !== null ? $fppLat : ''; ?>" style="width:120px;" inputmode="decimal" aria-label="Latitude">
+                    <input type="text" name="longitude" id="longitude" value="<?php echo htmlspecialchars((string) $v('longitude')); ?>" data-fpp="<?php echo $fppLon !== null ? $fppLon : ''; ?>" style="width:120px;" inputmode="decimal" aria-label="Longitude">
+                </div>
+                <div class="ads-help" id="locHelp"></div>
+            </div>
+            </div>
+        </div>
+
+        <!-- 4. Safety limits -->
+        <div class="ads-sec">
+            <h3>Safety limits <span class="n">4 of 5</span></h3>
+            <div class="ads-fields">
+            <div class="ads-field">
+                <label for="distanceNM">Distance</label>
+                <div class="ads-unit"><input type="number" name="distanceNM" id="distanceNM" value="<?php echo htmlspecialchars((string) $v('distanceNM')); ?>" min="1" step="1"><span>NM</span> <span id="kmHint"></span></div>
+            </div>
+            <div class="ads-field">
+                <label for="altitudeThresholdFt">Altitude</label>
+                <div class="ads-unit"><input type="number" name="altitudeThresholdFt" id="altitudeThresholdFt" value="<?php echo htmlspecialchars((string) $v('altitudeThresholdFt')); ?>" min="0" step="100"><span>ft</span> <span id="mHint"></span></div>
+                <div class="ads-help">Heads close when an aircraft is inside the distance <i>and</i> below the altitude.</div>
+            </div>
+            <div class="ads-field">
+                <label for="clearDelaySec">Hold after it leaves</label>
+                <div class="ads-unit"><input type="number" name="clearDelaySec" id="clearDelaySec" value="<?php echo htmlspecialchars((string) $v('clearDelaySec')); ?>" min="0" max="600" step="5"><span>s</span></div>
+                <div class="ads-help">Keeps heads closed a little longer, so one on the edge of the area doesn't flash them on and off.</div>
+            </div>
+            <div class="ads-field">
+                <label for="fetchInterval">Check every</label>
+                <div class="ads-unit"><input type="number" name="fetchInterval" id="fetchInterval" value="<?php echo htmlspecialchars((string) $v('fetchInterval')); ?>" min="5" step="1"><span>s</span></div>
+                <div class="ads-help" id="rateHint"></div>
+            </div>
+            </div>
+        </div>
+
+        <!-- 5. Flight data -->
+        <div class="ads-sec">
+            <h3>Flight data <span class="n">5 of 5</span></h3>
+            <div class="ads-fields">
+            <div class="ads-field">
+                <label for="adsbSourceUrl">Service</label>
+                <select name="adsbSourceUrl" id="adsbSourceUrl" style="max-width:260px;">
+                    <?php foreach ($feedOptionsList as $val => $lab): ?>
+                        <option value="<?php echo htmlspecialchars($val); ?>" <?php echo $v('adsbSourceUrl') === $val ? 'selected' : ''; ?>><?php echo htmlspecialchars($lab); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="ads-help">
+                    <?php if (!empty($airdefenderFeedNote)): ?><span style="color:#ffb74d;"><?php echo htmlspecialchars($airdefenderFeedNote); ?></span><br><?php endif; ?>
+                    Free community services for personal, non-commercial use: data from
+                    <a href="https://adsb.lol" target="_blank" rel="noopener" style="color:#6cf;">adsb.lol</a> (ODbL) and
+                    <a href="https://adsb.fi" target="_blank" rel="noopener" style="color:#6cf;">adsb.fi</a>. A local receiver sends nothing off this FPP.
+                </div>
+            </div>
+            <div class="ads-field">
+                <label>Test</label>
+                <div class="ads-test">
+                    <button type="button" class="ads-btn" id="feedTest">Test connection</button>
+                    <span class="ads-test-out" id="feedTestOut"></span>
+                </div>
+                <div class="ads-help">Asks the service once now, with the location and limits on this page.</div>
+            </div>
+            <div class="ads-field">
+                <label for="feedDownSw">Close heads if feed is down</label>
+                <div>
+                    <input type="hidden" name="feedDownSafe" value="0">
+                    <label class="ads-sw"><input type="checkbox" id="feedDownSw" name="feedDownSafe" value="1" <?php echo AirDefender_IsTruthy($v('feedDownSafe')) ? 'checked' : ''; ?>><span class="track"></span></label>
+                </div>
+                <div class="ads-help">Off: if the service stops answering, heads stay as they are unless an aircraft was near. On: they close until it answers. Stricter, but an internet outage keeps them closed.</div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ads-bar" id="saveBar">
+        <span>Unsaved changes</span>
+        <span style="display:flex;gap:8px;">
+            <button type="button" class="ads-btn" id="discard">Discard</button>
+            <button type="submit" class="ads-btn primary">Save settings</button>
+        </span>
     </div>
 </form>
 
 <script>
 (function () {
-    function updateToggleVisuals(group) {
-        if (!group) {
-            return;
-        }
+    var form = document.getElementById('ads');
+    var $ = function (id) { return document.getElementById(id); };
+    var models = <?php echo json_encode(is_array($airdefenderModels) ? $airdefenderModels : new stdClass()); ?>;
+    var modelsKnown = <?php echo $airdefenderModels === null ? 'false' : 'true'; ?>;
+    var MAX_CH = 8388608;
+    var API = 'plugin.php?plugin=AirDefender&page=www/test_api.php&nopage=1';
 
-        var radios = group.querySelectorAll('input[type="radio"]');
-        var compact = group.getAttribute('data-compact') === 'true';
-        radios.forEach(function (radio) {
-            var label = radio.nextElementSibling;
-            if (!label) {
-                return;
-            }
+    function role() { var r = form.querySelector('input[name=nodeRole]:checked'); return r ? r.value : 'master'; }
 
-            var selected = radio.checked;
-            label.style.background = selected ? '#6cf' : '#202020';
-            label.style.color = selected ? '#111' : '#bbb';
-            label.style.border = selected ? '1px solid #6cf' : '1px solid #555';
-            label.style.boxShadow = selected ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none';
-            label.style.opacity = '1';
-            label.style.padding = compact ? '5px 9px' : '8px 12px';
-            label.style.width = compact ? '42px' : '100px';
-            label.style.boxSizing = 'border-box';
-            label.style.borderRadius = '6px';
-            label.style.fontWeight = 'bold';
-            label.style.cursor = 'pointer';
-            label.style.lineHeight = '1.1';
-            label.style.display = 'block';
-            label.style.textAlign = 'center';
-            label.style.whiteSpace = 'nowrap';
-        });
+    /* ---------- section 1 ---------- */
+    function updateTop() {
+        var remote = role() === 'remote';
+        form.classList.toggle('remote', remote);
+        form.querySelectorAll('.ads-remote-only').forEach(function (el) { el.style.display = remote ? '' : 'none'; });
+        $('masterRow').style.display = remote ? 'grid' : 'none';
+        $('enabledText').textContent = $('enabledSw').checked ? 'On' : 'Off';
     }
 
-    function updateLocationState() {
-        var group = document.querySelector('[data-boolean-group="useFPPLocation"]');
-        if (!group) {
-            return;
-        }
-
-        var yesRadio = group.querySelector('input[type="radio"][value="1"]');
-        var useFpp = yesRadio && yesRadio.checked;
-
-        ['latitude', 'longitude'].forEach(function (id) {
-            var input = document.getElementById(id);
-            if (!input) {
-                return;
-            }
-
-            if (useFpp) {
-                var fppValue = input.getAttribute('data-fpp-value');
-                if (fppValue !== null && fppValue !== '') {
-                    input.value = fppValue;
-                }
-            }
-
-            input.disabled = useFpp;
-            input.style.background = useFpp ? '#1a1a1a' : '#111';
-            input.style.color = useFpp ? '#888' : '#fff';
-            input.style.cursor = useFpp ? 'not-allowed' : 'text';
-            input.style.opacity = useFpp ? '0.45' : '1';
-        });
-    }
-
-    var adModels = <?php echo json_encode(is_array($airdefenderModels) ? $airdefenderModels : new stdClass()); ?>;
-    var adModelsKnown = <?php echo $airdefenderModels === null ? 'false' : 'true'; ?>;
-
-    var adMaxChannel = 8388608;
-
-    function updateHeadRow(n) {
-        var select = document.getElementById('head' + n + 'Model');
-        var startInput = document.getElementById('head' + n + 'Start');
-        var offsetInput = document.getElementById('head' + n + 'Offset');
-        var channelInput = document.getElementById('head' + n + 'Channel');
-        var result = document.getElementById('head' + n + 'Result');
-        if (!select || !startInput || !offsetInput || !channelInput || !result) {
-            return;
-        }
-        var name = select.value;
-        var manual = name === '';
-        var known = adModelsKnown && Object.prototype.hasOwnProperty.call(adModels, name);
-
-        // Start Ch.: typed for a manual head; the model's own start, greyed, otherwise.
+    /* ---------- heads ---------- */
+    function headRow(n) {
+        var sel = $('head' + n + 'Model'), start = $('head' + n + 'Start'), off = $('head' + n + 'Offset');
+        var chan = $('head' + n + 'Channel'), res = $('head' + n + 'Result'), on = $('head' + n + 'Enabled').checked;
+        var name = sel.value, manual = name === '', known = modelsKnown && Object.prototype.hasOwnProperty.call(models, name);
         if (manual) {
-            if (startInput.disabled) {
-                startInput.value = startInput.getAttribute('data-manual') || '';
-            }
-            startInput.disabled = false;
+            if (start.disabled) { start.value = start.getAttribute('data-manual') || ''; }
+            start.disabled = false;
         } else {
-            if (!startInput.disabled) {
-                startInput.setAttribute('data-manual', startInput.value);
-            }
-            startInput.value = known ? adModels[name].start : '';
-            startInput.disabled = true;
+            if (!start.disabled) { start.setAttribute('data-manual', start.value); }
+            start.value = known ? models[name].start : '';
+            start.disabled = true;
         }
-
-        var off = parseInt(offsetInput.value, 10);
-        var text = '';
-        var cls = '';
+        var o = parseInt(off.value, 10), text = '', cls = '';
         if (manual) {
-            var start = parseInt(startInput.value, 10);
-            if (!(start >= 1)) {
-                text = 'Enter the head\'s start channel';
-                cls = 'warn';
-            } else if (!(off >= 1)) {
-                text = 'Enter the shutter channel in the fixture';
-                cls = 'warn';
-            } else if (start + off - 1 > adMaxChannel) {
-                text = 'Past FPP\'s last channel';
-                cls = 'err';
-            } else {
-                text = '\u2192 FPP ch ' + (start + off - 1);
-            }
-        } else if (!adModelsKnown) {
-            text = 'Model list unavailable';
-            cls = 'warn';
-        } else if (!known) {
-            var last = parseInt(channelInput.value, 10);
-            text = 'Model not found: pick it again' + (last > 0 ? ' (still protecting ch ' + last + ')' : '');
-            cls = 'err';
-        } else {
-            var m = adModels[name];
-            if (!(off >= 1)) {
-                text = 'Enter the shutter channel in the fixture';
-                cls = 'warn';
-            } else if (off > m.count) {
-                text = 'Past the end of this model (' + m.count + ' ch)';
-                cls = 'err';
-            } else {
-                text = '\u2192 FPP ch ' + (m.start + off - 1);
-            }
-        }
-        result.textContent = text;
-        result.className = 'head-result' + (cls ? ' ' + cls : '');
+            var st = parseInt(start.value, 10);
+            if (!(st >= 1)) { text = 'Enter the start channel'; cls = 'warn'; }
+            else if (!(o >= 1)) { text = 'Enter the shutter channel'; cls = 'warn'; }
+            else if (st + o - 1 > MAX_CH) { text = "Past FPP's last channel"; cls = 'err'; }
+            else { text = '→ FPP ch ' + (st + o - 1); }
+        } else if (!modelsKnown) { text = 'Model list unavailable'; cls = 'warn'; }
+        else if (!known) {
+            var last = parseInt(chan.value, 10);
+            text = 'Model not found: pick it again' + (last > 0 ? ' (still protecting ch ' + last + ')' : ''); cls = 'err';
+        } else if (!(o >= 1)) { text = 'Enter the shutter channel'; cls = 'warn'; }
+        else if (o > models[name].count) { text = 'Past the end of this model (' + models[name].count + ' ch)'; cls = 'err'; }
+        else { text = '→ FPP ch ' + (models[name].start + o - 1); }
+        res.textContent = on ? text : 'Off';
+        res.className = 'ads-res' + (on && cls ? ' ' + cls : '');
+        sel.closest('tr').classList.toggle('off', !on);
     }
-
-    // Picking a model fills in an empty name, or one that was the previous model's name.
-    function modelPicked(n) {
-        var select = document.getElementById('head' + n + 'Model');
-        var nameInput = document.getElementById('head' + n + 'Name');
-        if (!select || !nameInput) {
-            return;
-        }
-        var previous = select.getAttribute('data-previous') || '';
-        if (select.value !== '' && (nameInput.value.trim() === '' || nameInput.value.trim() === previous)) {
-            nameInput.value = select.value;
-        }
-        select.setAttribute('data-previous', select.value);
+    function allHeads() { for (var n = 1; n <= 8; n++) { headRow(n); } updateAddButton(); }
+    function updateAddButton() {
+        $('addHead').style.display = form.querySelectorAll('tr[data-head][hidden]').length ? '' : 'none';
     }
-
-    function updateHeadState() {
-        for (var n = 1; n <= 8; n++) {
-            updateHeadRow(n);
-            var group = document.querySelector('[data-boolean-group="head' + n + 'Enabled"]');
-            if (!group) {
-                continue;
-            }
-            var yes = group.querySelector('input[type="radio"][value="1"]');
-            var on = yes && yes.checked;
-            if (!on) {
-                var unused = document.getElementById('head' + n + 'Result');
-                if (unused) {
-                    unused.textContent = '';
-                }
-            }
-            ['Name', 'Model', 'Start', 'Offset', 'ClosedValue', 'Result'].forEach(function (field) {
-                var input = document.getElementById('head' + n + field);
-                if (!input) {
-                    return;
-                }
-                input.style.opacity = on ? '1' : '0.45';
-            });
-        }
-    }
-
-    function updateNodeRoleState() {
-        var roleSelect = document.getElementById('nodeRole');
-        var remote = roleSelect && roleSelect.value === 'remote';
-
-        ['Location', 'Safety Thresholds', 'ADS-B Feed'].forEach(function (name) {
-            var group = document.querySelector('[data-group="' + name + '"]');
-            if (!group) {
-                return;
-            }
-
-            group.style.opacity = remote ? '0.45' : '1';
-            group.style.cursor = remote ? 'not-allowed' : '';
-            group.querySelectorAll('input, select, textarea').forEach(function (input) {
-                if (remote) {
-                    input.disabled = true;
-                } else {
-                    input.disabled = false;
-                }
-            });
-            group.querySelectorAll('label').forEach(function (label) {
-                label.style.cursor = remote ? 'not-allowed' : '';
-            });
-        });
-
-        var masterField = document.querySelector('[data-field="masterAddress"]');
-        if (masterField) {
-            masterField.style.display = remote ? '' : 'none';
-        }
-
-        if (!remote) {
-            // restore lat/lon to the state dictated by useFPPLocation
-            updateLocationState();
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('[data-boolean-group]').forEach(function (group) {
-            updateToggleVisuals(group);
-
-            group.querySelectorAll('input[type="radio"]').forEach(function (radio) {
-                radio.addEventListener('change', function () {
-                    updateToggleVisuals(group);
-                    if (group.getAttribute('data-boolean-group') === 'useFPPLocation') {
-                        updateLocationState();
-                    }
-                    updateHeadState();
-                });
-            });
-        });
-
-        updateLocationState();
-        updateHeadState();
-        updateNodeRoleState();
-
-        var roleSelect = document.getElementById('nodeRole');
-        if (roleSelect) {
-            roleSelect.addEventListener('change', updateNodeRoleState);
-        }
-
-        for (var h = 1; h <= 8; h++) {
-            (function (n) {
-                var select = document.getElementById('head' + n + 'Model');
-                if (select) {
-                    select.addEventListener('change', function () {
-                        modelPicked(n);
-                        updateHeadState();
-                    });
-                }
-                ['Start', 'Offset'].forEach(function (field) {
-                    var el = document.getElementById('head' + n + field);
-                    if (el) {
-                        el.addEventListener('input', updateHeadState);
-                    }
-                });
-            })(h);
-        }
+    $('addHead').addEventListener('click', function () {
+        var row = form.querySelector('tr[data-head][hidden]');
+        if (!row) { return; }
+        var n = row.getAttribute('data-head');
+        row.hidden = false;
+        $('head' + n + 'Enabled').checked = true;
+        $('head' + n + 'Name').focus();
+        allHeads(); dirty();
     });
+    form.querySelectorAll('[data-remove]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var n = b.getAttribute('data-remove');
+            $('head' + n + 'Enabled').checked = false;
+            $('head' + n + 'Name').value = '';
+            $('head' + n + 'Model').value = '';
+            $('head' + n + 'Model').setAttribute('data-previous', '');
+            $('head' + n + 'Start').disabled = false;
+            $('head' + n + 'Start').value = '';
+            $('head' + n + 'Start').setAttribute('data-manual', '');
+            $('head' + n + 'Offset').value = '1';
+            $('head' + n + 'ClosedValue').value = '0';
+            $('head' + n + 'Channel').value = '0';
+            b.closest('tr').hidden = true;
+            if (!form.querySelector('tr[data-head]:not([hidden])')) {   // keep one row to start from
+                b.closest('tr').hidden = false;
+            }
+            allHeads(); dirty();
+        });
+    });
+    for (var h = 1; h <= 8; h++) {
+        (function (n) {
+            $('head' + n + 'Model').addEventListener('change', function () {
+                var sel = this, nameIn = $('head' + n + 'Name'), prev = sel.getAttribute('data-previous') || '';
+                if (sel.value !== '' && (nameIn.value.trim() === '' || nameIn.value.trim() === prev)) { nameIn.value = sel.value; }
+                sel.setAttribute('data-previous', sel.value);
+            });
+        })(h);
+    }
+
+    /* ---------- section 3 ---------- */
+    function updateWhen() {
+        var w = form.querySelector('input[name=checkWhen]:checked');
+        w = w ? w.value : 'scheduled';
+        $('checkWhenHelp').textContent = {
+            scheduled: 'Checks only during scheduled shows, starting 2 minutes before each one. To test a sequence at another time, use Check now on the dashboard.',
+            playing: 'Checks whenever FPP is playing, scheduled or started by hand, and 2 minutes before a scheduled show.',
+            always: 'Checks around the clock, even with no show on. Uses the most flight-data requests.'
+        }[w];
+        updateRate();
+    }
+    function updateLocation() {
+        var useFpp = $('useFppSw').checked;
+        ['latitude', 'longitude'].forEach(function (id) {
+            var el = $(id);
+            if (useFpp) {
+                if (!el.disabled) { el.setAttribute('data-own', el.value); }
+                el.value = el.getAttribute('data-fpp') || '';
+            } else if (el.disabled) {
+                el.value = el.getAttribute('data-own') || el.value;
+            }
+            el.disabled = useFpp;
+        });
+        var lat = parseFloat($('latitude').value), lon = parseFloat($('longitude').value);
+        var help = $('locHelp');
+        help.textContent = '';
+        if (isNaN(lat) || isNaN(lon)) {
+            help.textContent = useFpp ? "FPP has no location set: set it in FPP's settings, or turn this off and enter one." : 'Enter the show’s latitude and longitude.';
+            help.style.color = '#ffb74d';
+        } else {
+            help.style.color = '';
+            help.appendChild(document.createTextNode(useFpp ? "From FPP's settings. " : ''));
+            var a = document.createElement('a');
+            a.href = 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=15/' + lat + '/' + lon;
+            a.target = '_blank'; a.rel = 'noopener'; a.style.color = '#6cf'; a.textContent = 'Check it on a map';
+            help.appendChild(a);
+        }
+    }
+
+    /* ---------- section 4 ---------- */
+    function updateRate() {
+        var nm = parseFloat($('distanceNM').value), ft = parseFloat($('altitudeThresholdFt').value);
+        $('kmHint').textContent = nm > 0 ? '≈ ' + (nm * 1.852).toFixed(1) + ' km' : '';
+        $('mHint').textContent = ft >= 0 ? '≈ ' + Math.round(ft * 0.3048).toLocaleString() + ' m' : '';
+        var sec = Math.max(5, parseInt($('fetchInterval').value, 10) || 10);
+        var w = form.querySelector('input[name=checkWhen]:checked');
+        var perHour = Math.round(3600 / sec);
+        $('rateHint').textContent = (w && w.value === 'always')
+            ? '≈ ' + (perHour * 24).toLocaleString() + ' requests a day. A smaller distance may want a quicker check.'
+            : '≈ ' + (perHour * 5).toLocaleString() + ' requests in a 5-hour show night. A smaller distance may want a quicker check.';
+    }
+
+    /* ---------- section 5 ---------- */
+    $('feedTest').addEventListener('click', function () {
+        var btn = this, out = $('feedTestOut');
+        btn.disabled = true; out.className = 'ads-test-out'; out.textContent = 'Asking…';
+        var body = new URLSearchParams({
+            action: 'feed_test', url: $('adsbSourceUrl').value,
+            lat: $('latitude').value, lon: $('longitude').value,
+            nm: $('distanceNM').value, ft: $('altitudeThresholdFt').value
+        });
+        fetch(API, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.ok) {
+                    out.className = 'ads-test-out ok';
+                    out.textContent = 'OK · ' + d.aircraft + ' aircraft nearby'
+                        + (d.nearest ? ' · nearest ' + d.nearest.id + ' at ' + d.nearest.nm + ' NM' + (d.nearest.ft !== null ? ', ' + d.nearest.ft.toLocaleString() + ' ft' : '') : '')
+                        + (d.inside ? ' · ' + d.inside + ' inside your limits' : '') + ' (' + d.ms + ' ms)';
+                } else {
+                    out.className = 'ads-test-out err';
+                    out.textContent = d.error || 'No answer';
+                }
+            })
+            .catch(function (e) { out.className = 'ads-test-out err'; out.textContent = 'Could not run the test: ' + e.message; })
+            .then(function () { btn.disabled = false; });
+    });
+
+    /* ---------- unsaved changes ---------- */
+    function snapshot() {
+        // Disabled inputs are left out of a submit, so compare what would actually be saved.
+        var fd = new FormData(form), parts = [];
+        fd.forEach(function (val, key) { parts.push(key + '=' + val); });
+        return parts.join('&');
+    }
+    var initial;
+    var submitting = false;
+    function dirty() {
+        $('saveBar').classList.toggle('show', snapshot() !== initial);
+    }
+    form.addEventListener('input', function () { refreshAll(); dirty(); });
+    form.addEventListener('change', function () { refreshAll(); dirty(); });
+    form.addEventListener('submit', function () { submitting = true; });
+    $('discard').addEventListener('click', function () { window.location.href = window.location.href.split('#')[0]; });
+    window.addEventListener('beforeunload', function (e) {
+        if (!submitting && snapshot() !== initial) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    function refreshAll() { updateTop(); allHeads(); updateWhen(); updateLocation(); updateRate(); }
+    refreshAll();
+    initial = snapshot();
+    var msg = $('adsMsg');
+    if (msg && msg.classList.contains('ok')) { setTimeout(function () { msg.style.display = 'none'; }, 4000); }
 })();
 </script>
