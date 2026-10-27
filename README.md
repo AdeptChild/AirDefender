@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 1.0.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 1.1.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -74,7 +74,7 @@ Every page has help behind FPP's **?** button.
 |---|---|
 | **1. Air Defender** | Enabled; **Role** (Master or Remote); on a Remote, the master's address and UI password. |
 | **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
-| **3. When and where** | **When to check** (scheduled shows, whenever FPP is playing, or always), the show location and its elevation. |
+| **3. When and where** | **When to check** (scheduled shows, whenever FPP is playing, or always), which playlists count, the show location and its elevation. |
 | **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
 | **5. Flight data** | The service, **Test connection**, an optional backup service, and **Close heads if feed is down**. |
 
@@ -123,6 +123,15 @@ By default Air Defender only checks **during scheduled shows**, starting **2 min
 already protected when the lights come on. Outside those times it is on **Standby**: it sends nothing to the
 flight-data service and leaves the shutters to the show. Choose **When playing** to also cover playlists started by
 hand, or **Always**.
+
+**Only these playlists:** if some of your playlists don't use the moving heads (a static display that runs late into
+the night, say), tick the ones that do. Air Defender then checks only while one of those is playing or about to start,
+and stays on Standby for the rest, sending nothing. Leave them all unticked to check during every playlist. A sequence
+started on its own isn't part of a playlist, so with any ticked it isn't checked: use **Check now** for that.
+
+**Using Remote Falcon?** A viewer's request plays from Remote Falcon's own playlist, inserted into your show. During a
+ticked scheduled show Air Defender recognises that and keeps checking, but **tick Remote Falcon's playlist too**, so
+requests are covered however the show was started.
 
 To test a sequence at another time, use **Check now** on the dashboard (30 minutes to 4 hours), or the
 **Air Defender: Check Now** command. It turns itself off when the time runs out.

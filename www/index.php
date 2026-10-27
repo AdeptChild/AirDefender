@@ -354,7 +354,10 @@ $pageConfig = array(
             sub = 'Turn on Air Defender in Settings to check for aircraft.';
         } else if (live && live.role !== 'remote' && live.checking === false) {
             cls = 'standby'; title = 'Standby';
-            sub = (live.checkWhen === 'playing' ? 'Not checking until FPP plays a show.' : 'Not checking until a scheduled show.');
+            sub = live.skippedPlaylist
+                ? 'Playing ' + live.skippedPlaylist + ", which isn't one of Air Defender's playlists, so not checking."
+                : (live.checkWhen === 'playing' ? 'Not checking until FPP plays a show' : 'Not checking until a scheduled show')
+                  + (live.playlistFilter ? ' on one of its playlists.' : '.');
             if (live.nextShow && live.nextShow.start) {
                 var d = new Date(live.nextShow.start * 1000);
                 sub += ' Next: ' + (live.nextShow.name || 'show') + ', ' + d.toLocaleDateString([], { weekday: 'short' }) + ' '

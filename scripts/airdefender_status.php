@@ -77,6 +77,8 @@ function airdefender_live_status(bool $detailed = false): array
         // Read directly, so the dashboard shows a new override at once.
         'overrideUntil' => airdefender_override_until(),
         'nextShow' => is_array($state['nextShow'] ?? null) ? $state['nextShow'] : null,
+        'skippedPlaylist' => isset($state['skippedPlaylist']) ? (string) $state['skippedPlaylist'] : null,
+        'playlistFilter' => !empty($state['playlistFilter']),
     ];
 }
 

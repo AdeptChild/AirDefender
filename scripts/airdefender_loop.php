@@ -32,6 +32,7 @@ require_once(__DIR__ . "/airdefender_feeds.php");
 require_once(__DIR__ . "/airdefender_adsb.php");
 require_once(__DIR__ . "/airdefender_version.php");
 require_once(__DIR__ . "/airdefender_secret.php");
+require_once(__DIR__ . "/airdefender_playlists.php");
 
 const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_CLEAR_DELAY = 30;
@@ -325,9 +326,21 @@ function airdefender_show_state(): ?array
         || in_array($name, ['playing', 'paused', 'stopping gracefully', 'stopping gracefully after loop'], true);
     $next = is_array($sched['nextPlaylist'] ?? null) ? $sched['nextPlaylist'] : [];
     $nextStart = (int) ($next['scheduledStartTime'] ?? 0);
+    // The playlist playing now (FPP gives it without ".json").
+    $current = (string) ($st['current_playlist']['playlist'] ?? '');
+    if ($current === '' && is_array($sched['currentPlaylist'] ?? null)) {
+        $current = (string) ($sched['currentPlaylist']['playlistName'] ?? '');
+    }
+    // The schedule slot playing now. A playlist inserted into a scheduled show
+    // (a Remote Falcon request, say) keeps the slot of the show it interrupted.
+    $cp = is_array($sched['currentPlaylist'] ?? null) ? $sched['currentPlaylist'] : [];
+    $slot = $schedStatus === 'playing' && (int) ($cp['scheduledStartTime'] ?? 0) > 0
+        ? (int) $cp['scheduledStartTime'] . '|' . (int) ($cp['scheduledEndTime'] ?? 0) : '';
     return [
         'playing' => $playing,
         'scheduled' => $schedStatus === 'playing',
+        'current' => $current,
+        'slot' => $slot,
         'nextName' => (string) ($next['playlistName'] ?? ''),
         'nextStart' => $nextStart > 0 ? $nextStart : null,
     ];
@@ -338,19 +351,34 @@ function airdefender_show_state(): ?array
  *   scheduled - during a scheduled show, and from shortly before one starts
  *   playing   - whenever FPP is playing a playlist or sequence, scheduled or not
  *   always    - all the time
- * A Check now override, or not being able to ask fppd, means check.
+ * With "Only for these playlists" set ($only), scheduled and playing count
+ * only for those playlists. A Check now override, or not being able to ask
+ * fppd, means check.
  */
-function airdefender_should_check(string $mode, ?array $show, ?int $overrideUntil, int $now): bool
+/*
+ * Whether what is playing now counts: a ticked playlist, or anything played
+ * inside the schedule slot of a ticked one ($tickedSlot), such as a Remote
+ * Falcon request inserted into the show.
+ */
+function airdefender_current_counts(array $show, array $only, string $tickedSlot): bool
+{
+    return airdefender_playlist_selected($show['current'], $only)
+        || ($show['slot'] !== '' && $show['slot'] === $tickedSlot);
+}
+
+function airdefender_should_check(string $mode, ?array $show, ?int $overrideUntil, int $now, array $only = [], string $tickedSlot = ''): bool
 {
     if ($overrideUntil !== null || $mode === 'always' || $show === null) {
         return true;
     }
     $soon = $show['nextStart'] !== null
-        && $show['nextStart'] - $now <= AIRDEFENDER_SHOW_LEAD_SEC && $show['nextStart'] - $now >= -60;
+        && $show['nextStart'] - $now <= AIRDEFENDER_SHOW_LEAD_SEC && $show['nextStart'] - $now >= -60
+        && airdefender_playlist_selected($show['nextName'], $only);
+    $current = airdefender_current_counts($show, $only, $tickedSlot);
     if ($mode === 'playing') {
-        return $show['playing'] || $soon;
+        return ($show['playing'] && $current) || $soon;
     }
-    return $show['scheduled'] || $soon;
+    return ($show['scheduled'] && $current) || $soon;
 }
 
 /* ---------- main ---------- */
@@ -383,6 +411,7 @@ $modelsAt = 0;
 $nearby = [];                // aircraft from the last good fetch, for the radar
 $show = null;                // what FPP is playing, re-read every 2 s
 $showAt = 0;
+$tickedSlot = '';            // schedule slot of the last ticked playlist seen playing
 $wasChecking = null;
 $onBackup = false;           // the chosen service is not answering and the backup is
 $primaryRetryAt = 0;
@@ -427,6 +456,7 @@ while (true) {
     if (!in_array($checkWhen, ['scheduled', 'playing', 'always'], true)) {
         $checkWhen = 'scheduled';
     }
+    $onlyPlaylists = airdefender_decode_playlists((string) ($settings['checkPlaylists'] ?? ''));
     [$feedTemplate, $feedNote] = airdefender_effective_feed((string) airdefender_setting($settings, 'adsbSourceUrl', ''));
     $backupTemplate = airdefender_truthy(airdefender_setting($settings, 'feedFallback', '0')) ? airdefender_feed_backup($feedTemplate) : null;
     airdefender_log_once('feed-choice', $feedNote);
@@ -465,13 +495,22 @@ while (true) {
     if ($now - $showAt >= 2) {
         $showAt = $now;
         $show = airdefender_show_state();
+        if ($show !== null && $show['slot'] !== '' && $show['current'] !== ''
+            && airdefender_playlist_selected($show['current'], $onlyPlaylists)) {
+            $tickedSlot = $show['slot'];
+        }
     }
     $overrideUntil = airdefender_override_until();
-    $checking = $role === 'remote' || airdefender_should_check($checkWhen, $show, $overrideUntil, $now);
+    $checking = $role === 'remote' || airdefender_should_check($checkWhen, $show, $overrideUntil, $now, $onlyPlaylists, $tickedSlot);
+    // Playing, but a playlist that is not on the list (a late-night static one, say).
+    $skippedPlaylist = !$checking && $show !== null && $show['playing'] && $show['current'] !== ''
+        && !airdefender_current_counts($show, $onlyPlaylists, $tickedSlot) ? $show['current'] : null;
     if ($wasChecking !== null && $checking !== $wasChecking && $role !== 'remote' && $enabled) {
         airdefender_log($checking
-            ? "Checking for aircraft" . ($overrideUntil !== null ? " (Check now override)." : " (show time).")
-            : "Standby: no show playing, so not checking for aircraft.");
+            ? "Checking for aircraft" . ($overrideUntil !== null ? " (Check now override)." : " (show time" . ($show && $show['current'] !== '' ? ": {$show['current']}" : "") . ").")
+            : ($skippedPlaylist !== null
+                ? "Standby: {$skippedPlaylist} is not one of Air Defender's playlists, so not checking for aircraft."
+                : "Standby: no show playing, so not checking for aircraft."));
     }
     if ($checking && $wasChecking === false) {
         $nextFetchAt = 0;      // check straight away rather than one interval later
@@ -629,7 +668,8 @@ while (true) {
     } elseif (!$checking) {
         $safe = false;
         $reason = 'standby';
-        $event = $checkWhen === 'playing' ? 'Standby: nothing playing' : 'Standby: waiting for a scheduled show';
+        $event = $skippedPlaylist !== null ? "Standby: {$skippedPlaylist} is not one of Air Defender's playlists"
+            : ($checkWhen === 'playing' ? 'Standby: nothing playing' : 'Standby: waiting for a scheduled show');
     } elseif ($planeNow) {
         $safe = true;
         $reason = 'aircraft';
@@ -715,7 +755,11 @@ while (true) {
         'checking' => $checking,
         'checkWhen' => $checkWhen,
         'overrideUntil' => $overrideUntil,
-        'nextShow' => $show && $show['nextStart'] ? ['name' => $show['nextName'], 'start' => $show['nextStart']] : null,
+        // The next show Air Defender will check for: only one of its playlists counts.
+        'nextShow' => $show && $show['nextStart'] && airdefender_playlist_selected($show['nextName'], $onlyPlaylists)
+            ? ['name' => $show['nextName'], 'start' => $show['nextStart']] : null,
+        'skippedPlaylist' => $skippedPlaylist,
+        'playlistFilter' => $onlyPlaylists !== [],
         'lastFetchOk' => $lastFetchOkAt ? date('c', $lastFetchOkAt) : null,
         'feedError' => $feedError,
         'location' => $lat !== null ? ['lat' => $lat, 'lon' => $lon] : null,

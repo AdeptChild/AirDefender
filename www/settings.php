@@ -21,6 +21,7 @@ require_once(dirname(__DIR__) . "/scripts/airdefender_models.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_secret.php");
+require_once(dirname(__DIR__) . "/scripts/airdefender_playlists.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_version.php");
 $airdefenderModels = airdefender_fpp_models();
 $airdefenderState = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
@@ -259,6 +260,13 @@ $settings = array(
             'always' => 'Always',
         ),
     ),
+    // "Only for these playlists": URL-encoded names joined with commas; empty
+    // means every playlist (see airdefender_playlists.php).
+    'checkPlaylists' => array(
+        'label' => 'Only For These Playlists',
+        'type' => 'string',
+        'default' => '',
+    ),
     'clearDelaySec' => array(
         'label' => 'Hold After Aircraft Leaves (seconds)',
         'type' => 'int',
@@ -354,7 +362,7 @@ $settingGroups = array(
     'Operation Mode' => array('nodeRole', 'masterAddress'),
     'Moving Heads' => $headKeys,
     'Location' => array('useFPPLocation', 'latitude', 'longitude', 'showElevationFt'),
-    'Safety Thresholds' => array('checkWhen', 'distanceNM', 'altitudeThresholdFt', 'fetchInterval', 'clearDelaySec'),
+    'Safety Thresholds' => array('checkWhen', 'checkPlaylists', 'distanceNM', 'altitudeThresholdFt', 'fetchInterval', 'clearDelaySec'),
     'ADS-B Feed' => array('adsbSourceUrl', 'feedDownSafe'),
 );
 
@@ -369,6 +377,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     foreach ($settings as $key => $config) {
         if (!isset($_POST[$key])) {
+            continue;
+        }
+        if ($key === 'checkPlaylists') {
+            // Ticked boxes, plus an empty hidden one so "none ticked" is still sent.
+            $toSave[$key] = airdefender_encode_playlists(is_array($_POST[$key]) ? $_POST[$key] : array());
             continue;
         }
         if ($key === 'masterPassword') {
@@ -549,6 +562,12 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
     .ads-sw input:checked + .track { background:var(--ok); }
     .ads-sw input:checked + .track::after { left:calc(100% - 1rem - 3px); background:var(--knob); }
     .ads-sw input:focus-visible + .track { outline:2px solid var(--accent); }
+    .ads-pl { display:grid; gap:2px; max-height:12rem; overflow:auto; padding:6px 10px; border:1px solid var(--input-line);
+           border-radius:6px; background:var(--card2); }
+    .ads-pl .form-check-input { margin:0; flex:none; }
+    .ads-pl label { display:flex; align-items:center; gap:8px; font-size:14px; min-height:2rem; cursor:pointer; overflow-wrap:anywhere; }
+    .ads-help-inline { grid-column:auto; }
+    #playlistField > label { align-self:start; padding-top:8px; }
     .ads-small { margin-left:10px; font-size:13px; color:var(--soft); }
     .ads-soft { font-size:14px; color:var(--soft); }
     .ads-caution { color:var(--caution-text); }
@@ -718,6 +737,29 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                     <?php endforeach; ?>
                 </div>
                 <div class="ads-help" id="checkWhenHelp"></div>
+            </div>
+            <div class="ads-field" id="playlistField">
+                <label>Only these playlists</label>
+                <div>
+                    <input type="hidden" name="checkPlaylists[]" value="">
+                    <?php
+                    $savedPlaylists = airdefender_decode_playlists((string) $v('checkPlaylists'));
+                    $allPlaylists = airdefender_playlist_names();
+                    // Keep ticked ones that FPP no longer has, so they are not dropped unseen.
+                    $listed = array_merge($allPlaylists, array_values(array_diff($savedPlaylists, $allPlaylists)));
+                    ?>
+                    <?php if ($listed === array()): ?>
+                        <div class="ads-help ads-help-inline">No playlists in FPP yet.</div>
+                    <?php else: ?>
+                        <div class="ads-pl" role="group" aria-label="Playlists Air Defender checks during">
+                            <?php foreach ($listed as $pl): ?>
+                                <label><input class="form-check-input" type="checkbox" name="checkPlaylists[]" value="<?php echo htmlspecialchars($pl); ?>" <?php echo in_array($pl, $savedPlaylists, true) ? 'checked' : ''; ?>>
+                                    <?php echo htmlspecialchars($pl); ?><?php if (!in_array($pl, $allPlaylists, true)): ?> <span class="ads-caution">(not in FPP)</span><?php endif; ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div class="ads-help" id="playlistHelp"></div>
             </div>
             <div class="ads-field">
                 <label for="useFppSw">Use FPP's location</label>
@@ -946,6 +988,12 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             playing: 'Checks whenever FPP is playing, scheduled or started by hand, and 2 minutes before a scheduled show.',
             always: 'Checks around the clock, even with no show on. Uses the most flight-data requests.'
         }[w];
+        $('playlistField').style.display = w === 'always' ? 'none' : '';
+        var ticked = form.querySelectorAll('input[name="checkPlaylists[]"][type=checkbox]:checked').length;
+        $('playlistHelp').textContent = ticked
+            ? 'Checks only while a ticked playlist is ' + (w === 'playing' ? 'playing' : 'scheduled')
+              + ". Using Remote Falcon? Tick its playlist too, so viewer requests are covered. A sequence started on its own isn't in a playlist: use Check now."
+            : 'None ticked: checks during every playlist. Tick the ones with your moving heads to skip the rest, such as a late-night static show.';
         updateRate();
     }
     function updateLocation() {

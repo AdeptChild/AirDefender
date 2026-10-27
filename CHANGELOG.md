@@ -1,5 +1,13 @@
 # Air Defender changelog
 
+## 1.1.0 (2026-10-26)
+
+- New **Only these playlists** setting (Settings → When and where): tick the playlists that use your moving heads, and
+  Air Defender checks only during those, so a late-night static show no longer keeps it checking. The dashboard's
+  Standby says when a playlist that isn't ticked is playing. None ticked checks during every playlist, as before.
+- Remote Falcon requests (and any playlist inserted into a show) keep Air Defender checking during a ticked scheduled
+  show, because they play inside that show's schedule slot. Ticking Remote Falcon's playlist as well is recommended.
+
 ## 1.0.0 (2026-10-26)
 
 First full release, tested on a live show: an FPP master sending DDP to a Falcon controller with the moving heads.
