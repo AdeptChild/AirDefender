@@ -14,7 +14,7 @@
  *   POST action=override_off             -> end that early
  *   POST action=elevation&lat=&lon=        -> ground elevation there, in feet (Settings'
  *                                           Look it up), from api.open-meteo.com
- *   POST action=feed_test&url=&lat=&lon=&nm=&ft=&elev=
+ *   POST action=feed_test&url=&lat=&lon=&nm=&ft=&elev=&receiver=
  *                                        -> ask a flight-data service once (Settings'
  *                                           Test connection); only offered services
  *
@@ -75,6 +75,7 @@ switch ($action) {
     case 'feed_test':
         require_once(dirname(__DIR__) . "/scripts/airdefender_adsb.php");
         require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
+        require_once(dirname(__DIR__) . "/scripts/airdefender_receiver.php");
         $template = (string) ($_POST['url'] ?? '');
         $saved = airdefender_read_kv_file(airdefender_config_file())['adsbSourceUrl'] ?? '';
         // Only the services Settings offers, or the one already saved: never an arbitrary address.
@@ -91,9 +92,17 @@ switch ($action) {
             echo json_encode(['ok' => false, 'error' => 'Set the show location first.']);
             exit;
         }
-        $url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($nm))], $template);
         $started = microtime(true);
-        [$planes, $error] = airdefender_fetch_feed($url);
+        $foundAt = null;
+        if ($template === AIRDEFENDER_FEED_RECEIVER) {
+            // Your receiver: the address typed on the page (only home-network addresses are read).
+            [$planes, $error] = airdefender_fetch_receiver((string) ($_POST['receiver'] ?? ''), $foundAt);
+        } else {
+            $url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($nm))], $template);
+            [$planes, $error] = airdefender_is_receiver_feed($template)
+                ? airdefender_fetch_feed($url, AIRDEFENDER_RECEIVER_MAX_AGE_SEC, 4)
+                : airdefender_fetch_feed($url);
+        }
         $ms = (int) round((microtime(true) - $started) * 1000);
         if ($planes === null) {
             echo json_encode(['ok' => false, 'error' => $error, 'ms' => $ms]);
@@ -116,7 +125,7 @@ switch ($action) {
                 $nearest = ['id' => $p['id'], 'nm' => round($d, 1), 'ft' => $p['altFt'] !== null ? (int) round($p['altFt']) : null];
             }
         }
-        echo json_encode(['ok' => true, 'aircraft' => $airborne, 'inside' => $inside, 'nearest' => $nearest, 'ms' => $ms]);
+        echo json_encode(['ok' => true, 'aircraft' => $airborne, 'inside' => $inside, 'nearest' => $nearest, 'ms' => $ms, 'foundAt' => $foundAt]);
         exit;
     case 'status':
         $status = airdefender_test_status();

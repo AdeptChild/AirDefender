@@ -15,6 +15,9 @@
 const AIRDEFENDER_FEED_ADSBFI = "https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{radius}";
 const AIRDEFENDER_FEED_ADSBLOL = "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}";
 const AIRDEFENDER_DEFAULT_FEED = AIRDEFENDER_FEED_ADSBFI;
+// A receiver of your own on the home network, at the address saved as
+// receiverAddress (see airdefender_receiver.php).
+const AIRDEFENDER_FEED_RECEIVER = 'receiver';
 
 /* URL template => label, as offered in Settings. */
 function airdefender_feed_options(): array
@@ -22,8 +25,9 @@ function airdefender_feed_options(): array
     return [
         AIRDEFENDER_FEED_ADSBFI => 'adsb.fi (default)',
         AIRDEFENDER_FEED_ADSBLOL => 'adsb.lol',
-        'http://localhost/tar1090/data/aircraft.json' => 'Local receiver (tar1090)',
-        'http://localhost:8080/data/aircraft.json' => 'Local receiver (dump1090-fa)',
+        AIRDEFENDER_FEED_RECEIVER => 'Your receiver on your network',
+        'http://localhost/tar1090/data/aircraft.json' => 'Receiver on this FPP (tar1090)',
+        'http://localhost:8080/data/aircraft.json' => 'Receiver on this FPP (dump1090-fa)',
     ];
 }
 

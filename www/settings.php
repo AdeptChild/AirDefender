@@ -291,6 +291,13 @@ $settings = array(
         'default' => AIRDEFENDER_DEFAULT_FEED,
         'options' => airdefender_feed_options(),
     ),
+    // Your own receiver's address (IP or hostname, optional port, or the full URL
+    // of its aircraft.json), used when the service is "Your receiver on your network".
+    'receiverAddress' => array(
+        'label' => 'Receiver Address',
+        'type' => 'string',
+        'default' => '',
+    ),
     'controllerType' => array(
         'label' => 'Controller Type',
         'type' => 'select',
@@ -364,7 +371,7 @@ $settingGroups = array(
     'Moving Heads' => $headKeys,
     'Location' => array('useFPPLocation', 'latitude', 'longitude', 'showElevationFt'),
     'Safety Thresholds' => array('checkWhen', 'checkPlaylists', 'distanceNM', 'altitudeThresholdFt', 'fetchInterval', 'clearDelaySec'),
-    'ADS-B Feed' => array('adsbSourceUrl', 'feedDownSafe'),
+    'ADS-B Feed' => array('adsbSourceUrl', 'receiverAddress', 'feedDownSafe'),
 );
 
 $statusMessage = '';
@@ -839,8 +846,16 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                     <?php if (!empty($airdefenderFeedNote)): ?><span class="ads-caution"><?php echo htmlspecialchars($airdefenderFeedNote); ?></span><br><?php endif; ?>
                     Free community services for personal, non-commercial use: data from
                     <a href="https://adsb.fi" target="_blank" rel="noopener" class="ads-link">adsb.fi</a> and
-                    <a href="https://adsb.lol" target="_blank" rel="noopener" class="ads-link">adsb.lol</a> (ODbL). A local receiver sends nothing off this FPP.
+                    <a href="https://adsb.lol" target="_blank" rel="noopener" class="ads-link">adsb.lol</a> (ODbL). Your own receiver sends nothing to the internet.
                 </div>
+            </div>
+            <div class="ads-field" id="receiverField">
+                <label for="receiverAddress">Receiver address</label>
+                <input type="text" name="receiverAddress" id="receiverAddress" class="ads-w-md" value="<?php echo htmlspecialchars((string) $v('receiverAddress')); ?>"
+                    placeholder="e.g. 192.168.1.50" autocomplete="off" spellcheck="false">
+                <div class="ads-help">The IP address or name of the Pi running your receiver (ADSB.im, PiAware, or readsb/dump1090 with
+                    tar1090), on your home network. Add a port if it uses one (192.168.1.50:8080). Test connection finds where it
+                    publishes its aircraft list.</div>
             </div>
             <div class="ads-field">
                 <label>Test</label>
@@ -850,13 +865,13 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 </div>
                 <div class="ads-help">Asks the service once now, with the location and limits on this page.</div>
             </div>
-            <div class="ads-field">
+            <div class="ads-field" id="fallbackField">
                 <label for="feedFallbackSw">Use the other as a backup</label>
                 <div>
                     <input type="hidden" name="feedFallback" value="0">
                     <label class="ads-sw"><input type="checkbox" id="feedFallbackSw" name="feedFallback" value="1" <?php echo AirDefender_IsTruthy($v('feedFallback')) ? 'checked' : ''; ?>><span class="track"></span></label>
                 </div>
-                <div class="ads-help">If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check; try the chosen one again every minute and go back to it when it answers. Off by default, because turning it on means the other service is sent your show's location too. Never used with a local receiver, so its location stays on this FPP.</div>
+                <div class="ads-help">If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check; try the chosen one again every minute and go back to it when it answers. Off by default, because turning it on means the other service is sent your show's location too. Never used with your own receiver.</div>
             </div>
             <div class="ads-field">
                 <label for="feedDownSw">Close heads if feed is down</label>
@@ -1104,7 +1119,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         var btn = this, out = $('feedTestOut');
         btn.disabled = true; out.className = 'ads-test-out'; out.textContent = 'Asking…';
         var body = new URLSearchParams({
-            action: 'feed_test', url: $('adsbSourceUrl').value,
+            action: 'feed_test', url: $('adsbSourceUrl').value, receiver: $('receiverAddress').value,
             lat: $('latitude').value, lon: $('longitude').value,
             nm: $('distanceNM').value, ft: $('altitudeThresholdFt').value, elev: elevation()
         });
@@ -1116,7 +1131,8 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                     out.className = 'ads-test-out ok';
                     out.textContent = 'OK · ' + d.aircraft + ' aircraft nearby'
                         + (d.nearest ? ' · nearest ' + d.nearest.id + ' at ' + d.nearest.nm + ' NM' + (d.nearest.ft !== null ? ', ' + d.nearest.ft.toLocaleString() + ' ft' + (elevation() ? ' above the show' : '') : '') : '')
-                        + (d.inside ? ' · ' + d.inside + ' inside your limits' : '') + ' (' + d.ms + ' ms)';
+                        + (d.inside ? ' · ' + d.inside + ' inside your limits' : '') + ' (' + d.ms + ' ms)'
+                        + (d.foundAt ? ' · reading ' + d.foundAt : '');
                 } else {
                     out.className = 'ads-test-out err';
                     out.textContent = d.error || 'No answer';
@@ -1125,6 +1141,13 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
             .catch(function (e) { out.className = 'ads-test-out err'; out.textContent = 'Could not run the test: ' + e.message; })
             .then(function () { btn.disabled = false; });
     });
+
+    /* Your receiver's address only matters for that choice; a receiver has no online backup. */
+    function updateFeed() {
+        var f = $('adsbSourceUrl').value;
+        $('receiverField').style.display = f === 'receiver' ? '' : 'none';
+        $('fallbackField').style.display = (f === 'receiver' || f.indexOf('http://localhost') === 0) ? 'none' : '';
+    }
 
     /* ---------- unsaved changes ---------- */
     function snapshot() {
@@ -1146,7 +1169,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         if (!submitting && snapshot() !== initial) { e.preventDefault(); e.returnValue = ''; }
     });
 
-    function refreshAll() { updateTop(); allHeads(); updateWhen(); updateLocation(); updateElevation(); updateRate(); }
+    function refreshAll() { updateTop(); allHeads(); updateWhen(); updateLocation(); updateElevation(); updateRate(); updateFeed(); }
     refreshAll();
     initial = snapshot();
     var msg = $('adsMsg');

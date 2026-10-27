@@ -38,6 +38,12 @@
                 "alwaysOn": false
             },
             {
+                "to": "http://your own ADS-B receiver on your network",
+                "what": "a request for the aircraft it hears (no location)",
+                "why": "to check for aircraft without the internet, if you choose it",
+                "alwaysOn": false
+            },
+            {
                 "to": "api.open-meteo.com",
                 "what": "your show's location",
                 "why": "to look up the ground elevation there, only when you press Look it up in Settings",

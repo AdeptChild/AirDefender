@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 1.2.1 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 1.3.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -76,7 +76,7 @@ Every page has help behind FPP's **?** button.
 | **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
 | **3. When and where** | **When to check** (all scheduled shows, or only selected playlists) with the playlist list, the show location and its elevation. |
 | **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
-| **5. Flight data** | The service, **Test connection**, an optional backup service, and **Close heads if feed is down**. |
+| **5. Flight data** | The service (or your own receiver's address), **Test connection**, an optional backup service, and **Close heads if feed is down**. |
 
 Changes take effect within a second of saving; no restart is needed.
 
@@ -197,11 +197,12 @@ Air Defender asks a free community ADS-B service for the aircraft near your show
 |---|---|---|
 | **adsb.fi** (default) | Published: 1 request a second | Personal, non-commercial use. Data from [adsb.fi](https://adsb.fi). |
 | **adsb.lol** | None published; some users report about 500 a day | Data from [adsb.lol](https://adsb.lol) under the ODbL. |
-| **Local receiver** (tar1090 / dump1090-fa) | None | Reads a receiver on the FPP itself; nothing leaves the device. |
+| **Your receiver on your network** | None | Your own ADS-B receiver on another Pi; nothing goes to the internet. See below. |
+| **Receiver on this FPP** (tar1090 / dump1090-fa) | None | A receiver running on the FPP itself (not recommended; see below). |
 
 Turn on **Use the other as a backup** (it is off until you do, since it means the other service is also sent your
 location) and, if adsb.fi or adsb.lol refuses, limits or doesn't answer, Air Defender asks the other in the same
-check, so there's no gap. It tries the chosen one again every minute and goes back to it when it answers. A local
+check, so there's no gap. It tries the chosen one again every minute and goes back to it when it answers. Your own
 receiver never falls back to an online service.
 
 The number of requests is your check interval over the time it checks: at 10 seconds, about 1,800 for a 5-hour show
@@ -210,10 +211,54 @@ night. The settings page shows the estimate as you change it.
 airplanes.live is no longer offered: its API now refuses requests without an account. A saved airplanes.live setting
 is switched to the default automatically.
 
+### Using your own ADS-B receiver
+
+A receiver at your house hears the aircraft near your show directly, including low ones that the community services'
+volunteer receivers can miss. It needs no internet, has no request limits, and nothing is sent anywhere: the
+receiver lists every aircraft it hears and Air Defender works out which are near the show.
+
+**What you need**
+
+- **A Raspberry Pi of its own** (a Pi 3B+, 4, 5 or Zero 2 W), with a microSD card and power supply. Keep it separate
+  from your FPP: decoding radio takes CPU your show needs.
+- **A USB radio for 1090 MHz:** an RTL-SDR stick, such as a FlightAware Pro Stick or an RTL-SDR Blog V3/V4.
+- **A 1090 MHz antenna** and cable. Higher and clearer is better: outdoors on a roof or pole hears farthest, but even
+  one indoors by a window hears low aircraft within a few miles.
+
+**Software (pick one)**, and follow its own setup guide until you can see aircraft on its map in your browser:
+
+- [ADSB.im](https://adsb.im): a ready-made Pi image with a web setup page. The easiest.
+- [PiAware](https://www.flightaware.com/adsb/piaware/): FlightAware's Pi image, with its SkyAware map.
+- Any Pi running readsb or dump1090-fa with tar1090.
+
+**Connect it to Air Defender**
+
+1. Find the receiver Pi's IP address (on your router's device list, or the receiver's own setup page). Reserving that
+   address for it in your router stops it changing.
+2. In **Settings → Flight data**, set **Service** to **Your receiver on your network** and enter the IP address in
+   **Receiver address**, for example `192.168.1.50` (add `:port` if your receiver uses one).
+3. Press **Test connection**. It finds where the receiver publishes its aircraft list (tar1090, SkyAware or port 8080)
+   and shows `OK · N aircraft nearby · reading http://…`. Then **Save**.
+
+Air Defender only accepts addresses on your home network. If the receiver's decoder stops while its web page keeps
+running, its data goes stale: Air Defender notices after 2 minutes and treats it like a feed that isn't answering.
+Turn on **Close heads if feed is down** if you want the heads closed whenever that happens.
+
+| Test connection says | What to do |
+|---|---|
+| Can't reach the receiver | Check the Pi is on and on the network, and the address is right. |
+| No aircraft data found at the usual places | Enter the full address of its `aircraft.json` (open the receiver's map and look for `data/aircraft.json`). |
+| The receiver's data is N min old | Its decoder stopped, or its clock is wrong. Restart the receiver. |
+| Not on your home network | Use the receiver's local IP address (usually 192.168.x.x or 10.x.x.x). |
+
+The **Receiver on this FPP** choices read a receiver installed on the FPP itself. That works, but it isn't
+recommended: decoding takes CPU from the show, and receiver web pages usually want the port FPP's own web server
+uses.
+
 ## Privacy
 
-- Your **show's location** and search radius go to the flight-data service you pick (adsb.fi, adsb.lol, or neither
-  with a local receiver), only while Air Defender is checking.
+- Your **show's location** and search radius go to the flight-data service you pick (adsb.fi, adsb.lol, or nowhere
+  with your own receiver), only while Air Defender is checking. Your own receiver is only asked for its aircraft list.
 - Pressing **Look it up** beside Show elevation sends the location once to api.open-meteo.com.
 - A Remote asks its master for its status over your local network, with the master's UI password if you entered one.
 - The log (`plugin-AirDefender.log` in FPP's logs folder) records the callsigns, distance and height of low aircraft
@@ -263,6 +308,7 @@ Options `--url`, `--lat`, `--lon`, `--distance`, `--altitude` and `--elevation` 
 | Shutter overlays (`PUT /api/overlays/range/<ch>`, FPP's proxy to fppd) | `scripts/airdefender_controller.php` |
 | Heads by model or manual channel | `scripts/airdefender_models.php` |
 | Flight-data services, backup, fetching and parsing | `scripts/airdefender_feeds.php`, `scripts/airdefender_adsb.php` |
+| Your own receiver: address check, finding its data, stale-data check | `scripts/airdefender_receiver.php` |
 | Tests, Check now, Last Event, log | `scripts/airdefender_test.php`, `scripts/airdefender_status.php` |
 | FPP's folders (media, logs, config), found the way FPP provides them | `scripts/airdefender_paths.php` |
 | The master's UI password, in `plugindata/AirDefender/` (0600) | `scripts/airdefender_secret.php` |

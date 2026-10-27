@@ -11,6 +11,7 @@
  * Any of them can be overridden:
  *   --url "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}"
  *   --lat 34.685 --lon -82.953 --distance 5 --altitude 3000 --elevation 800
+ *   --receiver 192.168.1.50   (reads your own receiver instead)
  *
  * Heights are shown above the show, using the show elevation from Settings.
  *
@@ -24,10 +25,11 @@ if (PHP_SAPI !== 'cli') {
 require_once(__DIR__ . "/airdefender_paths.php");
 require_once(__DIR__ . "/airdefender_adsb.php");
 require_once(__DIR__ . "/airdefender_feeds.php");
+require_once(__DIR__ . "/airdefender_receiver.php");
 
-$opts = getopt('', ['url:', 'lat:', 'lon:', 'distance:', 'altitude:', 'elevation:', 'help']);
+$opts = getopt('', ['url:', 'lat:', 'lon:', 'distance:', 'altitude:', 'elevation:', 'receiver:', 'help']);
 if (isset($opts['help'])) {
-    echo "Usage: php airdefender_check.php [--url TEMPLATE] [--lat N] [--lon N] [--distance NM] [--altitude FT] [--elevation FT]\n";
+    echo "Usage: php airdefender_check.php [--url TEMPLATE] [--lat N] [--lon N] [--distance NM] [--altitude FT] [--elevation FT] [--receiver ADDRESS]\n";
     exit(0);
 }
 
@@ -41,6 +43,12 @@ $maxNm = (float) ($opts['distance'] ?? ($settings['distanceNM'] ?? 5));
 $maxFt = (float) ($opts['altitude'] ?? ($settings['altitudeThresholdFt'] ?? 3000));
 $elevationFt = airdefender_clamp_elevation($opts['elevation'] ?? ($settings['showElevationFt'] ?? 0));
 [$template] = airdefender_effective_feed($opts['url'] ?? ($settings['adsbSourceUrl'] ?? ''));
+$receiver = $opts['receiver'] ?? null;
+if ($receiver !== null) {
+    $template = AIRDEFENDER_FEED_RECEIVER;
+} elseif ($template === AIRDEFENDER_FEED_RECEIVER) {
+    $receiver = (string) ($settings['receiverAddress'] ?? '');
+}
 
 if (!is_numeric($lat) || !is_numeric($lon)) {
     fwrite(STDERR, "No show location: set it in FPP or Air Defender settings, or pass --lat and --lon.\n");
@@ -49,11 +57,22 @@ if (!is_numeric($lat) || !is_numeric($lon)) {
 $lat = (float) $lat;
 $lon = (float) $lon;
 
-$url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))], $template);
-echo "Asking {$url}\n";
-echo "Limits: {$maxNm} NM, {$maxFt} ft" . ($elevationFt ? " above the show (show at {$elevationFt} ft above sea level)" : "") . "\n\n";
-
-[$planes, $error] = airdefender_fetch_feed($url);
+echo "Limits: {$maxNm} NM, {$maxFt} ft" . ($elevationFt ? " above the show (show at {$elevationFt} ft above sea level)" : "") . "\n";
+if ($template === AIRDEFENDER_FEED_RECEIVER) {
+    echo "Looking for your receiver at {$receiver}\n";
+    $found = null;
+    [$planes, $error] = airdefender_fetch_receiver($receiver, $found);
+    if ($found !== null) {
+        echo "Reading {$found}\n";
+    }
+} else {
+    $url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))], $template);
+    echo "Asking {$url}\n";
+    [$planes, $error] = airdefender_is_receiver_feed($template)
+        ? airdefender_fetch_feed($url, AIRDEFENDER_RECEIVER_MAX_AGE_SEC, 4)
+        : airdefender_fetch_feed($url);
+}
+echo "\n";
 if ($planes === null) {
     fwrite(STDERR, "Could not check: {$error}\n");
     exit(2);

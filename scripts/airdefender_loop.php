@@ -33,6 +33,7 @@ require_once(__DIR__ . "/airdefender_adsb.php");
 require_once(__DIR__ . "/airdefender_version.php");
 require_once(__DIR__ . "/airdefender_secret.php");
 require_once(__DIR__ . "/airdefender_playlists.php");
+require_once(__DIR__ . "/airdefender_receiver.php");
 
 const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_CLEAR_DELAY = 30;
@@ -411,6 +412,7 @@ $nearby = [];                // aircraft from the last good fetch, for the radar
 $show = null;                // what FPP is playing, re-read every 2 s
 $showAt = 0;
 $tickedSlot = '';            // schedule slot of the last ticked playlist seen playing
+$receiverUrl = null;         // where your receiver's aircraft.json was found
 $wasChecking = null;
 $onBackup = false;           // the chosen service is not answering and the backup is
 $primaryRetryAt = 0;
@@ -461,6 +463,7 @@ while (true) {
     // The selected playlists count only with Only selected playlists.
     $onlyPlaylists = $checkWhen === 'playing' ? airdefender_decode_playlists((string) ($settings['checkPlaylists'] ?? '')) : [];
     [$feedTemplate, $feedNote] = airdefender_effective_feed((string) airdefender_setting($settings, 'adsbSourceUrl', ''));
+    $receiverAddress = trim((string) ($settings['receiverAddress'] ?? ''));
     $backupTemplate = airdefender_truthy(airdefender_setting($settings, 'feedFallback', '0')) ? airdefender_feed_backup($feedTemplate) : null;
     airdefender_log_once('feed-choice', $feedNote);
     // Re-read FPP's models every 10 s, so a head re-patched in xLights and
@@ -527,9 +530,10 @@ while (true) {
     $detecting = $enabled && $role !== 'remote' && $lat !== null && $lon !== null && $checking;
 
     // Start over with a fresh fetch whenever what we ask the feed changes.
-    $feedKey = $feedTemplate . "|" . $lat . "|" . $lon . "|" . $maxNm;
+    $feedKey = $feedTemplate . "|" . $receiverAddress . "|" . $lat . "|" . $lon . "|" . $maxNm;
     if ($feedKey !== $lastFeedKey) {
         $lastFeedKey = $feedKey;
+        $receiverUrl = null;     // a new address: look for its data again
         $nextFetchAt = 0;
         $onBackup = false;
     }
@@ -548,12 +552,24 @@ while (true) {
         $planes = null;
         $errors = [];
         foreach ($order as $template) {
-            $url = str_replace(
-                ['{lat}', '{lon}', '{radius}'],
-                [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))],
-                $template
-            );
-            [$planes, $err] = airdefender_fetch_feed($url);
+            if ($template === AIRDEFENDER_FEED_RECEIVER) {
+                $before = $receiverUrl;
+                [$planes, $err] = airdefender_fetch_receiver($receiverAddress, $receiverUrl);
+                $url = $receiverUrl ?? $receiverAddress;
+                if ($receiverUrl !== null && $receiverUrl !== $before) {
+                    airdefender_log("Receiver found: reading {$receiverUrl}.");
+                }
+            } else {
+                $url = str_replace(
+                    ['{lat}', '{lon}', '{radius}'],
+                    [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))],
+                    $template
+                );
+                // A receiver on this FPP: refuse data its decoder stopped writing.
+                [$planes, $err] = airdefender_is_receiver_feed($template)
+                    ? airdefender_fetch_feed($url, AIRDEFENDER_RECEIVER_MAX_AGE_SEC, 4)
+                    : airdefender_fetch_feed($url);
+            }
             if ($planes !== null) {
                 $feedUsed = $template;
                 break;

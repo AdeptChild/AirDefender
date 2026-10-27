@@ -81,13 +81,18 @@ until you pick the model again.</p>
 <h3>5. Flight data</h3>
 <ul>
     <li><b>Service</b>: <b>adsb.fi</b> (the default) and <b>adsb.lol</b> are free community services for personal,
-        non-commercial use, and are sent your show's location. The local receiver options read an ADS-B receiver
-        running on this FPP and send nothing off the device. (airplanes.live is no longer offered: its API now refuses
-        requests without an account. A saved airplanes.live setting is switched to adsb.fi.)</li>
+        non-commercial use, and are sent your show's location. <b>Your receiver on your network</b> reads your own ADS-B
+        receiver (a Pi running ADSB.im, PiAware, or readsb/dump1090 with tar1090): enter its IP address or name in
+        <b>Receiver address</b> (with <code>:port</code> if needed), and Test connection finds where it publishes its
+        aircraft list. Only home-network addresses are accepted, and it is never sent your location. Data more than 2
+        minutes old counts as the receiver not answering. <b>Receiver on this FPP</b> reads one installed on the FPP
+        itself (not recommended: it takes CPU from the show). The README explains what a receiver needs. (airplanes.live
+        is no longer offered: its API now refuses requests without an account. A saved airplanes.live setting is
+        switched to adsb.fi.)</li>
     <li><b>Use the other as a backup</b>: off until you turn it on, because it means the other service is also sent
         your show's location. When on, if adsb.fi or adsb.lol does not answer, Air Defender asks the other in the same
         check. It tries your chosen service again every minute and goes back to it when it
-        answers. A local receiver never falls back to an online service.</li>
+        answers. Your own receiver never falls back to an online service.</li>
     <li><b>Test connection</b>: asks the service once, right away, using the location and limits on the page (saved or
         not), and shows how many aircraft it sees, the nearest one, how many are inside your limits, or the exact
         error.</li>

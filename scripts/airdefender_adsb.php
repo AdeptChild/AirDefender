@@ -61,6 +61,12 @@ function airdefender_lookup_elevation(float $lat, float $lon): array
     return [airdefender_clamp_elevation((float) $meters * AIRDEFENDER_FEET_PER_METER), null];
 }
 
+/* "45 s", "12 min", "3 h". */
+function airdefender_age_text(int $sec): string
+{
+    return $sec < 120 ? "{$sec} s" : ($sec < 7200 ? round($sec / 60) . " min" : round($sec / 3600) . " h");
+}
+
 function airdefender_distance_nm(float $lat1, float $lon1, float $lat2, float $lon2): float
 {
     $earthRadiusNm = 3440.065;
@@ -130,11 +136,17 @@ function airdefender_parse_aircraft($data): array
 }
 
 /* Fetch and decode the feed. Returns [aircraft list, null] or [null, error]. */
-function airdefender_fetch_feed(string $url): array
+/*
+ * Ask a feed for aircraft: [planes, null] or [null, error]. With $maxAgeSec,
+ * an answer whose "now" (when the data was written) is older than that is
+ * refused: a receiver's web server goes on serving its last file after its
+ * decoder stops, which would otherwise look like an empty sky.
+ */
+function airdefender_fetch_feed(string $url, int $maxAgeSec = 0, int $timeout = 8): array
 {
     $context = stream_context_create([
         'http' => [
-            'timeout' => 8,
+            'timeout' => $timeout,
             'header' => "User-Agent: FPP-AirDefender\r\nAccept: application/json\r\n",
             'ignore_errors' => true,
         ],
@@ -163,6 +175,20 @@ function airdefender_fetch_feed(string $url): array
     $json = json_decode($body, true);
     if (!is_array($json)) {
         return [null, "ADS-B feed did not return valid JSON"];
+    }
+    if ($maxAgeSec > 0 && isset($json['now']) && is_numeric($json['now'])) {
+        $written = (float) $json['now'];
+        if ($written > 1e11) {
+            $written /= 1000;          // some write milliseconds
+        }
+        $age = (int) round(time() - $written);
+        if ($age > $maxAgeSec) {
+            return [null, "The receiver's data is " . airdefender_age_text($age) . " old: its decoder may have stopped, or its clock is wrong"];
+        }
+    }
+    // array_key_exists, not isset: an empty sky can come back as "ac": null.
+    if (!array_key_exists('aircraft', $json) && !array_key_exists('ac', $json) && !array_key_exists('states', $json)) {
+        return [null, "That address answered, but not with aircraft data"];
     }
     return [airdefender_parse_aircraft($json), null];
 }

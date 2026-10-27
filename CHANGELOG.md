@@ -1,5 +1,16 @@
 # Air Defender changelog
 
+## 1.3.0 (2026-10-27)
+
+- **Your own ADS-B receiver:** new **Your receiver on your network** service, for a receiver on its own Pi (ADSB.im,
+  PiAware, or readsb/dump1090 with tar1090). Enter its IP address; Test connection finds where it publishes its
+  aircraft list (tar1090, SkyAware or port 8080) and Air Defender remembers it. Only home-network addresses are
+  accepted, and the receiver is never sent your location.
+- Receiver data more than 2 minutes old counts as the receiver not answering, so a stopped decoder can't look like an
+  empty sky. This also applies to a receiver on the FPP itself (now labelled **Receiver on this FPP**).
+- README: what you need for a receiver of your own, how to set it up and connect it, and what Test connection's
+  messages mean. The command-line check takes `--receiver ADDRESS`.
+
 ## 1.2.1 (2026-10-26)
 
 - Dashboard: shorter Standby messages ("Static Night isn't selected", "Waiting for a selected playlist"), and the role
