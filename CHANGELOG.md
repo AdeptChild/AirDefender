@@ -1,5 +1,11 @@
 # Air Defender changelog
 
+## 1.2.1 (2026-10-26)
+
+- Dashboard: shorter Standby messages ("Static Night isn't selected", "Waiting for a selected playlist"), and the role
+  and mode (for example "Master · Selected playlists") moved to a line under the title, so the banner no longer
+  crowds Check now.
+
 ## 1.2.0 (2026-10-26)
 
 - **When to check** is now two clear choices: **All scheduled shows** (every scheduled show, as before) or **Only

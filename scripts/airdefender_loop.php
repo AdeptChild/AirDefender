@@ -512,7 +512,7 @@ while (true) {
         airdefender_log($checking
             ? "Checking for aircraft" . ($overrideUntil !== null ? " (Check now override)." : " (show time" . ($show && $show['current'] !== '' ? ": {$show['current']}" : "") . ").")
             : ($skippedPlaylist !== null
-                ? "Standby: {$skippedPlaylist} is not one of Air Defender's playlists, so not checking for aircraft."
+                ? "Standby: {$skippedPlaylist} isn't selected, so not checking for aircraft."
                 : "Standby: no show playing, so not checking for aircraft."));
     }
     if ($checking && $wasChecking === false) {
@@ -671,7 +671,7 @@ while (true) {
     } elseif (!$checking) {
         $safe = false;
         $reason = 'standby';
-        $event = $skippedPlaylist !== null ? "Standby: {$skippedPlaylist} is not one of Air Defender's playlists"
+        $event = $skippedPlaylist !== null ? "Standby: {$skippedPlaylist} isn't selected"
             : ($checkWhen === 'playing' ? 'Standby: waiting for a selected playlist' : 'Standby: waiting for a scheduled show');
     } elseif ($planeNow) {
         $safe = true;

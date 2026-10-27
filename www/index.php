@@ -147,6 +147,7 @@ $pageConfig = array(
     .ad-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .ad-top h2 { color:var(--accent); margin:0; }
     .ad-ver { font-size:13px; color:var(--muted); font-weight:normal; }
+    .ad-meta { font-size:13px; color:var(--muted); margin-top:2px; }
     .ad-switch { display:inline-flex; background:var(--card2); border:1px solid var(--line); border-radius:8px; padding:3px; gap:3px; }
     .ad-switch button, .ad-btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:6px;
           padding:7px 12px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; line-height:1.2; min-height:2.25rem; }
@@ -168,7 +169,6 @@ $pageConfig = array(
           padding:6px 30px 6px 10px; border-radius:6px; background-color:var(--card2); color:var(--text); border:1px solid var(--input-line);
           font-size:14px; text-overflow:clip; }
     .ad-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
-    .ad-chips { display:flex; gap:6px; flex-wrap:wrap; }
     .ad-chip { font-size:12px; padding:3px 10px; border-radius:12px; background:var(--chip); color:var(--soft); }
     .ad-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr)); gap:12px; }
     .ad-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0; }
@@ -218,7 +218,10 @@ $pageConfig = array(
 
 <div class="ad lite" id="ad">
     <div class="ad-top">
-        <h2>Air Defender <span class="ad-ver">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
+        <div>
+            <h2>Air Defender <span class="ad-ver">v<?php echo htmlspecialchars(airdefender_version()); ?></span></h2>
+            <div class="ad-meta" id="adMeta">&nbsp;</div>
+        </div>
         <div class="ad-row">
             <div class="ad-switch" role="group" aria-label="Dashboard view">
                 <button type="button" data-view="lite" class="on" title="Refreshes every 5 seconds">Lite</button>
@@ -234,10 +237,6 @@ $pageConfig = array(
             <div class="s" id="adBannerSub">&nbsp;</div>
         </div>
         <div class="ad-right">
-            <div class="ad-chips">
-                <span class="ad-chip" id="adChipRole"></span>
-                <span class="ad-chip" id="adChipEnabled"></span>
-            </div>
             <div class="ad-override ad-hidden" id="adOverrideOff" title="Check for aircraft now, even outside show times; turns itself off">
                 <select id="adOverrideMin" aria-label="How long to check">
                     <option value="30">30 min</option>
@@ -354,15 +353,13 @@ $pageConfig = array(
             sub = 'Turn on Air Defender in Settings to check for aircraft.';
         } else if (live && live.role !== 'remote' && live.checking === false) {
             cls = 'standby'; title = 'Standby';
-            sub = live.skippedPlaylist
-                ? 'Playing ' + live.skippedPlaylist + ", which isn't one of Air Defender's playlists, so not checking."
-                : (live.checkWhen === 'playing'
-                    ? (live.playlistFilter ? 'Not checking until one of your selected playlists plays.' : 'Not checking until FPP plays a playlist.')
-                    : 'Not checking until a scheduled show.');
+            sub = live.skippedPlaylist ? live.skippedPlaylist + " isn't selected"
+                : live.checkWhen === 'playing' ? (live.playlistFilter ? 'Waiting for a selected playlist' : 'Waiting for a playlist')
+                : 'Waiting for a scheduled show';
             if (live.nextShow && live.nextShow.start) {
                 var d = new Date(live.nextShow.start * 1000);
-                sub += ' Next: ' + (live.nextShow.name || 'show') + ', ' + d.toLocaleDateString([], { weekday: 'short' }) + ' '
-                    + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' (checks start 2 min before).';
+                sub += ' · Next: ' + (live.nextShow.name || 'show') + ', ' + d.toLocaleDateString([], { weekday: 'short' }) + ' '
+                    + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
             }
         } else if (live && live.safe) {
             cls = 'safe'; title = 'Safety active';
@@ -389,8 +386,9 @@ $pageConfig = array(
         b.className = 'ad-banner ' + cls;
         $('adBannerTitle').textContent = title;
         $('adBannerSub').textContent = sub;
-        $('adChipRole').textContent = live && live.role === 'remote' ? 'Remote' : 'Master';
-        $('adChipEnabled').textContent = live && !live.enabled ? 'Disabled' : 'Enabled';
+        // Role and mode, out of the way under the title.
+        $('adMeta').textContent = !live ? '' : live.role === 'remote' ? 'Remote · follows the master'
+            : 'Master · ' + (live.checkWhen === 'playing' ? 'Selected playlists' : 'All scheduled shows');
     }
 
     /* ---------- test ---------- */
@@ -525,7 +523,7 @@ $pageConfig = array(
             return;
         }
         if (live.checking === false) {
-            $('adSkyNote').textContent = 'Standby: not checking until there is a show.';
+            $('adSkyNote').textContent = 'Standby: not checking right now.';
             return;
         }
         var planes = live.aircraft || [], inside = 0;
