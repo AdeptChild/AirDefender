@@ -8,17 +8,21 @@ need a restart.</p>
 <ul>
     <li><b>Enabled</b>: turns aircraft checking on or off. It is off on a new install until you switch it on and
         save. A test from the dashboard still works while it is off.</li>
-    <li><b>Role</b>: <b>Master</b> checks for aircraft and closes its own heads. Use it on a single FPP, and on the FPP
-        that runs the show; it also covers heads it sends to over DDP or E1.31, such as a Falcon controller or an FPP in
-        bridge mode. <b>Remote</b> is for an FPP in remote (multisync) mode, which plays its own copy of the sequence:
-        it follows the master, including the master's tests, and closes its own heads. If it cannot reach the master
-        for 5 seconds it closes its heads until the master is back. Install Air Defender on every Remote with heads.</li>
-    <li><b>Master FPP address</b> (Remote only): leave blank to find the master automatically from FPP's MultiSync
-        list. Enter its IP address or hostname if there is more than one player FPP on the network.</li>
-    <li><b>Master's UI password</b> (Remote only): needed only if the master has an FPP UI password. It is kept in
-        its own file in FPP's plugindata folder that only the fpp user can read, and never shown; leave it blank to keep the saved one, or tick <b>Remove saved password</b> to clear it.</li>
+    <li><b>Role</b>: on a new install this follows FPP's own Player Mode, and the note under it says whether it still
+        matches; change it if your setup needs something else. <b>Player</b> checks for aircraft and closes its own heads.
+        Use it on a single FPP, and on the FPP that runs the show; it also covers heads it sends to over DDP or E1.31,
+        such as a Falcon controller. <b>Remote</b> is for an FPP in Remote mode, which plays its own copy of the sequence
+        on its own outputs: once a second it asks the Player's Air Defender for its status, and closes its own heads
+        whenever the Player is in safety mode (including the Player's tests). If it cannot reach the Player for 5
+        seconds, it closes its heads until the Player is back. Install Air Defender on every Remote with heads. The
+        Player needs no setting for this, and FPP's MultiSync packets are not involved.</li>
+    <li><b>Player FPP address</b> (Remote only): leave blank to find the Player automatically from FPP's MultiSync
+        list. Enter its IP address or hostname if there is more than one Player FPP on the network.</li>
+    <li><b>Player's UI password</b> (Remote only): needed only if the Player has an FPP UI password. It is kept in
+        its own file in FPP's plugindata folder that only the fpp user can read, and never shown; leave it blank to keep
+        the saved one, or tick <b>Remove saved password</b> to clear it.</li>
 </ul>
-<p>On a Remote, sections 3 to 5 are hidden: they are set on the master.</p>
+<p>On a Remote, sections 3 to 5 are hidden: they are set on the Player.</p>
 
 <h3>2. Moving heads</h3>
 <p>One row per head (up to 8). <b>+ Add head</b> adds a row; <b>&times;</b> removes one.</p>

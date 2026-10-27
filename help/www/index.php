@@ -26,8 +26,8 @@ whether you look or not.</p>
     <li><b>Disabled</b> (grey): Air Defender is switched off in Settings.</li>
     <li><b>Not running</b> (red): the detection loop is not running. Restart FPPD (or reboot).</li>
 </ul>
-<p>The chips on the right show whether this FPP is the Master or a Remote, and whether Air Defender is enabled.</p>
-<p><b>Check now</b> (Master, when checks follow show times): checks for aircraft for 30 minutes to 4 hours even
+<p>The line under the title shows whether this FPP is the Player or a Remote, and which When to check choice is in use.</p>
+<p><b>Check now</b> (Player): checks for aircraft for 30 minutes to 4 hours even
 with no show on, for example while testing a sequence, then turns itself off. The banner shows the time left and an
 <b>End</b> button.</p>
 
@@ -36,7 +36,7 @@ with no show on, for example while testing a sequence, then turns itself off. Th
 Orange dots are aircraft inside your limits (close enough and low enough); grey dots are aircraft that are too
 high or too far. Hover over a dot for its callsign, distance and height (above your show once <b>Show elevation</b> is set in
 Settings). Aircraft on the ground are not shown.
-On a Remote, the Sky card says it follows its master instead.</p>
+On a Remote, the Sky card says it follows its Player instead.</p>
 
 <h3>Moving heads</h3>
 <p>Each enabled head, its FPP channel, and whether Air Defender is holding its shutter <b>Closed</b> or the
@@ -50,7 +50,7 @@ the summary line counts them.</p>
         edge of the area does not flash the lights.</li>
     <li>If the flight-data service stops answering while an aircraft was near, until it answers again. With
         <b>Close heads if feed is down</b> on, whenever it stops answering.</li>
-    <li>On a Remote: whenever its master is in Safety Mode, and whenever it cannot reach the master for
+    <li>On a Remote: whenever its Player is in Safety Mode, and whenever it cannot reach the Player for
         5 seconds.</li>
 </ul>
 <p>When Safety Mode turns off, the shutters go back to whatever the sequence is doing; they are not forced
@@ -59,7 +59,7 @@ open.</p>
 <h3>Test Mode</h3>
 <p>Pick a length (5 seconds to 30 minutes) and press <b>Start Test</b> to close the shutters for that long,
 so you can go outside and watch the heads go dark and come back. The countdown keeps going if you refresh or
-open the page somewhere else, and <b>Stop Test</b> ends it early. A test started on the master also closes
+open the page somewhere else, and <b>Stop Test</b> ends it early. A test started on the Player also closes
 the heads on every Remote. You can also start and stop a test from a playlist, schedule or command preset
 with the <b>Air Defender: Start Test</b> and <b>Air Defender: Stop Test</b> commands.</p>
 

@@ -50,9 +50,9 @@
                 "alwaysOn": false
             },
             {
-                "to": "http://the master FPP on your network",
-                "what": "a request for its status, with the master's UI password if you enter one",
-                "why": "so a Remote closes its heads when the master does",
+                "to": "http://the Player FPP on your network",
+                "what": "a request for its status, with the Player's UI password if you enter one",
+                "why": "so a Remote closes its heads when the Player does",
                 "alwaysOn": false
             }
         ],
@@ -74,6 +74,6 @@
             }
         ],
         "closedCode": false,
-        "other": "While an aircraft is near, or during a test, it overrides the shutter channels of the moving heads you list using FPP's channel overlays. A read-only status page on FPP's web server lets Remote FPPs check the master. On a Remote, the master's UI password is kept in plugindata, readable only by the fpp user. adsb.lol is sent the location too only if you choose it or turn it on as a backup."
+        "other": "While an aircraft is near, or during a test, it overrides the shutter channels of the moving heads you list using FPP's channel overlays. A read-only status page on FPP's web server lets Remote FPPs check the Player. On a Remote, the Player's UI password is kept in plugindata, readable only by the fpp user. adsb.lol is sent the location too only if you choose it or turn it on as a backup."
     }
 }

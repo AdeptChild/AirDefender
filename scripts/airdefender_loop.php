@@ -268,9 +268,9 @@ function airdefender_find_master(array $settings): array
         return [$candidates[0], null];
     }
     if (!$candidates) {
-        return [null, "no master FPP found in the MultiSync list; enter its address in settings"];
+        return [null, "no Player FPP found in the MultiSync list; enter its address in settings"];
     }
-    return [null, "more than one player FPP found (" . implode(', ', $candidates) . "); enter the master's address in settings"];
+    return [null, "more than one Player FPP found (" . implode(', ', $candidates) . "); enter the Player's address in settings"];
 }
 
 /* Ask the master what it wants. Returns [status, null] or [null, error]. */
@@ -285,20 +285,20 @@ function airdefender_poll_master(string $address, string $password = ''): array
     [$data, $err] = airdefender_get_json($base . "/plugin.php?plugin=AirDefender&page=www/master_status.php&nopage=1", 2, $auth);
     if ($err === "HTTP 401") {
         return [null, $password === ''
-            ? "the master has a UI password; enter it as Master's UI password in this Remote's Air Defender settings"
-            : "the master did not accept this Remote's password; check Master's UI password in Air Defender settings"];
+            ? "the Player has a UI password; enter it as Player's UI password in this Remote's Air Defender settings"
+            : "the Player did not accept this Remote's password; check Player's UI password in Air Defender settings"];
     }
     if ($data === null) {
-        return [null, $err === "HTTP 404" ? "Air Defender is not installed on the master" : $err];
+        return [null, $err === "HTTP 404" ? "Air Defender is not installed on the Player" : $err];
     }
     if (($data['plugin'] ?? '') !== 'AirDefender') {
-        return [null, "the master did not answer as Air Defender"];
+        return [null, "the Player did not answer as Air Defender"];
     }
     if (($data['role'] ?? '') !== 'master') {
-        return [null, "that FPP is set to Remote, not Master"];
+        return [null, "that FPP's Air Defender is set to Remote, not Player"];
     }
     if (empty($data['testActive']) && ($data['loopAge'] === null || $data['loopAge'] > AIRDEFENDER_MASTER_STALE_SEC)) {
-        return [null, "the master's detection loop is not running"];
+        return [null, "the Player's detection loop is not running"];
     }
     return [$data, null];
 }
@@ -445,7 +445,8 @@ while (true) {
     // Keep only the last week of log (it records nearby aircraft).
     $enabled = airdefender_truthy(airdefender_setting($settings, 'enabled', '0'));
     // "standalone" from older settings is a master.
-    $role = strtolower((string) airdefender_setting($settings, 'nodeRole', 'master')) === 'remote' ? 'remote' : 'master';
+    // Not saved yet (a new install): follow FPP's own Player Mode.
+    $role = strtolower((string) airdefender_setting($settings, 'nodeRole', airdefender_fpp_role())) === 'remote' ? 'remote' : 'master';
     $maxNm = max(0.1, (float) airdefender_setting($settings, 'distanceNM', 5));
     $maxFt = max(0, (float) airdefender_setting($settings, 'altitudeThresholdFt', 3000));
     // Heights are compared above the show, not above sea level.
@@ -653,7 +654,7 @@ while (true) {
     $masterLost = $role === 'remote' && (
         $masterOkAt === 0 ? $now - $startedAt >= AIRDEFENDER_MASTER_LOST_SEC : $now - $masterOkAt > AIRDEFENDER_MASTER_LOST_SEC
     );
-    $masterName = $masterAddress ?? 'master';
+    $masterName = $masterAddress ?? 'Player';
 
     /* --- decide --- */
     $wasSafe = $safe;
@@ -671,15 +672,15 @@ while (true) {
     } elseif ($role === 'remote' && $masterLost) {
         $safe = true;
         $reason = 'master-lost';
-        $event = "Lost the master ({$masterName}): " . ($masterError ?? 'no answer') . ". Heads closed until it is back";
+        $event = "Lost the Player ({$masterName}): " . ($masterError ?? 'no answer') . ". Heads closed until it is back";
     } elseif ($role === 'remote' && $masterOkAt === 0) {
         $safe = $wasSafe;
         $reason = 'master-connecting';
-        $event = "Connecting to the master ({$masterName})...";
+        $event = "Connecting to the Player ({$masterName})...";
     } elseif ($role === 'remote') {
         $safe = !empty($master['safe']);
         $reason = $safe ? 'master' : 'clear';
-        $event = (!empty($master['testActive']) ? "Master test: " : "Master ({$masterName}): ") . ($master['event'] ?? '');
+        $event = (!empty($master['testActive']) ? "Player test: " : "Player ({$masterName}): ") . ($master['event'] ?? '');
     } elseif ($lat === null || $lon === null) {
         $safe = false;
         $reason = 'no-location';
@@ -720,7 +721,7 @@ while (true) {
     }
 
     if ($role === 'remote' && $enabled && !$test['active']) {
-        airdefender_log_once('master', $masterLost ? $event : ($masterOkAt ? "Connected to the master at {$masterName}." : null));
+        airdefender_log_once('master', $masterLost ? $event : ($masterOkAt ? "Connected to the Player at {$masterName}." : null));
     } elseif ($role !== 'remote') {
         airdefender_log_once('master', null);
     }

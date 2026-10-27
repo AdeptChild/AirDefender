@@ -1,5 +1,14 @@
 # Air Defender changelog
 
+## 1.4.0 (2026-10-27)
+
+- **Player and Remote:** the role uses FPP's own names (Master is now **Player**) everywhere: Settings, dashboard, log,
+  help and README. Saved settings are unchanged.
+- **Role follows FPP on a new install:** until it is saved, the role matches FPP's own Player Mode, so an FPP in
+  Remote mode starts as a Remote. You can still change it, and Settings says when it no longer matches FPP's mode.
+- README and help explain how a Remote follows its Player: it asks the Player's Air Defender once a second, so the
+  Player needs no setting and MultiSync isn't involved.
+
 ## 1.3.0 (2026-10-27)
 
 - **Your own ADS-B receiver:** new **Your receiver on your network** service, for a receiver on its own Pi (ADSB.im,

@@ -17,7 +17,7 @@ header('Cache-Control: no-store');
 $now = time();
 
 $pluginSettings = airdefender_read_kv_file(airdefender_config_file());
-$role = strtolower($pluginSettings['nodeRole'] ?? 'master') === 'remote' ? 'remote' : 'master';
+$role = strtolower(($pluginSettings['nodeRole'] ?? '') !== '' ? $pluginSettings['nodeRole'] : airdefender_fpp_role()) === 'remote' ? 'remote' : 'master';
 
 $state = json_decode((string) @file_get_contents(dirname(__DIR__) . "/state.json"), true);
 $state = is_array($state) ? $state : [];

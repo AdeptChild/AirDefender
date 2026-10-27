@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 1.3.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 1.4.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -54,8 +54,8 @@ itself. **Release Notes** in Plugin Manager shows the changelog.
 ## Quick start
 
 1. Open **Air Defender → Settings** (from the Content Setup menu, or the dashboard's Settings button).
-2. **Air Defender:** switch it **On** (a new install starts off), with **Role: Master** (see
-   [Master and Remote](#master-and-remote) if you have FPP remotes).
+2. **Air Defender:** switch it **On** (a new install starts off). **Role** starts out matching FPP's own mode:
+   **Player** on the FPP that runs the show (see [Player and Remote](#player-and-remote) if you have FPP Remotes).
 3. **Moving heads:** add each head. Pick its **model**, or choose **Manual channel** and enter its **start channel**
    from xLights. Then enter the **shutter channel** from the fixture's DMX chart (for example 7) and the **closed**
    value (often 0). The row shows the FPP channel it works out, for example `→ FPP ch 82454`.
@@ -72,7 +72,7 @@ Every page has help behind FPP's **?** button.
 
 | Section | What's there |
 |---|---|
-| **1. Air Defender** | Enabled; **Role** (Master or Remote); on a Remote, the master's address and UI password. |
+| **1. Air Defender** | Enabled; **Role** (Player or Remote, starting from FPP's own mode); on a Remote, the Player's address and UI password. |
 | **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
 | **3. When and where** | **When to check** (all scheduled shows, or only selected playlists) with the playlist list, the show location and its elevation. |
 | **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
@@ -137,23 +137,27 @@ checking through requests anyway, because they play inside that show's schedule 
 To test a sequence at another time, use **Check now** on the dashboard (30 minutes to 4 hours), or the
 **Air Defender: Check Now** command. It turns itself off when the time runs out.
 
-## Master and Remote
+## Player and Remote
+
+Air Defender's **Role** uses FPP's own names. On a new install it follows FPP's **Player Mode** (Settings → FPP
+Settings), and the Settings page says whether it still matches; you can change it if your setup needs something else.
 
 | Your setup | Air Defender role |
 |---|---|
-| One FPP running the show | **Master** |
-| An FPP sending E1.31/DDP to a Falcon or other controller with the heads | **Master** on that FPP (it covers the controller) |
-| An FPP in **bridge** mode receiving data from the master | Nothing needed: the master covers it |
-| An FPP in **remote** (multisync) mode with heads on its outputs | **Master** on the show FPP, **Remote** on each remote |
+| One FPP running the show | **Player** |
+| An FPP sending E1.31/DDP to a Falcon or other controller with the heads | **Player** on that FPP (it covers the controller) |
+| A Player with FPP **Remotes** (Kulp boards, say) that have heads on their own outputs | **Player** on the Player, **Remote** on each Remote with heads |
 
-A remote plays its own copy of the sequence, so the master's overlays can't reach its heads. A **Remote** therefore
-follows its master: it closes its own heads whenever the master is in safety mode, including the master's tests. If
-it cannot reach the master for **5 seconds** (master off, unreachable, plugin missing, its loop not running, or it is
-set to Remote), it closes its heads until the master is back. Install Air Defender on every remote that has heads;
-a remote with no heads enabled does nothing.
+**How a Remote follows the Player.** A Remote plays its own copy of the sequence on its own outputs, kept in time by
+FPP's MultiSync, so the Player's overlays can't reach its heads. So the Remote's Air Defender **asks the Player's Air
+Defender for its status once a second**, over your network through FPP's web server, and closes its own heads whenever
+the Player is in safety mode, including the Player's tests. The Player needs no setting for this and doesn't need to
+know the Remotes exist, and it doesn't depend on MultiSync. If a Remote can't get an answer for **5 seconds** (Player
+off or unreachable, Air Defender missing there, its loop not running, or it set to Remote), it closes its heads until
+the Player is back. Install Air Defender on every Remote that has heads; a Remote with no heads enabled does nothing.
 
-A Remote finds its master automatically from FPP's MultiSync list; enter the **Master FPP address** if there is more
-than one player on the network. If the master has an FPP **UI password**, enter it as **Master's UI password** on the
+A Remote finds its Player automatically from FPP's MultiSync list; enter the **Player FPP address** if there is more
+than one Player on the network. If the Player has an FPP **UI password**, enter it as **Player's UI password** on the
 Remote (it logs in as `admin`, over your local network). The password is kept in its own file in FPP's `plugindata`
 folder that only the fpp user can read (not with the other settings, which FPP's backups and crash reports copy), and
 is never shown on the page.
@@ -176,7 +180,7 @@ Choose **Lite** (refreshes every 5 seconds) or **Detailed** (every 2 seconds, ad
 and every head's state). Your choice is remembered in that browser. The dashboard only asks FPP for anything while it
 is open.
 
-- **Test** closes the heads for 5 seconds to 30 minutes so you can go outside and watch; a test on the master also
+- **Test** closes the heads for 5 seconds to 30 minutes so you can go outside and watch; a test on the Player also
   closes every Remote's heads.
 - **Last Event** shows only safety turning on or off and tests. Everything else is in the full log.
 - **Clear log** deletes the Air Defender log.
@@ -260,12 +264,12 @@ uses.
 - Your **show's location** and search radius go to the flight-data service you pick (adsb.fi, adsb.lol, or nowhere
   with your own receiver), only while Air Defender is checking. Your own receiver is only asked for its aircraft list.
 - Pressing **Look it up** beside Show elevation sends the location once to api.open-meteo.com.
-- A Remote asks its master for its status over your local network, with the master's UI password if you entered one.
+- A Remote asks its Player for its status over your local network, with the Player's UI password if you entered one.
 - The log (`plugin-AirDefender.log` in FPP's logs folder) records the callsigns, distance and height of low aircraft
   that passed near your show. FPP rotates it daily and keeps **7 days**; **Clear log** deletes it now.
 - Nothing is sent anywhere until you switch Air Defender on. The backup service and the elevation lookup are off
   until you use them.
-- Uninstalling removes the log and the saved master password.
+- Uninstalling removes the log and the saved Player password.
 - Air Defender runs a background process while FPP is running, and holds the shutter channels you list while
   aircraft are near or during a test.
 
@@ -286,7 +290,7 @@ plugin-AirDefender.log**) explains every change.
 | A head's row is red: "Model not found" | The model was renamed or deleted in xLights. Pick it again; until then the last channel is still protected. |
 | Heads don't close during a test | Check each head is **On**, the **FPP channel** shown matches the shutter channel, and the **closed** value is right for the fixture. |
 | **Standby** when you expected checking | No scheduled show is on, or the playlist playing isn't ticked. Use **Check now**, or change **When to check**. |
-| A Remote says "Lost the master" | Check the master is on, has Air Defender set to Master, and the address is right. If it says the master has a UI password, enter it on the Remote. |
+| A Remote says "Lost the Player" | Check the Player is on, has Air Defender set to Player, and the address is right. If it says the Player has a UI password, enter it on the Remote. |
 | The dashboard says "FPP refused the shutter channels" | fppd isn't accepting overlays; restart FPPD. |
 
 **Command-line check** (over SSH): asks the flight-data service once with your saved settings and lists every
@@ -311,14 +315,14 @@ Options `--url`, `--lat`, `--lon`, `--distance`, `--altitude` and `--elevation` 
 | Your own receiver: address check, finding its data, stale-data check | `scripts/airdefender_receiver.php` |
 | Tests, Check now, Last Event, log | `scripts/airdefender_test.php`, `scripts/airdefender_status.php` |
 | FPP's folders (media, logs, config), found the way FPP provides them | `scripts/airdefender_paths.php` |
-| The master's UI password, in `plugindata/AirDefender/` (0600) | `scripts/airdefender_secret.php` |
+| The Player's UI password (on a Remote), in `plugindata/AirDefender/` (0600) | `scripts/airdefender_secret.php` |
 | Dashboard and its endpoint | `www/index.php`, `www/test_api.php` |
 | Settings page | `www/settings.php` |
 | Status a Remote reads from its master | `www/master_status.php` |
 | Install, update and uninstall hooks | `scripts/fpp_install.sh`, `scripts/fpp_upgrade.sh`, `scripts/fpp_uninstall.sh` |
 
 Runtime files written on the device (not in git): `state.json`, `test.json`, `override.json`, `last_event.json` and
-`loop.lock` in the plugin folder, `plugin-AirDefender.log` in FPP's logs folder, and the master password in
+`loop.lock` in the plugin folder, `plugin-AirDefender.log` in FPP's logs folder, and the Player's password in
 `plugindata/AirDefender/`. The pages follow FPP's light and dark themes through CSS variables.
 
 ## License

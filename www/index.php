@@ -387,8 +387,8 @@ $pageConfig = array(
         $('adBannerTitle').textContent = title;
         $('adBannerSub').textContent = sub;
         // Role and mode, out of the way under the title.
-        $('adMeta').textContent = !live ? '' : live.role === 'remote' ? 'Remote · follows the master'
-            : 'Master · ' + (live.checkWhen === 'playing' ? 'Selected playlists' : 'All scheduled shows');
+        $('adMeta').textContent = !live ? '' : live.role === 'remote' ? 'Remote · follows the Player'
+            : 'Player · ' + (live.checkWhen === 'playing' ? 'Selected playlists' : 'All scheduled shows');
     }
 
     /* ---------- test ---------- */
@@ -468,7 +468,7 @@ $pageConfig = array(
         if (!live) { return ''; }
         if (live.role === 'remote') {
             var m = live.master || {};
-            return m.connected ? 'master ' + (m.address || '') + ' OK' : 'master not connected';
+            return m.connected ? 'Player ' + (m.address || '') + ' OK' : 'Player not connected';
         }
         var f = live.feed || {};
         if (live.checking === false) { return 'standby'; }
@@ -519,7 +519,7 @@ $pageConfig = array(
         el('circle', { cx: 100, cy: 100, r: 4, 'class': 'centre' });
 
         if (live.role === 'remote') {
-            $('adSkyNote').textContent = 'This Remote follows its master, which checks the sky.';
+            $('adSkyNote').textContent = 'This Remote follows its Player, which checks the sky.';
             return;
         }
         if (live.checking === false) {

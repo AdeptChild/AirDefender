@@ -186,17 +186,20 @@ function AirDefender_IsTruthy($value) {
 }
 
 $settings = array(
+    // Shown as Player and Remote, like FPP's own Player Mode ("master" is kept
+    // as the saved value so existing settings still work). Until it is saved,
+    // it follows FPP's Player Mode.
     'nodeRole' => array(
         'label' => 'Operation Mode',
         'type' => 'select',
-        'default' => 'master',
+        'default' => airdefender_fpp_role(),
         'options' => array(
-            'master' => 'Master',
+            'master' => 'Player',
             'remote' => 'Remote',
         ),
     ),
     'masterAddress' => array(
-        'label' => 'Master FPP Address',
+        'label' => 'Player FPP Address',
         'type' => 'string',
         'default' => '',
     ),
@@ -204,7 +207,7 @@ $settings = array(
     // shown back on the page; a blank field keeps the saved one. Kept in
     // plugindata (0600), not in the config file: see airdefender_secret.php.
     'masterPassword' => array(
-        'label' => "Master's UI Password",
+        'label' => "Player's UI Password",
         'type' => 'string',
         'default' => '',
     ),
@@ -453,7 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (AirDefender_SaveAll($pluginName, $toSave)) {
         $statusMessage = $passwordSaved ? "Settings saved."
-            : "ERROR: settings saved, but the master's password could not be saved in " . airdefender_plugindata_dir() . " (check file permissions).";
+            : "ERROR: settings saved, but the Player's password could not be saved in " . airdefender_plugindata_dir() . " (check file permissions).";
     } else {
         $statusMessage = "ERROR: could not write " . AirDefender_ConfigPath($pluginName) . " (check file permissions).";
     }
@@ -472,7 +475,7 @@ list($settings['adsbSourceUrl']['value'], $airdefenderFeedNote) = airdefender_ef
 if ($settings['checkWhen']['value'] === 'always') {
     $settings['checkWhen']['value'] = 'playing';
 }
-// "Standalone" was folded into Master: a master with no remotes is the same thing.
+// "Standalone" was folded into Player: a player with no remotes is the same thing.
 if (!array_key_exists((string) $settings['nodeRole']['value'], $settings['nodeRole']['options'])) {
     $settings['nodeRole']['value'] = 'master';
 }
@@ -649,25 +652,27 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                 <?php endforeach; ?>
             </div>
             <div class="ads-help">
-                <b>Master</b>: checks for aircraft. Use it on a single FPP, and on the one that runs the show (also covers heads it sends to a Falcon over DDP/E1.31).
-                <b>Remote</b>: for an FPP in remote (multisync) mode; follows the master and closes its own heads, and closes them if it loses the master.
+                <b>Player</b>: checks for aircraft. Use it on a single FPP, and on the one that runs the show (also covers heads it sends to a Falcon over DDP/E1.31).
+                <b>Remote</b>: for an FPP in Remote mode with heads on its own outputs; asks the Player once a second and closes its heads when the Player does, or if it can't reach it.
+                <?php $fppRole = airdefender_fpp_role(); ?>
+                <span id="roleNote" data-fpp="<?php echo $fppRole; ?>" data-fpp-label="<?php echo $fppRole === 'remote' ? 'Remote' : 'Player'; ?>"></span>
             </div>
         </div>
         <div class="ads-field ads-remote-only" style="display:none;" id="masterRow">
-            <label for="masterAddress">Master FPP address</label>
+            <label for="masterAddress">Player FPP address</label>
             <input type="text" name="masterAddress" id="masterAddress" value="<?php echo htmlspecialchars((string) $v('masterAddress')); ?>" placeholder="Blank finds it automatically" class="ads-w-md">
-            <div class="ads-help">IP or hostname of the master. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one player FPP.</div>
+            <div class="ads-help">IP or hostname of the Player. Leave blank to find it from FPP's MultiSync list; fill it in if there is more than one Player FPP.</div>
         </div>
         <div class="ads-field ads-remote-only" style="display:none;" id="masterPwRow">
-            <label for="masterPassword">Master's UI password</label>
+            <label for="masterPassword">Player's UI password</label>
             <div>
                 <input type="password" name="masterPassword" id="masterPassword" value="" autocomplete="new-password" class="ads-w-md"
-                    placeholder="<?php echo $hasMasterPassword ? 'Saved: type to change' : 'Only if the master has one'; ?>">
+                    placeholder="<?php echo $hasMasterPassword ? 'Saved: type to change' : 'Only if the Player has one'; ?>">
                 <?php if ($hasMasterPassword): ?>
                     <label class="ads-small"><input type="checkbox" name="masterPasswordClear" value="1"> Remove saved password</label>
                 <?php endif; ?>
             </div>
-            <div class="ads-help">Only needed if the master FPP has a UI password (Settings &rarr; UI on the master). The Remote logs in as admin with it to read the master's status, on your local network.</div>
+            <div class="ads-help">Only needed if the Player FPP has a UI password (Settings &rarr; UI on the Player). The Remote logs in as admin with it to read the Player's status, on your local network.</div>
         </div>
     </div>
 
@@ -739,7 +744,7 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
 
     <div class="ads-sec ads-remote-only" style="display:none;">
         <h3>On a Remote</h3>
-        <div class="ads-soft">When to check, location, safety limits and flight data are set on the <b>master</b>; this Remote follows it.</div>
+        <div class="ads-soft">When to check, location, safety limits and flight data are set on the <b>Player</b>; this Remote follows it.</div>
     </div>
 
     <div class="ads-master-only">
@@ -913,6 +918,12 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         $('masterRow').style.display = remote ? 'grid' : 'none';
         $('masterPwRow').style.display = remote ? 'grid' : 'none';
         $('enabledText').textContent = $('enabledSw').checked ? 'On' : 'Off';
+        // Say whether this matches FPP's own Player Mode (the default on a new install).
+        var note = $('roleNote'), fpp = note.getAttribute('data-fpp');
+        note.className = role() === fpp ? '' : 'ads-caution';
+        note.textContent = role() === fpp
+            ? ' Matches FPP\u2019s Player Mode (' + note.getAttribute('data-fpp-label') + ').'
+            : ' FPP is in ' + note.getAttribute('data-fpp-label') + ' mode, but Air Defender is set to ' + (role() === 'remote' ? 'Remote' : 'Player') + '.';
     }
 
     /* ---------- heads ---------- */

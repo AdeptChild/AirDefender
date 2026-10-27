@@ -77,6 +77,17 @@ if (!function_exists('airdefender_media_dir')) {
         return $out;
     }
 
+    /*
+     * Air Defender's role from FPP's own Player Mode: 'remote' on an FPP in
+     * Remote mode, otherwise 'master' (shown as Player). It is only the
+     * default: the role saved in Settings wins.
+     */
+    function airdefender_fpp_role(): string
+    {
+        $mode = strtolower((string) (airdefender_read_kv_file(airdefender_fpp_settings_file())['fppMode'] ?? ''));
+        return $mode === 'remote' ? 'remote' : 'master';
+    }
+
     /* Append a timestamped line to the log. */
     function airdefender_write_log(string $message): void
     {
