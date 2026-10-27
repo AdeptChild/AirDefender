@@ -42,18 +42,18 @@ until you pick the model again.</p>
 
 <h3>3. When and where</h3>
 <ul>
-    <li><b>When to check</b>: <b>Scheduled shows</b> (the default) checks only during scheduled shows, starting 2
-        minutes before each one. <b>When playing</b> also covers playlists started by hand. <b>Always</b> checks around
-        the clock. Outside those times the dashboard shows <b>Standby</b>, nothing is sent to the flight-data service,
-        and the shutters are left to the show. To test a sequence at another time, use <b>Check now</b> on the
+    <li><b>When to check</b>: <b>All scheduled shows</b> (the default) checks during every scheduled show, starting 2
+        minutes before each one. <b>Only selected playlists</b> checks only while a playlist selected in the list beside it
+        plays, scheduled or started by hand, and from 2 minutes before a scheduled one; with nothing ticked, while any
+        playlist plays. Outside those times the dashboard shows <b>Standby</b>, nothing is sent to the flight-data
+        service, and the shutters are left to the show. To test a sequence at another time, use <b>Check now</b> on the
         dashboard (or the Air Defender: Check Now command): it checks for the time you pick, then turns itself off.</li>
-    <li><b>Only these playlists</b> (Scheduled shows and When playing): tick the playlists that use your moving heads,
-        and Air Defender checks only while one of them is playing or about to start; the rest (a late-night static show,
-        say) leave it on Standby. None ticked means every playlist. A sequence started on its own is not part of a
-        playlist, so with any ticked it is not checked: use <b>Check now</b>. A ticked playlist FPP no longer has is
-        marked "not in FPP" until you untick it. If you use Remote Falcon, tick its playlist too: viewer requests play
-        from it. (During a ticked scheduled show Air Defender keeps checking through requests anyway, since they play
-        inside that show's schedule slot.)</li>
+    <li><b>Playlists to check during</b> (used with Only selected playlists; greyed out otherwise, and your ticks are
+        kept): tick the playlists that use your moving heads, so the rest (a late-night static show, say) leave Air
+        Defender on Standby. A sequence started on its own is not part of a playlist, so it is not checked: use
+        <b>Check now</b>. A selected playlist FPP no longer has is marked "not in FPP" until you untick it. If you use
+        Remote Falcon, tick its playlist too: viewer requests play from it. (During a selected scheduled show Air Defender
+        keeps checking through requests anyway, since they play inside that show's schedule slot.)</li>
     <li><b>Use FPP's location</b>: uses the latitude and longitude in FPP's own settings. Turn it off to enter a
         different location. <b>Check it on a map</b> opens the spot in OpenStreetMap: always check that the pin is on
         your show, not just your town. FPP's location is often rough and can be miles off, and every distance (and the

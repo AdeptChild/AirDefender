@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 1.1.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 1.2.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -74,7 +74,7 @@ Every page has help behind FPP's **?** button.
 |---|---|
 | **1. Air Defender** | Enabled; **Role** (Master or Remote); on a Remote, the master's address and UI password. |
 | **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
-| **3. When and where** | **When to check** (scheduled shows, whenever FPP is playing, or always), which playlists count, the show location and its elevation. |
+| **3. When and where** | **When to check** (all scheduled shows, or only selected playlists) with the playlist list, the show location and its elevation. |
 | **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
 | **5. Flight data** | The service, **Test connection**, an optional backup service, and **Close heads if feed is down**. |
 
@@ -119,19 +119,20 @@ the show once it is set.
 
 ### When it checks
 
-By default Air Defender only checks **during scheduled shows**, starting **2 minutes before** each one so the heads are
-already protected when the lights come on. Outside those times it is on **Standby**: it sends nothing to the
-flight-data service and leaves the shutters to the show. Choose **When playing** to also cover playlists started by
-hand, or **Always**.
+Air Defender only checks while there's a show to protect. Outside those times it is on **Standby**: it sends nothing
+to the flight-data service and leaves the shutters to the show. **When to check** has two choices:
 
-**Only these playlists:** if some of your playlists don't use the moving heads (a static display that runs late into
-the night, say), tick the ones that do. Air Defender then checks only while one of those is playing or about to start,
-and stays on Standby for the rest, sending nothing. Leave them all unticked to check during every playlist. A sequence
-started on its own isn't part of a playlist, so with any ticked it isn't checked: use **Check now** for that.
+- **All scheduled shows** (the default): checks during every scheduled show, starting **2 minutes before** each one
+  so the heads are already protected when the lights come on.
+- **Only selected playlists:** tick the playlists that use your moving heads in the list beside it. Air Defender checks
+  only while one of those plays, scheduled or started by hand, and from 2 minutes before a scheduled one. The rest (a
+  static display that runs late into the night, say) leave it on Standby. With nothing ticked it checks while any
+  playlist plays. A sequence started on its own isn't part of a playlist, so it isn't checked: use **Check now**. The
+  list is greyed out with **All scheduled shows**, and your ticks are kept.
 
-**Using Remote Falcon?** A viewer's request plays from Remote Falcon's own playlist, inserted into your show. During a
-ticked scheduled show Air Defender recognises that and keeps checking, but **tick Remote Falcon's playlist too**, so
-requests are covered however the show was started.
+**Using Remote Falcon?** A viewer's request plays from Remote Falcon's own playlist, inserted into your show. With
+**Only selected playlists**, tick Remote Falcon's playlist too. (During a selected scheduled show Air Defender keeps
+checking through requests anyway, because they play inside that show's schedule slot.)
 
 To test a sequence at another time, use **Check now** on the dashboard (30 minutes to 4 hours), or the
 **Air Defender: Check Now** command. It turns itself off when the time runs out.
@@ -239,7 +240,7 @@ plugin-AirDefender.log**) explains every change.
 | Aircraft right overhead aren't counted, or the radar looks wrong | The show location is probably off. Press **Check it on a map**; see [Check your location](#check-your-location). |
 | A head's row is red: "Model not found" | The model was renamed or deleted in xLights. Pick it again; until then the last channel is still protected. |
 | Heads don't close during a test | Check each head is **On**, the **FPP channel** shown matches the shutter channel, and the **closed** value is right for the fixture. |
-| **Standby** when you expected checking | No scheduled show is on. Use **Check now**, or change **When to check**. |
+| **Standby** when you expected checking | No scheduled show is on, or the playlist playing isn't ticked. Use **Check now**, or change **When to check**. |
 | A Remote says "Lost the master" | Check the master is on, has Air Defender set to Master, and the address is right. If it says the master has a UI password, enter it on the Remote. |
 | The dashboard says "FPP refused the shutter channels" | fppd isn't accepting overlays; restart FPPD. |
 

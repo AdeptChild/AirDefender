@@ -356,8 +356,9 @@ $pageConfig = array(
             cls = 'standby'; title = 'Standby';
             sub = live.skippedPlaylist
                 ? 'Playing ' + live.skippedPlaylist + ", which isn't one of Air Defender's playlists, so not checking."
-                : (live.checkWhen === 'playing' ? 'Not checking until FPP plays a show' : 'Not checking until a scheduled show')
-                  + (live.playlistFilter ? ' on one of its playlists.' : '.');
+                : (live.checkWhen === 'playing'
+                    ? (live.playlistFilter ? 'Not checking until one of your selected playlists plays.' : 'Not checking until FPP plays a playlist.')
+                    : 'Not checking until a scheduled show.');
             if (live.nextShow && live.nextShow.start) {
                 var d = new Date(live.nextShow.start * 1000);
                 sub += ' Next: ' + (live.nextShow.name || 'show') + ', ' + d.toLocaleDateString([], { weekday: 'short' }) + ' '
@@ -378,7 +379,7 @@ $pageConfig = array(
         }
         // Check now: offered when checks depend on show times; shows time left while on.
         var ovLeft = live && live.overrideUntil ? live.overrideUntil - (Date.now() / 1000 + clockOffset) : 0;
-        var canOverride = live && live.loopRunning && live.enabled && live.role !== 'remote' && live.checkWhen !== 'always';
+        var canOverride = live && live.loopRunning && live.enabled && live.role !== 'remote';
         $('adOverrideOn').classList.toggle('ad-hidden', !(ovLeft > 0));
         $('adOverrideOff').classList.toggle('ad-hidden', !(canOverride && !(ovLeft > 0)));
         if (ovLeft > 0) {

@@ -1,5 +1,15 @@
 # Air Defender changelog
 
+## 1.2.0 (2026-10-26)
+
+- **When to check** is now two clear choices: **All scheduled shows** (every scheduled show, as before) or **Only
+  selected playlists** (only the playlists you tick, scheduled or started by hand). The playlist list is greyed out
+  unless it's in use, and keeps your ticks.
+- **Always** is gone: a saved Always reads as Only selected playlists with nothing ticked, which checks whenever a
+  playlist plays. The old When playing setting is the same choice.
+- Settings: the location and elevation sit under When to check, and the playlist list has the full height of the
+  section beside them, in columns, so a long list fits.
+
 ## 1.1.0 (2026-10-26)
 
 - New **Only these playlists** setting (Settings → When and where): tick the playlists that use your moving heads, and

@@ -1,7 +1,7 @@
 <?php
 /*
- * "Only for these playlists": the playlists Air Defender checks for aircraft
- * during, when When to Check is Scheduled shows or When playing. Saved in the
+ * "Only selected playlists": the playlists Air Defender checks for aircraft
+ * during, when When to Check is set to it (checkWhen = playing). Saved in the
  * config as checkPlaylists, each name URL-encoded and joined with commas (a
  * playlist name may contain spaces, commas or quotes). Empty means every
  * playlist, as before this setting existed.

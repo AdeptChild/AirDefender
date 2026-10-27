@@ -254,10 +254,11 @@ $settings = array(
         'label' => 'When to Check',
         'type' => 'select',
         'default' => 'scheduled',
+        // "playing" is Only selected playlists (the key is kept so saved settings
+        // still work). "always" was removed in 1.2.0 and reads as "playing".
         'options' => array(
-            'scheduled' => 'During scheduled shows (default)',
-            'playing' => 'Whenever FPP is playing',
-            'always' => 'Always',
+            'scheduled' => 'All scheduled shows (default)',
+            'playing' => 'Only selected playlists',
         ),
     ),
     // "Only for these playlists": URL-encoded names joined with commas; empty
@@ -460,6 +461,10 @@ $hasMasterPassword = airdefender_master_password() !== '';
 // A retired feed (airplanes.live) shows as its replacement, which is what runs.
 list($settings['adsbSourceUrl']['value'], $airdefenderFeedNote) = airdefender_effective_feed((string) $settings['adsbSourceUrl']['value']);
 
+// "Always" was removed: with nothing ticked, Only selected playlists checks whenever FPP plays.
+if ($settings['checkWhen']['value'] === 'always') {
+    $settings['checkWhen']['value'] = 'playing';
+}
 // "Standalone" was folded into Master: a master with no remotes is the same thing.
 if (!array_key_exists((string) $settings['nodeRole']['value'], $settings['nodeRole']['options'])) {
     $settings['nodeRole']['value'] = 'master';
@@ -562,12 +567,18 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
     .ads-sw input:checked + .track { background:var(--ok); }
     .ads-sw input:checked + .track::after { left:calc(100% - 1rem - 3px); background:var(--knob); }
     .ads-sw input:focus-visible + .track { outline:2px solid var(--accent); }
-    .ads-pl { display:grid; gap:2px; max-height:12rem; overflow:auto; padding:6px 10px; border:1px solid var(--input-line);
-           border-radius:6px; background:var(--card2); }
-    .ads-pl .form-check-input { margin:0; flex:none; }
+    .ads-col { min-width:0; }
+    .ads-pl-field { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+    .ads-pl-head { color:var(--soft); font-size:14px; }
+    .ads-pl { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap:2px 12px; align-content:start;
+           min-height:10rem; max-height:22rem; overflow:auto; padding:6px 10px; border:1px solid var(--input-line); border-radius:6px;
+           background:var(--card2); transition:opacity .15s; }
     .ads-pl label { display:flex; align-items:center; gap:8px; font-size:14px; min-height:2rem; cursor:pointer; overflow-wrap:anywhere; }
-    .ads-help-inline { grid-column:auto; }
-    #playlistField > label { align-self:start; padding-top:8px; }
+    .ads-pl .form-check-input { margin:0; flex:none; }
+    .ads-pl-empty { color:var(--muted); font-size:13px; }
+    .ads-pl-help { font-size:12px; color:var(--muted); line-height:1.45; }
+    .ads-pl-field.off .ads-pl { opacity:.4; pointer-events:none; }
+    .ads-pl-field.off .ads-pl-head { color:var(--muted); }
     .ads-small { margin-left:10px; font-size:13px; color:var(--soft); }
     .ads-soft { font-size:14px; color:var(--soft); }
     .ads-caution { color:var(--caution-text); }
@@ -729,37 +740,15 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         <div class="ads-sec">
             <h3>When and where <span class="n">3 of 5</span></h3>
             <div class="ads-fields">
+            <div class="ads-col">
             <div class="ads-field">
                 <label>When to check</label>
                 <div class="ads-seg" role="radiogroup" aria-label="When to check">
-                    <?php foreach (array('scheduled' => 'Scheduled shows', 'playing' => 'When playing', 'always' => 'Always') as $val => $lab): ?>
+                    <?php foreach (array('scheduled' => 'All scheduled shows', 'playing' => 'Only selected playlists') as $val => $lab): ?>
                         <label><input type="radio" name="checkWhen" value="<?php echo $val; ?>" <?php echo $v('checkWhen') === $val ? 'checked' : ''; ?>><span><?php echo $lab; ?></span></label>
                     <?php endforeach; ?>
                 </div>
                 <div class="ads-help" id="checkWhenHelp"></div>
-            </div>
-            <div class="ads-field" id="playlistField">
-                <label>Only these playlists</label>
-                <div>
-                    <input type="hidden" name="checkPlaylists[]" value="">
-                    <?php
-                    $savedPlaylists = airdefender_decode_playlists((string) $v('checkPlaylists'));
-                    $allPlaylists = airdefender_playlist_names();
-                    // Keep ticked ones that FPP no longer has, so they are not dropped unseen.
-                    $listed = array_merge($allPlaylists, array_values(array_diff($savedPlaylists, $allPlaylists)));
-                    ?>
-                    <?php if ($listed === array()): ?>
-                        <div class="ads-help ads-help-inline">No playlists in FPP yet.</div>
-                    <?php else: ?>
-                        <div class="ads-pl" role="group" aria-label="Playlists Air Defender checks during">
-                            <?php foreach ($listed as $pl): ?>
-                                <label><input class="form-check-input" type="checkbox" name="checkPlaylists[]" value="<?php echo htmlspecialchars($pl); ?>" <?php echo in_array($pl, $savedPlaylists, true) ? 'checked' : ''; ?>>
-                                    <?php echo htmlspecialchars($pl); ?><?php if (!in_array($pl, $allPlaylists, true)): ?> <span class="ads-caution">(not in FPP)</span><?php endif; ?></label>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="ads-help" id="playlistHelp"></div>
             </div>
             <div class="ads-field">
                 <label for="useFppSw">Use FPP's location</label>
@@ -783,6 +772,28 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
                     <button type="button" class="ads-btn" id="elevLookup">Look it up</button>
                 </div>
                 <div class="ads-help" id="elevHelp"></div>
+            </div>
+            </div>
+            <div class="ads-col ads-pl-field" id="playlistField">
+                <div class="ads-pl-head">Playlists to check during</div>
+                <input type="hidden" name="checkPlaylists[]" value="">
+                <?php
+                $savedPlaylists = airdefender_decode_playlists((string) $v('checkPlaylists'));
+                $allPlaylists = airdefender_playlist_names();
+                // Keep ticked ones that FPP no longer has, so they are not dropped unseen.
+                $listed = array_merge($allPlaylists, array_values(array_diff($savedPlaylists, $allPlaylists)));
+                ?>
+                <?php if ($listed === array()): ?>
+                    <div class="ads-pl ads-pl-empty">No playlists in FPP yet.</div>
+                <?php else: ?>
+                    <div class="ads-pl" role="group" aria-label="Playlists Air Defender checks during">
+                        <?php foreach ($listed as $pl): ?>
+                            <label><input class="form-check-input" type="checkbox" name="checkPlaylists[]" value="<?php echo htmlspecialchars($pl); ?>" <?php echo in_array($pl, $savedPlaylists, true) ? 'checked' : ''; ?>>
+                                <?php echo htmlspecialchars($pl); ?><?php if (!in_array($pl, $allPlaylists, true)): ?> <span class="ads-caution">(not in FPP)</span><?php endif; ?></label>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                <div class="ads-pl-help" id="playlistHelp"></div>
             </div>
             </div>
         </div>
@@ -983,17 +994,23 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
     function updateWhen() {
         var w = form.querySelector('input[name=checkWhen]:checked');
         w = w ? w.value : 'scheduled';
-        $('checkWhenHelp').textContent = {
-            scheduled: 'Checks only during scheduled shows, starting 2 minutes before each one. To test a sequence at another time, use Check now on the dashboard.',
-            playing: 'Checks whenever FPP is playing, scheduled or started by hand, and 2 minutes before a scheduled show.',
-            always: 'Checks around the clock, even with no show on. Uses the most flight-data requests.'
-        }[w];
-        $('playlistField').style.display = w === 'always' ? 'none' : '';
+        $('checkWhenHelp').textContent = w === 'playing'
+            ? 'Checks only while one of the selected playlists plays, scheduled or started by hand, and from 2 minutes before a scheduled one.'
+            : 'Checks during every scheduled show, starting 2 minutes before each one. To test a sequence at another time, use Check now on the dashboard.';
+        var field = $('playlistField'), list = field.querySelector('.ads-pl');
+        field.classList.toggle('off', w !== 'playing');
+        if (list) { list.setAttribute('aria-disabled', w !== 'playing' ? 'true' : 'false'); }
         var ticked = form.querySelectorAll('input[name="checkPlaylists[]"][type=checkbox]:checked').length;
-        $('playlistHelp').textContent = ticked
-            ? 'Checks only while a ticked playlist is ' + (w === 'playing' ? 'playing' : 'scheduled')
-              + ". Using Remote Falcon? Tick its playlist too, so viewer requests are covered. A sequence started on its own isn't in a playlist: use Check now."
-            : 'None ticked: checks during every playlist. Tick the ones with your moving heads to skip the rest, such as a late-night static show.';
+        var help = $('playlistHelp');
+        help.className = 'ads-pl-help';
+        if (w !== 'playing') {
+            help.textContent = 'Used with Only selected playlists. Your selections are kept while this is greyed out.';
+        } else if (!ticked) {
+            help.className = 'ads-pl-help ads-caution';
+            help.textContent = 'Nothing ticked yet, so it checks while any playlist plays. Tick the ones with your moving heads.';
+        } else {
+            help.textContent = "Using Remote Falcon? Tick its playlist too, so viewer requests are covered. A sequence started on its own isn't in a playlist: use Check now.";
+        }
         updateRate();
     }
     function updateLocation() {
@@ -1078,11 +1095,8 @@ $airdefenderSaved = $_SERVER['REQUEST_METHOD'] === 'POST' && strpos($statusMessa
         $('kmHint').textContent = nm > 0 ? '≈ ' + (nm * 1.852).toFixed(1) + ' km' : '';
         $('mHint').textContent = ft >= 0 ? '≈ ' + Math.round(ft * 0.3048).toLocaleString() + ' m' : '';
         var sec = Math.max(5, parseInt($('fetchInterval').value, 10) || 10);
-        var w = form.querySelector('input[name=checkWhen]:checked');
         var perHour = Math.round(3600 / sec);
-        $('rateHint').textContent = (w && w.value === 'always')
-            ? '≈ ' + (perHour * 24).toLocaleString() + ' requests a day. A smaller distance may want a quicker check.'
-            : '≈ ' + (perHour * 5).toLocaleString() + ' requests in a 5-hour show night. A smaller distance may want a quicker check.';
+        $('rateHint').textContent = '≈ ' + (perHour * 5).toLocaleString() + ' requests in a 5-hour show night. A smaller distance may want a quicker check.';
     }
 
     /* ---------- section 5 ---------- */
