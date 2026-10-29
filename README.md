@@ -6,7 +6,7 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
-Version 1.4.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 1.5.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -183,6 +183,9 @@ is open.
 - **Test** closes the heads for 5 seconds to 30 minutes so you can go outside and watch; a test on the Player also
   closes every Remote's heads.
 - **Last Event** shows only safety turning on or off and tests. Everything else is in the full log.
+- **View log** shows when the heads were closed and opened, and tests, for **Today**, **Yesterday** (handy when a show
+  runs past midnight) or the **Last 7 days**, newest first, with how many times the heads closed. **Everything**
+  shows the full log instead.
 - **Clear log** deletes the Air Defender log.
 
 ## FPP commands

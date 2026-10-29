@@ -69,3 +69,7 @@ notes (a head re-patched, the flight-data service coming back, and so on) are on
 <code>plugin-AirDefender.log</code>, under <b>Content Setup &rarr; File Manager &rarr; Logs</b>.</p>
 <p>The log lists aircraft that passed near your show. FPP rotates it daily and keeps only the last 7 days;
 <b>Clear log</b> deletes it now.</p>
+<p><b>View log</b> opens the log over the dashboard: <b>Safety &amp; tests</b> lists when the heads were closed and
+opened, and tests, with how many times the heads closed; <b>Everything</b> shows every line. Pick <b>Today</b>,
+<b>Yesterday</b> (handy when a show runs past midnight) or the <b>Last 7 days</b> that FPP keeps. Newest first. It only
+reads the log when you open it.</p>

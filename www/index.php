@@ -214,6 +214,20 @@ $pageConfig = array(
     .ad.lite .ad-detail { display:none; }
     .ad:not(.lite) .ad-liteonly { display:none; }
     .ad-hidden { display:none !important; }
+    .ad-log { width:min(46rem, calc(100vw - 2rem)); max-height:calc(100vh - 2rem); padding:14px 16px; border:1px solid var(--line);
+          border-radius:12px; background:var(--card); color:var(--text); }
+    /* The backdrop does not inherit the page's variables, so it gets its own dimming. */
+    .ad-log::backdrop { background:rgb(0 0 0 / .55); }
+    .ad-log-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+    .ad-log-head h3 { margin:0; font-size:17px; color:var(--accent); }
+    .ad-log-x { background:none; border:none; color:var(--muted); font-size:22px; line-height:1; cursor:pointer; min-width:2.25rem; min-height:2.25rem; }
+    .ad-log-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+    .ad-log-list { max-height:min(60vh, 32rem); overflow:auto; margin-top:8px; border-top:1px solid var(--line); }
+    .ad-log-row { display:flex; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; }
+    .ad-log-row .tm { flex:none; min-width:5.5rem; color:var(--muted); font-family:monospace; white-space:nowrap; }
+    .ad-log-row .tx { overflow-wrap:anywhere; }
+    .ad-log-row.on .tx { color:var(--warn); } .ad-log-row.off .tx { color:var(--ok); } .ad-log-row.test .tx { color:var(--test); }
+    .ad-log-day { padding:8px 0 4px; font-size:12px; font-weight:bold; color:var(--accent); border-bottom:1px solid var(--line); }
 </style>
 
 <div class="ad lite" id="ad">
@@ -301,9 +315,30 @@ $pageConfig = array(
         <div class="ev"><span style="color:var(--muted);">Last event</span> &middot; <span id="adLastEvent"><?php echo htmlspecialchars($lastEvent); ?></span></div>
         <div class="ad-row">
             <span class="lim" id="adLimits"></span>
+            <button type="button" class="ad-btn" id="adViewLog" title="When the heads were closed and opened, and tests">View log</button>
             <button type="button" class="ad-btn" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. FPP keeps only the last 7 days of it on its own.">Clear log</button>
         </div>
     </div>
+
+    <dialog class="ad-log" id="adLogDlg" aria-labelledby="adLogTitle">
+        <div class="ad-log-head">
+            <h3 id="adLogTitle">Air Defender log</h3>
+            <button type="button" class="ad-log-x" id="adLogClose" aria-label="Close">&times;</button>
+        </div>
+        <div class="ad-log-bar">
+            <div class="ad-switch" role="group" aria-label="Which days">
+                <button type="button" data-range="today" class="on">Today</button>
+                <button type="button" data-range="yesterday">Yesterday</button>
+                <button type="button" data-range="week">Last 7 days</button>
+            </div>
+            <div class="ad-switch" role="group" aria-label="What to show">
+                <button type="button" data-what="events" class="on" title="When the heads were closed and opened, and tests">Safety &amp; tests</button>
+                <button type="button" data-what="all">Everything</button>
+            </div>
+        </div>
+        <div class="ad-note" id="adLogSummary"></div>
+        <div class="ad-log-list" id="adLogList"></div>
+    </dialog>
 </div>
 
 <script>
@@ -580,7 +615,7 @@ $pageConfig = array(
     function setView(v, save) {
         view = v === 'detailed' ? 'detailed' : 'lite';
         root.classList.toggle('lite', view === 'lite');
-        root.querySelectorAll('.ad-switch button').forEach(function (b) {
+        root.querySelectorAll('.ad-top .ad-switch button').forEach(function (b) {
             b.classList.toggle('on', b.getAttribute('data-view') === view);
         });
         if (save) { try { localStorage.setItem('airdefenderView', view); } catch (e) {} }
@@ -588,7 +623,7 @@ $pageConfig = array(
         renderAll();
         if (save) { poll(); }
     }
-    root.querySelectorAll('.ad-switch button').forEach(function (b) {
+    root.querySelectorAll('.ad-top .ad-switch button').forEach(function (b) {
         b.addEventListener('click', function () { setView(b.getAttribute('data-view'), true); });
     });
 
@@ -643,6 +678,57 @@ $pageConfig = array(
             .then(function () { btn.textContent = 'Log cleared'; })
             .catch(function (e) { window.alert('Could not clear the log: ' + e.message); })
             .then(function () { btn.disabled = false; setTimeout(function () { btn.textContent = 'Clear log'; }, 3000); });
+    });
+
+    /* ---------- View log ---------- */
+    var logRange = 'today', logWhat = 'events';
+    function loadLog() {
+        var list = $('adLogList');
+        $('adLogSummary').textContent = 'Loading…';
+        list.textContent = '';
+        fetch(API + '&log=' + logRange + '&what=' + logWhat, { credentials: 'same-origin', cache: 'no-store' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var lines = d.lines || [];
+                var when = { today: 'today', yesterday: 'yesterday', week: 'in the last 7 days' }[d.range] || '';
+                $('adLogSummary').textContent = !lines.length
+                    ? (logWhat === 'events' ? 'Nothing happened ' + when + '.' : 'Nothing logged ' + when + '.')
+                    : (d.closedCount ? 'Heads closed ' + d.closedCount + (d.closedCount === 1 ? ' time ' : ' times ') + when + '.'
+                                     : 'Heads not closed for aircraft ' + when + '.')
+                      + ' Newest first.' + (d.truncated ? ' Showing the newest ' + lines.length + ' lines.' : '');
+                var lastDay = '';
+                lines.forEach(function (l) {
+                    var t = new Date(l.time * 1000);
+                    var day = t.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+                    if (d.range === 'week' && day !== lastDay) {
+                        var h = document.createElement('div'); h.className = 'ad-log-day'; h.textContent = day; list.appendChild(h);
+                        lastDay = day;
+                    }
+                    var row = document.createElement('div');
+                    row.className = 'ad-log-row' + (/^SAFETY ON/.test(l.text) ? ' on' : /^SAFETY OFF/.test(l.text) ? ' off' : /^Test /.test(l.text) ? ' test' : '');
+                    var tm = document.createElement('span'); tm.className = 'tm';
+                    tm.textContent = t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+                    var tx = document.createElement('span'); tx.className = 'tx'; tx.textContent = l.text;
+                    row.appendChild(tm); row.appendChild(tx); list.appendChild(row);
+                });
+            })
+            .catch(function (e) { $('adLogSummary').textContent = 'Could not read the log: ' + e.message; });
+    }
+    function logButtons(attr, value) {
+        $('adLogDlg').querySelectorAll('[' + attr + ']').forEach(function (b) { b.classList.toggle('on', b.getAttribute(attr) === value); });
+    }
+    $('adViewLog').addEventListener('click', function () {
+        var dlg = $('adLogDlg');
+        if (typeof dlg.showModal === 'function') { dlg.showModal(); } else { dlg.setAttribute('open', ''); }
+        loadLog();
+    });
+    $('adLogClose').addEventListener('click', function () { var dlg = $('adLogDlg'); if (dlg.close) { dlg.close(); } else { dlg.removeAttribute('open'); } });
+    $('adLogDlg').addEventListener('click', function (e) { if (e.target === this && this.close) { this.close(); } });   // click outside closes
+    $('adLogDlg').querySelectorAll('[data-range]').forEach(function (b) {
+        b.addEventListener('click', function () { logRange = b.getAttribute('data-range'); logButtons('data-range', logRange); loadLog(); });
+    });
+    $('adLogDlg').querySelectorAll('[data-what]').forEach(function (b) {
+        b.addEventListener('click', function () { logWhat = b.getAttribute('data-what'); logButtons('data-what', logWhat); loadLog(); });
     });
 
     var saved = 'lite';

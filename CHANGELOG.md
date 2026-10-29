@@ -1,5 +1,11 @@
 # Air Defender changelog
 
+## 1.5.0 (2026-10-28)
+
+- **View log** on the dashboard (beside Clear log): when the heads were closed and opened, and tests, for Today,
+  Yesterday or the Last 7 days, newest first, with how many times the heads closed. **Everything** shows the full log.
+  It reads FPP's rotated copies too, and only when opened, so the dashboard stays light.
+
 ## 1.4.0 (2026-10-27)
 
 - **Player and Remote:** the role uses FPP's own names (Master is now **Player**) everywhere: Settings, dashboard, log,

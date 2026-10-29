@@ -18,6 +18,8 @@
  *                                        -> ask a flight-data service once (Settings'
  *                                           Test connection); only offered services
  *
+ *   GET ...&log=today|yesterday|week&what=events|all -> log lines for View log
+ *
  * Anything that changes state is POST only.
  */
 
@@ -28,6 +30,29 @@ header('Cache-Control: no-store');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $action = $method === 'POST' ? ($_POST['action'] ?? '') : 'status';
+
+// GET ...&log=today|yesterday|week&what=events|all: the dashboard's View log (read-only).
+if ($method === 'GET' && isset($_GET['log'])) {
+    $range = (string) $_GET['log'];
+    $todayStart = strtotime('today');
+    if ($range === 'yesterday') {
+        [$from, $to] = [strtotime('yesterday'), $todayStart - 1];
+    } elseif ($range === 'week') {
+        [$from, $to] = [$todayStart - 6 * 86400, time()];
+    } else {
+        [$range, $from, $to] = ['today', $todayStart, time()];
+    }
+    $eventsOnly = ($_GET['what'] ?? 'events') !== 'all';
+    $lines = airdefender_read_log($from, $to, $eventsOnly);
+    echo json_encode([
+        'range' => $range,
+        'from' => $from,
+        'lines' => $lines,
+        'closedCount' => count(array_filter($lines, function ($l) { return strpos($l['text'], 'SAFETY ON') === 0; })),
+        'truncated' => count($lines) >= 1500,
+    ]);
+    exit;
+}
 
 switch ($action) {
     case 'start':

@@ -111,3 +111,46 @@ function airdefender_clear_log(): bool
     }
     return $ok;
 }
+
+/*
+ * Log lines between $from and $to (Unix times), newest first: each as
+ * ['time' => int, 'text' => string, 'event' => bool]. $eventsOnly keeps just
+ * safety turning on/off and tests. Reads FPP's rotated copies too (".1", and
+ * older ones gzip-compressed), so yesterday and the last 7 days work.
+ * At most $max lines, so a busy week can't swamp the page.
+ */
+function airdefender_read_log(int $from, int $to, bool $eventsOnly, int $max = 1500): array
+{
+    $files = [];
+    foreach (glob(airdefender_log_file() . '.*') ?: [] as $f) {
+        if (preg_match('/\.(\d+)(\.gz)?$/', $f, $m)) {
+            $files[(int) $m[1]] = $f;
+        }
+    }
+    krsort($files);                          // oldest first: .7.gz ... .1
+    $files[] = airdefender_log_file();
+    $from = date('Y-m-d H:i:s', $from);
+    $to = date('Y-m-d H:i:s', $to);
+
+    $out = [];
+    foreach ($files as $f) {
+        $fh = @fopen((substr($f, -3) === '.gz' ? 'compress.zlib://' : '') . $f, 'r');
+        if (!$fh) {
+            continue;
+        }
+        while (($line = fgets($fh)) !== false) {
+            if (!preg_match('/^\[(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)\] (.*)$/', rtrim($line, "\r\n"), $m)
+                || $m[1] < $from || $m[1] > $to) {
+                continue;
+            }
+            $event = (bool) preg_match('/^(SAFETY (ON|OFF)\b|Test (started|finished|stopped)\b)/', $m[2]);
+            if ($eventsOnly && !$event) {
+                continue;
+            }
+            $out[] = ['time' => strtotime($m[1]), 'text' => $m[2], 'event' => $event];
+        }
+        fclose($fh);
+    }
+    $out = array_reverse($out);
+    return array_slice($out, 0, $max);
+}
