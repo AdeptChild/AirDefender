@@ -154,10 +154,18 @@ $airdefenderFeedRows = airdefender_row('adFeedTestRow', 'Test',
                 <b>Shutter ch.</b> is the shutter's channel in the fixture's DMX chart (for example 7), and <b>Closed</b> the value
                 that closes it. Air Defender works out the FPP channel.
             </p>
+            <?php
+            // Only a warning when a head is set to a model; heads on manual channels don't need FPP's model list.
+            $airdefenderUsesModels = false;
+            for ($n = 1; $n <= AIRDEFENDER_HEADS; $n++) {
+                $airdefenderUsesModels = $airdefenderUsesModels || airdefender_page_setting("head{$n}Model") !== '';
+            }
+            $airdefenderModelNote = $airdefenderUsesModels ? 'alert alert-warning' : 'form-text mb-2';
+            ?>
             <?php if ($airdefenderModels === null): ?>
-                <div class="alert alert-warning">Could not get FPP's model list right now; Manual channel still works, and each head keeps the channel it last had.</div>
+                <div class="<?php echo $airdefenderModelNote; ?>">Could not get FPP's model list right now; Manual channel still works, and each head keeps the channel it last had.</div>
             <?php elseif (!$airdefenderModels): ?>
-                <div class="alert alert-warning">No models in FPP yet: upload from xLights with FPP Connect's <b>Models</b> column set to <b>All</b>, or add them on FPP's Pixel Overlay Models page.</div>
+                <div class="<?php echo $airdefenderModelNote; ?>">No models in FPP yet, so only <b>Manual channel</b> is offered. To pick heads by name, upload from xLights with FPP Connect's <b>Models</b> column set to <b>All</b>, or add them on FPP's Pixel Overlay Models page.</div>
             <?php endif; ?>
             <div class="table-responsive position-relative">
                 <table class="table table-sm align-middle airdefender-heads" id="adHeads">
