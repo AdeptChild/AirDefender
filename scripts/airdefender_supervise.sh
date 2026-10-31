@@ -1,14 +1,15 @@
 #!/bin/bash
 # Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
 # Licensed under the GNU GPL v2; see LICENSE.
-# Air Defender watchdog. postStart.sh starts this; it runs the detection loop
-# and starts it again if it ever stops on its own (a PHP error, say), so a
+# Air Defender watchdog. scripts/airdefender_start.sh starts this (through
+# callbacks.sh, when fppd starts or loads the plugin). It runs the detection
+# loop and starts it again if it ever stops on its own (a PHP error, say), so a
 # crash mid-show does not leave the heads unprotected until fppd restarts.
-# preStop.sh stops this first, then the loop.
+# scripts/airdefender_stop.sh stops this first, then the loop.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOOP="${SCRIPT_DIR}/airdefender_loop.php"
-# postStart.sh passes on FPP's LOGDIR, so the log is where FPP keeps logs.
+# airdefender_start.sh passes on FPP's LOGDIR, so the log is where FPP keeps logs.
 LOG="${LOGDIR:-${MEDIADIR:-/home/fpp/media}/logs}/plugin-AirDefender.log"
 
 note() {

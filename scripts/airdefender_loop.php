@@ -5,7 +5,8 @@
  *
  * AirDefender detection loop.
  *
- * Started by scripts/postStart.sh when fppd starts, stopped by preStop.sh.
+ * Started through callbacks.sh when fppd starts or loads the plugin, and
+ * stopped when fppd stops or unloads it (scripts/airdefender_start.sh, _stop.sh).
  * Every second it decides whether safety mode should be on and makes the
  * outputs match (see airdefender_controller.php). The ADS-B feed is fetched
  * every fetchInterval seconds.
@@ -402,7 +403,12 @@ if (!flock($lock, LOCK_EX | LOCK_NB)) {
 }
 
 $state = airdefender_read_state();
-$outputs = new AirDefenderOutputs(is_array($state['appliedChannels'] ?? null) ? $state['appliedChannels'] : []);
+// Overlays a previous run of the loop left, with the fppd run they were set in:
+// they are released only if that fppd is still the one running.
+$outputs = new AirDefenderOutputs(
+    is_array($state['appliedChannels'] ?? null) ? $state['appliedChannels'] : [],
+    isset($state['appliedFppdRun']) ? (string) $state['appliedFppdRun'] : null
+);
 // Channel each head last resolved to (head number => channel), so a head whose
 // model disappears keeps being protected, across restarts too.
 $lastKnown = [];
@@ -730,7 +736,7 @@ while (true) {
     }
 
     /* --- act --- */
-    $outputsOk = $outputs->apply($safe, $heads);
+    $outputsOk = $outputs->apply($safe, $heads, AirDefenderOutputs::fppdRunId());
     airdefender_log_once('outputs', $outputsOk ? null : "Could not set the shutter overlays: {$outputs->lastError}");
 
     if ($safe && !$wasSafe) {
@@ -799,6 +805,7 @@ while (true) {
         }, array_filter($resolved, function ($h) { return $h['enabled']; })),
         'lastKnownChannels' => $lastKnown,
         'appliedChannels' => $outputs->applied(),
+        'appliedFppdRun' => $outputs->appliedRun(),
         'outputError' => $outputsOk ? null : $outputs->lastError,
         'lastUpdated' => date('c', $now),
         'pid' => getmypid(),

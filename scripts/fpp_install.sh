@@ -4,18 +4,15 @@
 set -e
 # Air Defender install script. FPP runs this (as root) after a fresh install.
 # (Updates run scripts/fpp_upgrade.sh instead.)
+#
+# Nothing to set up here. Straight after this, FPP asks fppd to load the
+# plugin, which registers the Air Defender commands and starts the detection
+# loop through callbacks.sh, so it runs under fppd and stops with it.
 
 . ${FPPDIR}/scripts/common
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Start detecting right away if fppd is running, rather than waiting for its
-# next restart. postStart.sh starts it from then on.
-if pgrep -x fppd >/dev/null 2>&1; then
-    bash "${SCRIPT_DIR}/postStart.sh"
+# Only an FPP without live plugin loading (older than 10.0, which Air
+# Defender does not list itself for) needs fppd restarted to pick it up.
+if ! grep -q "FPPDPluginLifecycle" "${FPPDIR}/www/api/controllers/plugin.php" 2>/dev/null; then
+    setSetting restartFlag 1
 fi
-
-# fppd reads commands/descriptions.json only when it starts, so ask for a
-# restart to make the Air Defender commands show up in playlists, schedules
-# and command presets.
-setSetting restartFlag 1

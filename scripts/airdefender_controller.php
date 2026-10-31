@@ -20,6 +20,13 @@
  *
  * Overlays live in fppd's memory and vanish when fppd restarts, so the loop
  * re-applies them every cycle while safety mode is on.
+ *
+ * Releasing is only ever done for an overlay set during the current run of
+ * fppd. Once fppd has restarted, its overlays are already gone, and on FPP
+ * 10.0-10.2 a delete for a range fppd doesn't have creates one at 255 instead
+ * (fixed in 10.3), which would hold the shutter open over the sequence. So
+ * each overlay is recorded with the fppd run it was set in, and channels from
+ * an earlier run are forgotten without a delete.
  */
 
 class AirDefenderOutputs
@@ -31,26 +38,48 @@ class AirDefenderOutputs
     /* Channels this object has overlaid, channel => value. */
     protected $applied = [];
 
+    /* The fppd run (see fppdRunId()) those overlays were set in. */
+    protected $appliedRun = null;
+
     /* Last error from fppd, or '' if the last call went through. */
     public $lastError = '';
 
-    public function __construct(array $previouslyApplied = [])
+    /*
+     * $previouslyApplied and $previousRun are what an earlier run of the loop
+     * left overlaid, so they can be released even if their head has since been
+     * disabled or changed, but only while the same fppd run is still going.
+     */
+    public function __construct(array $previouslyApplied = [], ?string $previousRun = null)
     {
-        // Channels a previous run of the loop left overlaid, so they can be
-        // released even if their head has since been disabled or changed.
-        foreach ($previouslyApplied as $ch => $value) {
-            $this->applied[(int) $ch] = (int) $value;
+        if ($previousRun !== null && $previousRun !== '') {
+            foreach ($previouslyApplied as $ch => $value) {
+                $this->applied[(int) $ch] = (int) $value;
+            }
+            $this->appliedRun = $previousRun;
         }
     }
 
     /*
-     * Make the outputs match $safe. $heads is channel => closed value.
+     * Make the outputs match $safe. $heads is channel => closed value; $run is
+     * the current fppd run (fppdRunId()), null if fppd isn't running.
      * Returns true if fppd accepted every request.
      */
-    public function apply(bool $safe, array $heads): bool
+    public function apply(bool $safe, array $heads, ?string $run): bool
     {
         $ok = true;
         $this->lastError = '';
+
+        if ($run === null) {
+            // fppd isn't running: there is nothing to hold or release.
+            $this->lastError = 'fppd is not running';
+            return false;
+        }
+        if ($this->appliedRun !== null && $this->appliedRun !== $run) {
+            // fppd has restarted since these were set: they are already gone.
+            // Never delete them (see the top of this file).
+            $this->applied = [];
+        }
+        $this->appliedRun = $run;
 
         // Release anything overlaid that should not be: everything when
         // clear, or a channel no longer configured while safe.
@@ -82,6 +111,50 @@ class AirDefenderOutputs
     public function applied(): array
     {
         return $this->applied;
+    }
+
+    /* The fppd run the applied overlays belong to, or null. */
+    public function appliedRun(): ?string
+    {
+        return $this->applied ? $this->appliedRun : null;
+    }
+
+    /*
+     * Which run of fppd is going now: the boot, fppd's process id and its start
+     * time in clock ticks since boot, so it changes on every fppd restart and
+     * isn't fooled by the wall clock jumping (an FPP without a real-time clock
+     * sets its time from the network after booting). null if fppd isn't running.
+     */
+    public static function fppdRunId(): ?string
+    {
+        static $pid = null;
+        $boot = trim((string) @file_get_contents('/proc/sys/kernel/random/boot_id'));
+        if ($boot === '') {
+            return null;            // no /proc: fppd's run can't be identified safely
+        }
+        foreach ([$pid, null] as $try) {
+            if ($try === null) {
+                $pid = null;
+                foreach (glob('/proc/[0-9]*/comm') ?: [] as $f) {
+                    if (trim((string) @file_get_contents($f)) === 'fppd') {
+                        $pid = (int) basename(dirname($f));
+                        break;
+                    }
+                }
+                if ($pid === null) {
+                    return null;
+                }
+                $try = $pid;
+            }
+            $stat = (string) @file_get_contents("/proc/{$try}/stat");
+            // Fields after the ")" that closes the command name; starttime is field 22.
+            $rest = substr($stat, (int) strrpos($stat, ')') + 2);
+            $fields = explode(' ', $rest);
+            if (trim((string) @file_get_contents("/proc/{$try}/comm")) === 'fppd' && isset($fields[19])) {
+                return $boot . ':' . $try . ':' . $fields[19];
+            }
+        }
+        return null;
     }
 
     protected function hold(int $channel, int $value): bool

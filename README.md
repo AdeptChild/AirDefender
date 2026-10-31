@@ -311,7 +311,7 @@ Options `--url`, `--lat`, `--lon`, `--distance`, `--altitude` and `--elevation` 
 | Piece | File |
 |---|---|
 | Detection loop: reads settings every second, checks the feed, decides, holds or releases the overlays | `scripts/airdefender_loop.php` |
-| Watchdog that keeps the loop running; started and stopped with fppd | `scripts/airdefender_supervise.sh`, `scripts/postStart.sh`, `scripts/preStop.sh` |
+| Watchdog that keeps the loop running; started and stopped with fppd | `callbacks.sh`, `scripts/airdefender_supervise.sh`, `scripts/airdefender_start.sh`, `scripts/airdefender_stop.sh` |
 | Shutter overlays (`PUT /api/overlays/range/<ch>`, FPP's proxy to fppd) | `scripts/airdefender_controller.php` |
 | Heads by model or manual channel | `scripts/airdefender_models.php` |
 | Flight-data services, backup, fetching and parsing | `scripts/airdefender_feeds.php`, `scripts/airdefender_adsb.php` |

@@ -6,7 +6,7 @@
  * Where FPP keeps things, found the way FPP provides instead of typed in, so
  * a relocated media folder still works:
  *   - FPP's web pages have $settings['mediaDirectory'] and ['logDirectory'];
- *   - the detection loop is given MEDIADIR and LOGDIR by postStart.sh, which
+ *   - the detection loop is given MEDIADIR and LOGDIR by airdefender_start.sh, which
  *     reads them from FPP's scripts/common;
  *   - anything else reads the media folder FPP records in media_root.txt.
  * /home/fpp/media is only the last resort.

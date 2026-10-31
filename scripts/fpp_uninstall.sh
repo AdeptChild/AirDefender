@@ -13,11 +13,17 @@ pkill -f "${PLUGIN_DIR}/scripts/airdefender_loop.php" 2>/dev/null
 
 # If safety mode was on, hand any shutter channels the loop was holding back
 # to the sequence now, rather than leaving them closed until fppd restarts.
+# Only overlays set during the fppd run still going are released: after an
+# fppd restart they are already gone, and on FPP 10.0-10.2 deleting one fppd
+# doesn't have would create it at 255 (see airdefender_controller.php).
 if [ -f "${PLUGIN_DIR}/state.json" ]; then
     php -r '
+        require $argv[2];
         $s = json_decode((string) @file_get_contents($argv[1]), true);
+        $run = AirDefenderOutputs::fppdRunId();
+        if ($run === null || ($s["appliedFppdRun"] ?? null) !== $run) { exit; }
         foreach (array_keys($s["appliedChannels"] ?? []) as $ch) { echo (int) $ch, "\n"; }
-    ' "${PLUGIN_DIR}/state.json" 2>/dev/null | while read -r CH; do
+    ' "${PLUGIN_DIR}/state.json" "${PLUGIN_DIR}/scripts/airdefender_controller.php" 2>/dev/null | while read -r CH; do
         [ -n "${CH}" ] && curl -s -m 3 -X PUT -H 'Content-Type: application/json' \
             -d '{"delete":true}' "http://127.0.0.1/api/overlays/range/${CH}" >/dev/null
     done
@@ -28,9 +34,13 @@ fi
 . ${FPPDIR}/scripts/common
 setSetting restartFlag 1
 
-# Remove what Air Defender kept outside its folder: the master's UI password
-# and the log (which lists aircraft that passed near the show).
+# Remove what Air Defender kept outside its folder: the Player's UI password
+# and the log (which lists aircraft that passed near the show). A Reinstall
+# (FPP sets FPP_PLUGIN_REINSTALL=1 from 10.4) keeps the password, so Remotes
+# don't have to be given it again after an FPP OS upgrade.
 : "${MEDIADIR:=/home/fpp/media}"
 : "${LOGDIR:=${MEDIADIR}/logs}"
-rm -rf "${MEDIADIR}/plugindata/AirDefender" 2>/dev/null
+if [ "${FPP_PLUGIN_REINSTALL:-0}" != "1" ]; then
+    rm -rf "${MEDIADIR}/plugindata/AirDefender" 2>/dev/null
+fi
 rm -f "${LOGDIR}/plugin-AirDefender.log" "${LOGDIR}/plugin-AirDefender.log".* 2>/dev/null

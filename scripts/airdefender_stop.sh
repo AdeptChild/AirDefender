@@ -1,8 +1,10 @@
 #!/bin/bash
 # Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
 # Licensed under the GNU GPL v2; see LICENSE.
-# Air Defender: stop the detection loop before fppd stops. Its shutter
-# overlays live in fppd, so they go away with it.
+# Air Defender: stop the detection loop. callbacks.sh runs this when fppd
+# stops or unloads the plugin (to uninstall or update it). Its shutter
+# overlays live in fppd: they go when fppd stops, and an uninstall releases
+# them (fpp_uninstall.sh); after an update the new loop takes them over.
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "Stopping Air Defender detection loop"
