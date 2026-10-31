@@ -8,8 +8,8 @@
  *   - FPP's web pages have $settings['mediaDirectory'] and ['logDirectory'];
  *   - the detection loop is given MEDIADIR and LOGDIR by airdefender_start.sh, which
  *     reads them from FPP's scripts/common;
- *   - anything else reads the media folder FPP records in media_root.txt.
- * /home/fpp/media is only the last resort.
+ *   - anything else asks FPP's API (/api/settings/mediaDirectory).
+ * /home/fpp/media is only the last resort, when FPP can't be asked.
  */
 
 require_once(__DIR__ . "/airdefender_fpp.php");   // airdefender_fpp_role()
@@ -28,10 +28,9 @@ if (!function_exists('airdefender_media_dir')) {
     {
         static $dir = null;
         if ($dir === null) {
-            $fppDir = getenv('FPPDIR') ?: '/opt/fpp';
             $dir = airdefender_fpp_dir_setting('mediaDirectory')
                 ?? (getenv('MEDIADIR') ?: null)
-                ?? (trim((string) @file_get_contents($fppDir . '/www/media_root.txt')) ?: null)
+                ?? airdefender_fpp_setting('mediaDirectory')
                 ?? '/home/fpp/media';
             $dir = rtrim($dir, '/');
         }
@@ -40,9 +39,15 @@ if (!function_exists('airdefender_media_dir')) {
 
     function airdefender_log_dir(): string
     {
-        return airdefender_fpp_dir_setting('logDirectory')
-            ?? (getenv('LOGDIR') ? rtrim((string) getenv('LOGDIR'), '/') : null)
-            ?? airdefender_media_dir() . '/logs';
+        static $dir = null;
+        if ($dir === null) {
+            $dir = airdefender_fpp_dir_setting('logDirectory')
+                ?? (getenv('LOGDIR') ? rtrim((string) getenv('LOGDIR'), '/') : null)
+                ?? (getenv('MEDIADIR') ? null : airdefender_fpp_setting('logDirectory'))
+                ?? airdefender_media_dir() . '/logs';
+            $dir = rtrim($dir, '/');
+        }
+        return $dir;
     }
 
     /* Air Defender's one log, named the way FPP's plugin guidelines ask. */
