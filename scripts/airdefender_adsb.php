@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * Asking an ADS-B service for aircraft and reading its answer. Shared by the
  * detection loop and the settings page's Test connection button, so the test
  * does exactly what the loop does.

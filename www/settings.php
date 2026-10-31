@@ -1,4 +1,8 @@
 <?php
+/*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ */
 require_once("/opt/fpp/www/common.php");
 require_once(dirname(__DIR__) . "/scripts/airdefender_paths.php");
 require_once("/opt/fpp/www/api/lib/limonade.php");

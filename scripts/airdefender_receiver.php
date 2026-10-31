@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * An ADS-B receiver of your own on your home network (a Pi running ADSB.im,
  * PiAware, or readsb/dump1090 with tar1090): Air Defender reads the
  * aircraft.json it publishes. Nothing is sent to the internet and the show's

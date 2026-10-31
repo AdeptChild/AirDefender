@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * Air Defender command-line check: asks the flight-data service once, the
  * same way the detection loop does, and prints what it sees. Handy over SSH
  * when the dashboard says something is wrong.

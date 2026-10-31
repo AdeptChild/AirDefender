@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * What the dashboard shows about the detection loop right now, read from the
  * state.json it writes every second, plus clearing the log. FPP rotates the
  * log itself (daily, keeping 7), as its plugin guidelines ask.

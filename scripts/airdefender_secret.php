@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * The master's FPP UI password, which a Remote sends when it asks the master
  * for its status. FPP's plugin guidelines keep credentials out of config/
  * (FPP's backups and crash reports copy that folder), so it lives in

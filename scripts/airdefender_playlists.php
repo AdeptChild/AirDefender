@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * "Only selected playlists": the playlists Air Defender checks for aircraft
  * during, when When to Check is set to it (checkWhen = playing). Saved in the
  * config as checkPlaylists, each name URL-encoded and joined with commas (a

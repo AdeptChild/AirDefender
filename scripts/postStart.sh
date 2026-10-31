@@ -1,4 +1,6 @@
 #!/bin/bash
+# Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+# Licensed under the GNU GPL v2; see LICENSE.
 # Air Defender: start the detection loop after fppd starts.
 # FPP runs this synchronously as root, so the loop is detached into the
 # background and run as the fpp user (the dashboard, which runs as fpp,

@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * Use the time zone set in FPP (Settings > Time Zone) for every timestamp
  * Air Defender writes.
  *

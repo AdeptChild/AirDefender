@@ -1,4 +1,6 @@
 #!/bin/bash
+# Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+# Licensed under the GNU GPL v2; see LICENSE.
 # Air Defender watchdog. postStart.sh starts this; it runs the detection loop
 # and starts it again if it ever stops on its own (a PHP error, say), so a
 # crash mid-show does not leave the heads unprotected until fppd restarts.

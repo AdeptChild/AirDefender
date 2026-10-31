@@ -328,6 +328,12 @@ Runtime files written on the device (not in git): `state.json`, `test.json`, `ov
 `loop.lock` in the plugin folder, `plugin-AirDefender.log` in FPP's logs folder, and the Player's password in
 `plugindata/AirDefender/`. The pages follow FPP's light and dark themes through CSS variables.
 
+## Credits
+
+Created by **G Hancox**, built with **Claude** (Anthropic).
+
 ## License
+
+Copyright (C) 2026 G Hancox.
 
 GNU General Public License v2. See [LICENSE](LICENSE).

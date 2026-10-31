@@ -1,4 +1,6 @@
 #!/bin/bash
+# Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+# Licensed under the GNU GPL v2; see LICENSE.
 # Air Defender uninstall script. FPP runs this (as root) just before it
 # deletes the plugin's folder.
 

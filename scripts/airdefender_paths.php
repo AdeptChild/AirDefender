@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * Where FPP keeps things, found the way FPP provides instead of typed in, so
  * a relocated media folder still works:
  *   - FPP's web pages have $settings['mediaDirectory'] and ['logDirectory'];

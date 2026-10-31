@@ -1,5 +1,8 @@
 <?php
 /*
+ * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
+ * Licensed under the GNU GPL v2; see LICENSE.
+ *
  * Start or stop a test from the command line. Used by the FPP commands in
  * commands/ (Air Defender: Start Test / Stop Test).
  *
