@@ -3,12 +3,9 @@
  * Air Defender - Copyright (C) 2026 G Hancox. Created by G Hancox, built with Claude.
  * Licensed under the GNU GPL v2; see LICENSE.
  *
- * The flight-data services Air Defender can ask, and what to do with
- * addresses saved by older versions.
- *
- * airplanes.live used to be the default, but its API is no longer open: it
- * answers HTTP 403 without a key, and its free tier (500 requests a day) is
- * far below one request every few seconds. adsb.fi moved its query to v3.
+ * The flight-data services Air Defender can ask. The show's location is only
+ * ever sent to one of these (the ones the privacy block names): a saved
+ * setting that isn't on the list is not used.
  *
  * adsb.fi is the default because it publishes its limit (1 request a second,
  * far above what Air Defender needs); adsb.lol publishes none, and has been
@@ -35,8 +32,9 @@ function airdefender_feed_options(): array
 }
 
 /*
- * The feed to use for a saved setting: [url, note]. Retired services are
- * swapped for their replacement, with a note saying so; otherwise note is null.
+ * The feed to use for a saved setting: [url, note]. One that isn't on the
+ * list (typed into the config file by hand, say) is not used: the default
+ * service is, with a note saying so. Otherwise note is null.
  */
 function airdefender_effective_feed(?string $saved): array
 {
@@ -44,14 +42,27 @@ function airdefender_effective_feed(?string $saved): array
     if ($saved === '') {
         return [AIRDEFENDER_DEFAULT_FEED, null];
     }
-    if (stripos($saved, 'api.airplanes.live') !== false) {
+    if (!array_key_exists($saved, airdefender_feed_options())) {
         return [AIRDEFENDER_DEFAULT_FEED,
-            "airplanes.live no longer allows open access, so Air Defender is using adsb.fi instead. Pick a service in Settings to save it."];
-    }
-    if (stripos($saved, 'opendata.adsb.fi/api/v2/') !== false) {
-        return ['https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{radius}', null];
+            "The saved flight data service isn't one Air Defender offers, so it is using adsb.fi. Pick a service in Settings."];
     }
     return [$saved, null];
+}
+
+/*
+ * The address to ask a service for the aircraft around the show. It gets the
+ * location to 2 decimal places (about 1 km), with the radius widened by 1 NM
+ * to make up for it, so it returns the same aircraft without learning which
+ * house is the show's. Air Defender works out each aircraft's distance from
+ * the exact location itself.
+ */
+function airdefender_feed_url(string $template, float $lat, float $lon, float $nm): string
+{
+    return str_replace(
+        ['{lat}', '{lon}', '{radius}'],
+        [sprintf('%.2f', $lat), sprintf('%.2f', $lon), max(1, (int) ceil($nm)) + 1],
+        $template
+    );
 }
 
 /*

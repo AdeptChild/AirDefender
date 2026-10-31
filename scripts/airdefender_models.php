@@ -37,20 +37,13 @@ function airdefender_fpp_models(): ?array
 {
     $list = null;
 
-    // fppd's live list.
+    // fppd's live list. When fppd can't be asked, callers keep the list they
+    // last had (and each head the channel it last resolved to).
     $context = stream_context_create(['http' => ['timeout' => 2, 'ignore_errors' => true]]);
     $body = @file_get_contents('http://127.0.0.1/api/models', false, $context);
     $json = $body !== false ? json_decode($body, true) : null;
     if (is_array($json) && ($json === [] || array_keys($json) === range(0, count($json) - 1))) {
         $list = $json;
-    }
-
-    // fppd not running: the file it loads them from.
-    if ($list === null) {
-        $file = json_decode((string) @file_get_contents(airdefender_media_dir() . '/config/model-overlays.json'), true);
-        if (is_array($file) && isset($file['models']) && is_array($file['models'])) {
-            $list = $file['models'];
-        }
     }
 
     if ($list === null) {
@@ -109,9 +102,6 @@ function airdefender_resolve_head(array $settings, int $n, ?array $models, ?int 
                 return $head;
             }
             $channel = $start + $offset - 1;
-        } elseif ($saved > 0) {
-            // Settings from before Start existed: an absolute shutter channel.
-            $channel = $saved;
         } else {
             $head['message'] = "{$label} has no start channel set";
             return $head;

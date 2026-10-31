@@ -42,7 +42,9 @@ require_once(__DIR__ . "/airdefender_receiver.php");
 const AIRDEFENDER_PLUGIN = "AirDefender";
 const AIRDEFENDER_DEFAULT_CLEAR_DELAY = 30;
 const AIRDEFENDER_MASTER_LOST_SEC = 5;     // no good answer from the master for this long = lost
-const AIRDEFENDER_MASTER_STALE_SEC = 15;   // master's own loop silent this long = treat it as down
+// state.json is written when something in it changes, and at least this often
+// so readers can tell a quiet loop from a stopped one.
+const AIRDEFENDER_STATE_HEARTBEAT_SEC = 30;
 const AIRDEFENDER_FPP_PLAYER_MODE = 2;     // FPPMode::PLAYER_MODE in FPP's settings.h
 
 /* ---------- files ---------- */
@@ -112,27 +114,6 @@ function airdefender_setting(array $settings, string $key, $default)
 function airdefender_truthy($value): bool
 {
     return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on', 'y'], true);
-}
-
-function airdefender_fpp_location(): array
-{
-    $lat = null;
-    $lon = null;
-    $lines = @file(airdefender_fpp_settings_file(), FILE_IGNORE_NEW_LINES);
-    foreach (is_array($lines) ? $lines : [] as $line) {
-        $parts = explode('=', $line, 2);
-        if (count($parts) !== 2) {
-            continue;
-        }
-        $k = trim($parts[0]);
-        $v = trim(trim($parts[1]), "\"' ");
-        if ($k === 'Latitude' && is_numeric($v)) {
-            $lat = (float) $v;
-        } elseif ($k === 'Longitude' && is_numeric($v)) {
-            $lon = (float) $v;
-        }
-    }
-    return [$lat, $lon];
 }
 
 /* Show location in use, or [null, null] if there is none. */
@@ -301,7 +282,9 @@ function airdefender_poll_master(string $address, string $password = ''): array
     if (($data['role'] ?? '') !== 'master') {
         return [null, "that FPP's Air Defender is set to Remote, not Player"];
     }
-    if (empty($data['testActive']) && ($data['loopAge'] === null || $data['loopAge'] > AIRDEFENDER_MASTER_STALE_SEC)) {
+    // loopRunning: the Player's loop is alive (it may be waiting on a slow feed,
+    // which is the feed's problem, not a reason to close).
+    if (empty($data['testActive']) && empty($data['loopRunning'])) {
         return [null, "the Player's detection loop is not running"];
     }
     return [$data, null];
@@ -444,6 +427,8 @@ $masterLookupError = null;
 $master = null;              // last good answer from the master
 $masterOkAt = 0;             // when we got it
 $masterError = null;
+$lastReportKey = null;       // what state.json last said, and when it was written
+$lastReportAt = 0;
 
 airdefender_log("Detection loop started (Air Defender " . airdefender_version() . ", pid " . getmypid() . ").");
 
@@ -451,11 +436,10 @@ while (true) {
     $now = time();
     $settings = airdefender_load_settings();
 
-    // Keep only the last week of log (it records nearby aircraft).
     $enabled = airdefender_truthy(airdefender_setting($settings, 'enabled', '0'));
-    // "standalone" from older settings is a master.
     // Not saved yet (a new install): follow FPP's own Player Mode.
-    $role = strtolower((string) airdefender_setting($settings, 'nodeRole', airdefender_fpp_role())) === 'remote' ? 'remote' : 'master';
+    $savedRole = (string) airdefender_setting($settings, 'nodeRole', '');
+    $role = strtolower($savedRole !== '' ? $savedRole : airdefender_fpp_role()) === 'remote' ? 'remote' : 'master';
     $maxNm = max(0.1, (float) airdefender_setting($settings, 'distanceNM', 5));
     $maxFt = max(0, (float) airdefender_setting($settings, 'altitudeThresholdFt', 3000));
     // Heights are compared above the show, not above sea level.
@@ -464,9 +448,6 @@ while (true) {
     $clearDelay = max(0, (int) airdefender_setting($settings, 'clearDelaySec', AIRDEFENDER_DEFAULT_CLEAR_DELAY));
     $feedDownSafe = airdefender_truthy(airdefender_setting($settings, 'feedDownSafe', '0'));
     $checkWhen = (string) airdefender_setting($settings, 'checkWhen', 'scheduled');
-    if ($checkWhen === 'always') {
-        $checkWhen = 'playing';    // Always was removed; nothing ticked checks whenever FPP plays
-    }
     if (!in_array($checkWhen, ['scheduled', 'playing'], true)) {
         $checkWhen = 'scheduled';
     }
@@ -570,11 +551,7 @@ while (true) {
                     airdefender_log("Receiver found: reading {$receiverUrl}.");
                 }
             } else {
-                $url = str_replace(
-                    ['{lat}', '{lon}', '{radius}'],
-                    [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))],
-                    $template
-                );
+                $url = airdefender_feed_url($template, $lat, $lon, $maxNm);
                 // A receiver on this FPP: refuse data its decoder stopped writing.
                 [$planes, $err] = airdefender_is_receiver_feed($template)
                     ? airdefender_fetch_feed($url, AIRDEFENDER_RECEIVER_MAX_AGE_SEC, 4)
@@ -673,7 +650,7 @@ while (true) {
     if ($test['active']) {
         $safe = true;
         $reason = 'test';
-        $event = "Test running: safety on, {$test['remaining']} s left";
+        $event = "Test running: safety on";
     } elseif (!$enabled) {
         $safe = false;
         $reason = 'disabled';
@@ -719,8 +696,7 @@ while (true) {
     } elseif ($lastTriggerAt > 0 && $now - $lastTriggerAt < $clearDelay) {
         $safe = true;
         $reason = 'hold';
-        $left = $clearDelay - ($now - $lastTriggerAt);
-        $event = "Aircraft {$lastTrigger['id']} has left: holding safe for {$left} s more";
+        $event = "Aircraft {$lastTrigger['id']} has left: holding safe";
     } else {
         $safe = false;
         $reason = $feedError !== null ? 'feed-error' : 'clear';
@@ -762,11 +738,17 @@ while (true) {
     }
 
     /* --- report --- */
-    airdefender_write_state([
+    // Written only when it changes (plus a heartbeat), not every second, to
+    // spare the SD card. Countdowns go in as the time they end, so they don't
+    // change it every second; readers work out what is left.
+    $report = [
         'safetyMode' => $safe,
         'reason' => $reason,
         'testActive' => $test['active'],
+        'testUntil' => $test['active'] ? $test['endsAt'] : null,
         'lastEvent' => $event,
+        'holdUntil' => $reason === 'hold' ? $lastTriggerAt + $clearDelay
+            : ($reason === 'master' && !empty($master['holdUntil']) ? (int) $master['holdUntil'] : null),
         'lastAircraft' => $lastTrigger ? [
             'flight' => $lastTrigger['id'],
             'distanceNm' => $lastTrigger['distanceNm'],
@@ -807,9 +789,15 @@ while (true) {
         'appliedChannels' => $outputs->applied(),
         'appliedFppdRun' => $outputs->appliedRun(),
         'outputError' => $outputsOk ? null : $outputs->lastError,
-        'lastUpdated' => date('c', $now),
         'pid' => getmypid(),
-    ]);
+    ];
+    $reportKey = json_encode($report);
+    if ($reportKey !== $lastReportKey || $now - $lastReportAt >= AIRDEFENDER_STATE_HEARTBEAT_SEC) {
+        $report['lastUpdated'] = date('c', $now);
+        airdefender_write_state($report);
+        $lastReportKey = $reportKey;
+        $lastReportAt = $now;
+    }
 
     sleep(1);
 }

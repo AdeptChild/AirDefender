@@ -320,7 +320,7 @@ $pageConfig = array(
         <div class="ad-row">
             <span class="lim" id="adLimits"></span>
             <button type="button" class="ad-btn" id="adViewLog" title="When the heads were closed and opened, and tests">View log</button>
-            <button type="button" class="ad-btn" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. FPP keeps only the last 7 days of it on its own.">Clear log</button>
+            <button type="button" class="ad-btn" id="adClearLog" title="Delete the Air Defender log, which lists aircraft that passed nearby. It is kept until you clear it.">Clear log</button>
         </div>
     </div>
 

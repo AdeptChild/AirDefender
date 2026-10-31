@@ -4,6 +4,11 @@
 moving heads' shutters while one is close. This page shows what it is doing right now and updates by
 itself every couple of seconds.</p>
 
+<div class="alert alert-warning"><b>What it can't see.</b> Air Defender only reacts to aircraft that broadcast
+ADS-B and that your chosen service or receiver picks up. Some light aircraft and helicopters don't broadcast it,
+drones generally don't, online coverage thins out close to the ground, and the data is always a little old. It
+does not replace your own obligations for sky-pointing beams and lasers.</div>
+
 <h3>Lite and Detailed</h3>
 <p>The switch at the top picks how much the dashboard shows. Your choice is remembered in this browser.</p>
 <ul>
@@ -67,9 +72,9 @@ with the <b>Air Defender: Start Test</b> and <b>Air Defender: Stop Test</b> comm
 <p>The most recent time Safety Mode turned on or off, or a test started or ended, in this FPP's time zone. Other
 notes (a head re-patched, the flight-data service coming back, and so on) are only in the full log,
 <code>plugin-AirDefender.log</code>, under <b>Content Setup &rarr; File Manager &rarr; Logs</b>.</p>
-<p>The log lists aircraft that passed near your show. FPP rotates it daily and keeps only the last 7 days;
-<b>Clear log</b> deletes it now.</p>
+<p>The log lists aircraft that passed near your show. It is kept until you press <b>Clear log</b>, which
+deletes it.</p>
 <p><b>View log</b> opens the log over the dashboard: <b>Safety &amp; tests</b> lists when the heads were closed and
 opened, and tests, with how many times the heads closed; <b>Everything</b> shows every line. Pick <b>Today</b>,
-<b>Yesterday</b> (handy when a show runs past midnight) or the <b>Last 7 days</b> that FPP keeps. Newest first. It only
+<b>Yesterday</b> (handy when a show runs past midnight) or the <b>Last 7 days</b>. Newest first. It only
 reads the log when you open it.</p>

@@ -12,12 +12,14 @@
  * /home/fpp/media is only the last resort.
  */
 
+require_once(__DIR__ . "/airdefender_fpp.php");   // airdefender_fpp_role()
+
 if (!function_exists('airdefender_media_dir')) {
 
     /* A folder from FPP's own $settings, when this runs inside FPP's web pages. */
     function airdefender_fpp_dir_setting(string $key): ?string
     {
-        $s = $GLOBALS['settings'] ?? null;
+        $s = PHP_SAPI !== 'cli' ? ($GLOBALS['settings'] ?? null) : null;
         return is_array($s) && isset($s[$key]) && is_string($s[$key]) && $s[$key] !== ''
             ? rtrim($s[$key], '/') : null;
     }
@@ -55,12 +57,6 @@ if (!function_exists('airdefender_media_dir')) {
         return airdefender_media_dir() . '/config/plugin.AirDefender';
     }
 
-    /* FPP's own settings file (location, time zone). */
-    function airdefender_fpp_settings_file(): string
-    {
-        return (getenv('SETTINGSFILE') ?: null) ?? airdefender_media_dir() . '/settings';
-    }
-
     /* Where secrets live (the master's UI password), mode 0600, outside config/. */
     function airdefender_plugindata_dir(): string
     {
@@ -78,17 +74,6 @@ if (!function_exists('airdefender_media_dir')) {
             }
         }
         return $out;
-    }
-
-    /*
-     * Air Defender's role from FPP's own Player Mode: 'remote' on an FPP in
-     * Remote mode, otherwise 'master' (shown as Player). It is only the
-     * default: the role saved in Settings wins.
-     */
-    function airdefender_fpp_role(): string
-    {
-        $mode = strtolower((string) (airdefender_read_kv_file(airdefender_fpp_settings_file())['fppMode'] ?? ''));
-        return $mode === 'remote' ? 'remote' : 'master';
     }
 
     /* Append a timestamped line to the log. */

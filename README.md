@@ -6,6 +6,12 @@ Bright moving heads and beams pointed at the sky can dazzle pilots. Air Defender
 for your location, and while an aircraft is close enough and low enough, it holds your moving heads' shutters
 closed. When the sky is clear again, it hands the shutters back to your sequence.
 
+> **What it can't see.** Air Defender only reacts to aircraft that broadcast **ADS-B** and that your chosen service
+> or receiver picks up. Some light aircraft and helicopters don't broadcast it, drones generally don't, online
+> coverage thins out close to the ground, and the data is always a little old (your check interval plus the
+> service's own delay). It is an extra layer of care, **not a replacement for your own obligations** for
+> sky-pointing beams and lasers.
+
 Version 1.5.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
@@ -23,8 +29,9 @@ Version 1.5.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
   leave a beam frozen open, pointing up. Closing the shutter is the only way to know the fixture is dark.
 - If the flight-data service stops answering while an aircraft was near, the heads stay closed until it answers
   again. (Turn on **Close heads if feed is down** to close them on any outage.)
-- The overlays are re-applied every second, so they survive an fppd restart, and a watchdog restarts the detection
-  loop within seconds if it ever stops.
+- The overlays are re-applied every second. fppd starts the detection loop when it starts (and stops it when it
+  stops), so after an fppd restart the heads are held again within seconds, and a watchdog restarts the loop if it
+  ever stops on its own.
 
 ## Install
 
@@ -186,7 +193,7 @@ is open.
 - **View log** shows when the heads were closed and opened, and tests, for **Today**, **Yesterday** (handy when a show
   runs past midnight) or the **Last 7 days**, newest first, with how many times the heads closed. **Everything**
   shows the full log instead.
-- **Clear log** deletes the Air Defender log.
+- **Clear log** deletes the Air Defender log. Nothing else trims it, so it keeps everything until you clear it.
 
 ## FPP commands
 
@@ -264,12 +271,14 @@ uses.
 
 ## Privacy
 
-- Your **show's location** and search radius go to the flight-data service you pick (adsb.fi, adsb.lol, or nowhere
-  with your own receiver), only while Air Defender is checking. Your own receiver is only asked for its aircraft list.
+- Your **show's location**, rounded to about 1 km, and search radius go to the flight-data service you pick
+  (adsb.fi, adsb.lol, or nowhere with your own receiver), only while Air Defender is checking. Air Defender works
+  out each aircraft's distance from your exact location itself. Your own receiver is only asked for its aircraft list.
 - Pressing **Look it up** beside Show elevation sends the location once to api.open-meteo.com.
 - A Remote asks its Player for its status over your local network, with the Player's UI password if you entered one.
 - The log (`plugin-AirDefender.log` in FPP's logs folder) records the callsigns, distance and height of low aircraft
-  that passed near your show. FPP rotates it daily and keeps **7 days**; **Clear log** deletes it now.
+  that passed near your show. It is kept **until you press Clear log** on the dashboard (FPP only rotates plugin
+  logs once they reach 10 MB, which this one takes a very long time to do).
 - Nothing is sent anywhere until you switch Air Defender on. The backup service and the elevation lookup are off
   until you use them.
 - Uninstalling removes the log and the saved Player password.

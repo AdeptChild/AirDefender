@@ -37,11 +37,11 @@ if (isset($opts['help'])) {
 }
 
 $settings = airdefender_read_kv_file(airdefender_config_file());
-$fpp = airdefender_read_kv_file(airdefender_fpp_settings_file());
 
 $useFpp = !in_array(strtolower($settings['useFPPLocation'] ?? '1'), ['0', 'false', 'no', 'off'], true);
-$lat = $opts['lat'] ?? ($useFpp ? ($fpp['Latitude'] ?? '') : ($settings['latitude'] ?? ''));
-$lon = $opts['lon'] ?? ($useFpp ? ($fpp['Longitude'] ?? '') : ($settings['longitude'] ?? ''));
+[$fppLat, $fppLon] = $useFpp ? airdefender_fpp_location() : [null, null];
+$lat = $opts['lat'] ?? ($useFpp ? ($fppLat ?? '') : ($settings['latitude'] ?? ''));
+$lon = $opts['lon'] ?? ($useFpp ? ($fppLon ?? '') : ($settings['longitude'] ?? ''));
 $maxNm = (float) ($opts['distance'] ?? ($settings['distanceNM'] ?? 5));
 $maxFt = (float) ($opts['altitude'] ?? ($settings['altitudeThresholdFt'] ?? 3000));
 $elevationFt = airdefender_clamp_elevation($opts['elevation'] ?? ($settings['showElevationFt'] ?? 0));
@@ -69,7 +69,7 @@ if ($template === AIRDEFENDER_FEED_RECEIVER) {
         echo "Reading {$found}\n";
     }
 } else {
-    $url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($maxNm))], $template);
+    $url = airdefender_feed_url($template, $lat, $lon, $maxNm);
     echo "Asking {$url}\n";
     [$planes, $error] = airdefender_is_receiver_feed($template)
         ? airdefender_fetch_feed($url, AIRDEFENDER_RECEIVER_MAX_AGE_SEC, 4)

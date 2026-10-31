@@ -10,17 +10,12 @@
  * playlist, as before this setting existed.
  */
 
-require_once(__DIR__ . "/airdefender_paths.php");
+require_once(__DIR__ . "/airdefender_fpp.php");
 
-/* The playlists in FPP, by name, sorted. */
+/* The playlists in FPP, by name, sorted ([] when FPP can't be asked). */
 function airdefender_playlist_names(): array
 {
-    $names = [];
-    foreach (glob(airdefender_media_dir() . '/playlists/*.json') ?: [] as $file) {
-        $names[] = basename($file, '.json');
-    }
-    natcasesort($names);
-    return array_values($names);
+    return airdefender_fpp_playlists() ?? [];
 }
 
 function airdefender_encode_playlists(array $names): string

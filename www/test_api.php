@@ -126,7 +126,7 @@ switch ($action) {
             // Your receiver: the address typed on the page (only home-network addresses are read).
             [$planes, $error] = airdefender_fetch_receiver((string) ($_POST['receiver'] ?? ''), $foundAt);
         } else {
-            $url = str_replace(['{lat}', '{lon}', '{radius}'], [round($lat, 5), round($lon, 5), max(1, (int) ceil($nm))], $template);
+            $url = airdefender_feed_url($template, $lat, $lon, $nm);
             [$planes, $error] = airdefender_is_receiver_feed($template)
                 ? airdefender_fetch_feed($url, AIRDEFENDER_RECEIVER_MAX_AGE_SEC, 4)
                 : airdefender_fetch_feed($url);

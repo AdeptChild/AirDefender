@@ -42,10 +42,11 @@ function airdefender_above_show(array $planes, float $elevationFt): array
     return $planes;
 }
 
-/* Ground elevation at a point, in feet: [feet, null] or [null, error]. */
+/* Ground elevation at a point, in feet: [feet, null] or [null, error]. Asked
+   to 3 decimal places (about 100 m), close enough for the ground's height. */
 function airdefender_lookup_elevation(float $lat, float $lon): array
 {
-    $url = str_replace(['{lat}', '{lon}'], [round($lat, 5), round($lon, 5)], AIRDEFENDER_ELEVATION_URL);
+    $url = str_replace(['{lat}', '{lon}'], [round($lat, 3), round($lon, 3)], AIRDEFENDER_ELEVATION_URL);
     $context = stream_context_create(['http' => [
         'timeout' => 8,
         'header' => "User-Agent: FPP-AirDefender\r\nAccept: application/json\r\n",
@@ -115,24 +116,6 @@ function airdefender_parse_aircraft($data): array
                 'onGround' => ($p['alt_baro'] ?? null) === 'ground',
             ];
         }
-        return $planes;
-    }
-
-    // OpenSky ("states"): altitudes are in METERS.
-    if (isset($data['states']) && is_array($data['states'])) {
-        foreach ($data['states'] as $row) {
-            if (!is_array($row) || !isset($row[5], $row[6])) {
-                continue;
-            }
-            $meters = $row[13] ?? $row[7] ?? null;
-            $planes[] = [
-                'id' => trim((string) ($row[1] ?? '')) ?: (string) ($row[0] ?? 'Unknown'),
-                'lat' => (float) $row[6],
-                'lon' => (float) $row[5],
-                'altFt' => is_numeric($meters) ? (float) $meters * AIRDEFENDER_FEET_PER_METER : null,
-                'onGround' => !empty($row[8]),
-            ];
-        }
     }
 
     return $planes;
@@ -190,7 +173,7 @@ function airdefender_fetch_feed(string $url, int $maxAgeSec = 0, int $timeout = 
         }
     }
     // array_key_exists, not isset: an empty sky can come back as "ac": null.
-    if (!array_key_exists('aircraft', $json) && !array_key_exists('ac', $json) && !array_key_exists('states', $json)) {
+    if (!array_key_exists('aircraft', $json) && !array_key_exists('ac', $json)) {
         return [null, "That address answered, but not with aircraft data"];
     }
     return [airdefender_parse_aircraft($json), null];

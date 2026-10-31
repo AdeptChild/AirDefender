@@ -18,18 +18,13 @@ function airdefender_fpp_timezone(): ?string
 {
     $valid = timezone_identifiers_list();
 
-    $lines = @file(airdefender_fpp_settings_file(), FILE_IGNORE_NEW_LINES);
-    foreach (is_array($lines) ? $lines : [] as $line) {
-        $parts = explode('=', $line, 2);
-        if (count($parts) === 2 && trim($parts[0]) === 'TimeZone') {
-            $tz = trim(trim($parts[1]), "\"' ");
-            if (in_array($tz, $valid, true)) {
-                return $tz;
-            }
-        }
+    $tz = airdefender_fpp_setting('TimeZone');
+    if ($tz !== null && in_array($tz, $valid, true)) {
+        return $tz;
     }
 
-    // The system's own zone, in case the setting is missing.
+    // The system's own zone (FPP sets it from the same setting), in case FPP
+    // can't be asked yet (the loop starting while Apache is still coming up).
     $tz = trim((string) @file_get_contents('/etc/timezone'));
     return in_array($tz, $valid, true) ? $tz : null;
 }
