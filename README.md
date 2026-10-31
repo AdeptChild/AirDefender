@@ -12,7 +12,7 @@ closed. When the sky is clear again, it hands the shutters back to your sequence
 > service's own delay). It is an extra layer of care, **not a replacement for your own obligations** for
 > sky-pointing beams and lasers.
 
-Version 1.5.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
+Version 1.6.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 
 ---
 
@@ -28,7 +28,7 @@ Version 1.5.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
 - **The DMX signal is never cut.** Most moving heads and lasers hold their last values when DMX stops, which could
   leave a beam frozen open, pointing up. Closing the shutter is the only way to know the fixture is dark.
 - If the flight-data service stops answering while an aircraft was near, the heads stay closed until it answers
-  again. (Turn on **Close heads if feed is down** to close them on any outage.)
+  again. (Turn on **Close heads if the feed is down** to close them on any outage.)
 - The overlays are re-applied every second. fppd starts the detection loop when it starts (and stops it when it
   stops), so after an fppd restart the heads are held again within seconds, and a watchdog restarts the loop if it
   ever stops on its own.
@@ -44,7 +44,7 @@ Version 1.5.0 (see [CHANGELOG.md](CHANGELOG.md)). For FPP 10 and later.
    https://raw.githubusercontent.com/G-Hancox/AirDefender/master/pluginInfo.json
    ```
 
-3. Review the privacy summary, press **Install**, then restart FPPD when FPP asks.
+3. Review the privacy summary and press **Install**. FPP starts Air Defender straight away; no restart is needed.
 
 **By hand (SSH)**
 
@@ -53,10 +53,10 @@ cd /home/fpp/media/plugins/
 git clone https://github.com/G-Hancox/AirDefender.git
 ```
 
-Then restart FPPD.
+Then restart FPPD (FPP only runs plugins installed by hand once fppd starts again).
 
-**Updating:** press **Update** for Air Defender in Plugin Manager. The detection loop restarts with the new code by
-itself. **Release Notes** in Plugin Manager shows the changelog.
+**Updating:** press **Update** for Air Defender in Plugin Manager. fppd reloads it and the detection loop restarts
+with the new code by itself. **Release Notes** in Plugin Manager shows the changelog.
 
 ## Quick start
 
@@ -66,26 +66,29 @@ itself. **Release Notes** in Plugin Manager shows the changelog.
 3. **Moving heads:** add each head. Pick its **model**, or choose **Manual channel** and enter its **start channel**
    from xLights. Then enter the **shutter channel** from the fixture's DMX chart (for example 7) and the **closed**
    value (often 0). The row shows the FPP channel it works out, for example `→ FPP ch 82454`.
-4. **When and where:** press **Check it on a map** and make sure the pin is on **your show**, not just your town (see
+4. **When & where:** press **Check it on a map** and make sure the pin is on **your show**, not just your town (see
    [Check your location](#check-your-location)). Then press **Look it up** beside **Show elevation** so heights are
    measured from your show.
 5. **Flight data:** press **Test connection**. You should see `OK · N aircraft nearby`.
-6. Save, open the **dashboard**, and run a **Test**: the heads should close within a second and open again when the
-   timer ends.
+6. Open the **dashboard** and run a **Test**: the heads should close within a second and open again when the timer
+   ends. (Settings save as you change them, like FPP's own settings pages.)
 
 Every page has help behind FPP's **?** button.
 
 ## Settings
 
-| Section | What's there |
-|---|---|
-| **1. Air Defender** | Enabled; **Role** (Player or Remote, starting from FPP's own mode); on a Remote, the Player's address and UI password. |
-| **2. Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
-| **3. When and where** | **When to check** (all scheduled shows, or only selected playlists) with the playlist list, the show location and its elevation. |
-| **4. Safety limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
-| **5. Flight data** | The service (or your own receiver's address), **Test connection**, an optional backup service, and **Close heads if feed is down**. |
+The settings page has five tabs, like FPP's own settings. Each setting saves as you change it (a note pops up to
+say so) and takes effect within a second; no restart is needed.
 
-Changes take effect within a second of saving; no restart is needed.
+| Tab | What's there |
+|---|---|
+| **General** | Enable Air Defender; **Role** (Player or Remote, starting from FPP's own mode); on a Remote, the Player's address and UI password. |
+| **Moving heads** | Up to 8 heads: name, model or manual start channel, shutter channel in the fixture, closed value. |
+| **When & where** | **Check for aircraft during** (all scheduled shows, or only selected playlists) with the playlist list, the show location and its elevation. |
+| **Limits** | Distance (NM), altitude (ft), hold after the aircraft leaves, and how often to check. |
+| **Flight data** | The service (or your own receiver's address), **Test connection**, an optional backup service, and **Close heads if the feed is down**. |
+
+On a Remote only **General** and **Moving heads** are shown: the rest is set on the Player.
 
 ### Picking heads by model
 
@@ -105,12 +108,12 @@ or worked out from your internet connection, and can be miles from your yard. Ev
 measured from this point: which aircraft are within your distance, and the ground elevation that heights are
 measured from. If it's off by a few miles, planes right over your show can count as outside your limits.
 
-1. Open **Settings → When and where** and press **Check it on a map**.
+1. Open **Settings → When & where** and press **Check it on a map**.
 2. Zoom in: the pin should be on your property.
 3. If it isn't, turn off **Use FPP's location** and enter your show's latitude and longitude. (In Google Maps,
    right-click your yard and click the numbers at the top of the menu to copy them.) Or fix the location in FPP's
    own settings.
-4. Press **Look it up** again for **Show elevation**, so it matches the corrected spot, and save.
+4. Press **Look it up** again for **Show elevation**, so it matches the corrected spot.
 
 ### Show elevation
 
@@ -127,7 +130,7 @@ the show once it is set.
 ### When it checks
 
 Air Defender only checks while there's a show to protect. Outside those times it is on **Standby**: it sends nothing
-to the flight-data service and leaves the shutters to the show. **When to check** has two choices:
+to the flight-data service and leaves the shutters to the show. **Check for aircraft during** (on **When & where**) has two choices:
 
 - **All scheduled shows** (the default): checks during every scheduled show, starting **2 minutes before** each one
   so the heads are already protected when the lights come on.
@@ -197,7 +200,7 @@ is open.
 
 ## FPP commands
 
-Available in playlists, schedules and command presets (after FPPD restarts once following install):
+Available in playlists, schedules and command presets:
 
 - **Air Defender: Start Test** (seconds): like Test on the dashboard.
 - **Air Defender: Stop Test**: ends a running test.
@@ -252,11 +255,11 @@ receiver lists every aircraft it hears and Air Defender works out which are near
 2. In **Settings → Flight data**, set **Service** to **Your receiver on your network** and enter the IP address in
    **Receiver address**, for example `192.168.1.50` (add `:port` if your receiver uses one).
 3. Press **Test connection**. It finds where the receiver publishes its aircraft list (tar1090, SkyAware or port 8080)
-   and shows `OK · N aircraft nearby · reading http://…`. Then **Save**.
+   and shows `OK · N aircraft nearby · reading http://…`.
 
 Air Defender only accepts addresses on your home network. If the receiver's decoder stops while its web page keeps
 running, its data goes stale: Air Defender notices after 2 minutes and treats it like a feed that isn't answering.
-Turn on **Close heads if feed is down** if you want the heads closed whenever that happens.
+Turn on **Close heads if the feed is down** if you want the heads closed whenever that happens.
 
 | Test connection says | What to do |
 |---|---|
@@ -301,7 +304,7 @@ plugin-AirDefender.log**) explains every change.
 | Aircraft right overhead aren't counted, or the radar looks wrong | The show location is probably off. Press **Check it on a map**; see [Check your location](#check-your-location). |
 | A head's row is red: "Model not found" | The model was renamed or deleted in xLights. Pick it again; until then the last channel is still protected. |
 | Heads don't close during a test | Check each head is **On**, the **FPP channel** shown matches the shutter channel, and the **closed** value is right for the fixture. |
-| **Standby** when you expected checking | No scheduled show is on, or the playlist playing isn't ticked. Use **Check now**, or change **When to check**. |
+| **Standby** when you expected checking | No scheduled show is on, or the playlist playing isn't ticked. Use **Check now**, or change **Check for aircraft during**. |
 | A Remote says "Lost the Player" | Check the Player is on, has Air Defender set to Player, and the address is right. If it says the Player has a UI password, enter it on the Remote. |
 | The dashboard says "FPP refused the shutter channels" | fppd isn't accepting overlays; restart FPPD. |
 
@@ -320,22 +323,24 @@ Options `--url`, `--lat`, `--lon`, `--distance`, `--altitude` and `--elevation` 
 | Piece | File |
 |---|---|
 | Detection loop: reads settings every second, checks the feed, decides, holds or releases the overlays | `scripts/airdefender_loop.php` |
-| Watchdog that keeps the loop running; started and stopped with fppd | `callbacks.sh`, `scripts/airdefender_supervise.sh`, `scripts/airdefender_start.sh`, `scripts/airdefender_stop.sh` |
+| Watchdog that keeps the loop running; fppd starts and stops it through its lifecycle callbacks | `callbacks.sh`, `scripts/airdefender_supervise.sh`, `scripts/airdefender_start.sh`, `scripts/airdefender_stop.sh` |
 | Shutter overlays (`PUT /api/overlays/range/<ch>`, FPP's proxy to fppd) | `scripts/airdefender_controller.php` |
 | Heads by model or manual channel | `scripts/airdefender_models.php` |
 | Flight-data services, backup, fetching and parsing | `scripts/airdefender_feeds.php`, `scripts/airdefender_adsb.php` |
 | Your own receiver: address check, finding its data, stale-data check | `scripts/airdefender_receiver.php` |
 | Tests, Check now, Last Event, log | `scripts/airdefender_test.php`, `scripts/airdefender_status.php` |
 | FPP's folders (media, logs, config), found the way FPP provides them | `scripts/airdefender_paths.php` |
+| FPP's settings and playlists, through its API | `scripts/airdefender_fpp.php` |
 | The Player's UI password (on a Remote), in `plugindata/AirDefender/` (0600) | `scripts/airdefender_secret.php` |
 | Dashboard and its endpoint | `www/index.php`, `www/test_api.php` |
-| Settings page | `www/settings.php` |
+| Settings page, built from FPP's setting helpers | `www/settings.php`, `settings.json` |
 | Status a Remote reads from its master | `www/master_status.php` |
 | Install, update and uninstall hooks | `scripts/fpp_install.sh`, `scripts/fpp_upgrade.sh`, `scripts/fpp_uninstall.sh` |
 
 Runtime files written on the device (not in git): `state.json`, `test.json`, `override.json`, `last_event.json` and
 `loop.lock` in the plugin folder, `plugin-AirDefender.log` in FPP's logs folder, and the Player's password in
-`plugindata/AirDefender/`. The pages follow FPP's light and dark themes through CSS variables.
+`plugindata/AirDefender/`. `state.json` is written when something in it changes (and every 30 seconds), not every
+second. The pages use FPP's styles and Bootstrap, so they follow FPP's light and dark themes.
 
 ## Credits
 

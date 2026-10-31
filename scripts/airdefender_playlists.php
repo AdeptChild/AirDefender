@@ -7,7 +7,7 @@
  * during, when When to Check is set to it (checkWhen = playing). Saved in the
  * config as checkPlaylists, each name URL-encoded and joined with commas (a
  * playlist name may contain spaces, commas or quotes). Empty means every
- * playlist, as before this setting existed.
+ * playlist.
  */
 
 require_once(__DIR__ . "/airdefender_fpp.php");
@@ -18,17 +18,11 @@ function airdefender_playlist_names(): array
     return airdefender_fpp_playlists() ?? [];
 }
 
-function airdefender_encode_playlists(array $names): string
-{
-    $names = array_values(array_unique(array_filter(array_map('strval', $names), 'strlen')));
-    return implode(',', array_map('rawurlencode', $names));
-}
-
 function airdefender_decode_playlists(string $saved): array
 {
     $out = [];
     foreach (explode(',', $saved) as $part) {
-        $name = rawurldecode(trim($part));
+        $name = urldecode(trim($part));   // also takes '+' for a space, as form encoding writes it
         if ($name !== '') {
             $out[] = $name;
         }

@@ -1,13 +1,13 @@
 <h2>Air Defender Settings</h2>
 
-<p>The page is in five sections, in the order you would set things up. When you change anything, a bar appears at
-the bottom with <b>Save settings</b> and <b>Discard</b>. Changes take effect within a second of saving; FPP does not
-need a restart.</p>
+<p>The page has five tabs, in the order you would set things up. Like FPP's own settings, each setting saves as soon
+as you change it (a note pops up to say so) and takes effect within a second; FPP does not need a restart. The
+<b>?</b> beside a setting explains it.</p>
 
-<h3>1. Air Defender</h3>
+<h3>General</h3>
 <ul>
-    <li><b>Enabled</b>: turns aircraft checking on or off. It is off on a new install until you switch it on and
-        save. A test from the dashboard still works while it is off.</li>
+    <li><b>Enable Air Defender</b>: turns aircraft checking on or off. It is off on a new install until you switch it
+        on. A test from the dashboard still works while it is off.</li>
     <li><b>Role</b>: on a new install this follows FPP's own Player Mode, and the note under it says whether it still
         matches; change it if your setup needs something else. <b>Player</b> checks for aircraft and closes its own heads.
         Use it on a single FPP, and on the FPP that runs the show; it also covers heads it sends to over DDP or E1.31,
@@ -19,13 +19,13 @@ need a restart.</p>
     <li><b>Player FPP address</b> (Remote only): leave blank to find the Player automatically from FPP's MultiSync
         list. Enter its IP address or hostname if there is more than one Player FPP on the network.</li>
     <li><b>Player's UI password</b> (Remote only): needed only if the Player has an FPP UI password. It is kept in
-        its own file in FPP's plugindata folder that only the fpp user can read, and never shown; leave it blank to keep
-        the saved one, or tick <b>Remove saved password</b> to clear it.</li>
+        its own file in FPP's plugindata folder that only the fpp user can read, and never shown. Type it and press
+        <b>Save password</b>; <b>Remove</b> clears the saved one.</li>
 </ul>
-<p>On a Remote, sections 3 to 5 are hidden: they are set on the Player.</p>
+<p>On a Remote, only General and Moving heads are shown: the rest is set on the Player.</p>
 
-<h3>2. Moving heads</h3>
-<p>One row per head (up to 8). <b>+ Add head</b> adds a row; <b>&times;</b> removes one.</p>
+<h3>Moving heads</h3>
+<p>One row per head (up to 8). <b>Add head</b> adds a row; the bin button removes one (after asking).</p>
 <ul>
     <li><b>On</b>: whether Air Defender protects this head.</li>
     <li><b>Name</b> (optional): what to call the head in the log and on the dashboard. Picking a model fills it in.</li>
@@ -38,28 +38,28 @@ need a restart.</p>
     <li><b>Shutter ch.</b>: the shutter's channel number <i>within the fixture</i>, from its DMX chart (for example 7).</li>
     <li><b>Closed</b>: the value (0&ndash;255) that closes the shutter, from the fixture's DMX chart.</li>
 </ul>
-<p>The end of each row shows the FPP channel Air Defender worked out (start + shutter &minus; 1, so 82448 and 7 give
+<p><b>FPP channel</b> shows the channel Air Defender worked out (start + shutter &minus; 1, so 82448 and 7 give
 82454). While Safety Mode is on, that channel is held at the closed value over whatever the sequence is doing.
 Heads picked by model are looked up by name, so a head re-patched in xLights and uploaded again is followed. If a
 model is renamed or deleted, the row turns red and Air Defender keeps protecting the channel it last found for it
 until you pick the model again.</p>
 
-<h3>3. When and where</h3>
+<h3>When &amp; where</h3>
 <ul>
-    <li><b>When to check</b>: <b>All scheduled shows</b> (the default) checks during every scheduled show, starting 2
+    <li><b>Check for aircraft during</b>: <b>All scheduled shows</b> (the default) checks during every scheduled show, starting 2
         minutes before each one. <b>Only selected playlists</b> checks only while a playlist selected in the list beside it
         plays, scheduled or started by hand, and from 2 minutes before a scheduled one; with nothing ticked, while any
         playlist plays. Outside those times the dashboard shows <b>Standby</b>, nothing is sent to the flight-data
         service, and the shutters are left to the show. To test a sequence at another time, use <b>Check now</b> on the
         dashboard (or the Air Defender: Check Now command): it checks for the time you pick, then turns itself off.</li>
-    <li><b>Playlists to check during</b> (used with Only selected playlists; greyed out otherwise, and your ticks are
-        kept): tick the playlists that use your moving heads, so the rest (a late-night static show, say) leave Air
+    <li><b>Playlists to check during</b> (shown with Only selected playlists; your ticks are kept while it is
+        hidden): tick the playlists that use your moving heads, so the rest (a late-night static show, say) leave Air
         Defender on Standby. A sequence started on its own is not part of a playlist, so it is not checked: use
         <b>Check now</b>. A selected playlist FPP no longer has is marked "not in FPP" until you untick it. If you use
         Remote Falcon, tick its playlist too: viewer requests play from it. (During a selected scheduled show Air Defender
         keeps checking through requests anyway, since they play inside that show's schedule slot.)</li>
-    <li><b>Use FPP's location</b>: uses the latitude and longitude in FPP's own settings. Turn it off to enter a
-        different location. <b>Check it on a map</b> opens the spot in OpenStreetMap: always check that the pin is on
+    <li><b>Use FPP's location</b>: uses the latitude and longitude in FPP's own settings, shown below it. Turn it
+        off to enter a different <b>Latitude</b> and <b>Longitude</b>. <b>Check it on a map</b> opens the spot in OpenStreetMap: always check that the pin is on
         your show, not just your town. FPP's location is often rough and can be miles off, and every distance (and the
         show elevation) is measured from this point. To enter your own, right-click your yard in Google Maps and click
         the numbers at the top of the menu to copy them.</li>
@@ -70,37 +70,35 @@ until you pick the model again.</p>
         or your phone. Left at 0, heights are measured above sea level, as before.</li>
 </ul>
 
-<h3>4. Safety limits</h3>
+<h3>Limits</h3>
 <ul>
     <li><b>Distance</b> (nautical miles) and <b>Altitude</b> (feet): heads close when an aircraft is inside the
         distance <i>and</i> below the altitude. With a <b>Show elevation</b> set, the altitude is measured above your
-        show, and the hint shows what that is above sea level. The kilometres and metres are shown for reference.</li>
+        show, and the note under it shows what that is above sea level.</li>
     <li><b>Hold after it leaves</b>: how long, in seconds, heads stay closed after the last aircraft leaves
         (0&ndash;600, default 30), so one on the edge of the area does not flash them on and off.</li>
-    <li><b>Check every</b>: how often, in seconds, to ask for new flight data (5 or more). The estimate below it shows
-        how many requests that makes, which matters because free services limit how many they answer. A smaller
-        distance may want a quicker check.</li>
+    <li><b>Check every</b>: how often, in seconds, to ask for new flight data (5 to 120). Every 10 seconds is about
+        1,800 requests in a 5-hour show night, which matters because free services limit how many they answer. A
+        smaller distance may want a quicker check.</li>
 </ul>
 
-<h3>5. Flight data</h3>
+<h3>Flight data</h3>
 <ul>
     <li><b>Service</b>: <b>adsb.fi</b> (the default) and <b>adsb.lol</b> are free community services for personal,
-        non-commercial use, and are sent your show's location. <b>Your receiver on your network</b> reads your own ADS-B
+        non-commercial use, and are sent your show's location, rounded to about 1 km (with the search radius widened
+        by 1 NM to make up for it; Air Defender works out distances from your exact location itself). <b>Your receiver on your network</b> reads your own ADS-B
         receiver (a Pi running ADSB.im, PiAware, or readsb/dump1090 with tar1090): enter its IP address or name in
         <b>Receiver address</b> (with <code>:port</code> if needed), and Test connection finds where it publishes its
         aircraft list. Only home-network addresses are accepted, and it is never sent your location. Data more than 2
         minutes old counts as the receiver not answering. <b>Receiver on this FPP</b> reads one installed on the FPP
-        itself (not recommended: it takes CPU from the show). The README explains what a receiver needs. (airplanes.live
-        is no longer offered: its API now refuses requests without an account. A saved airplanes.live setting is
-        switched to adsb.fi.)</li>
+        itself (not recommended: it takes CPU from the show). The README explains what a receiver needs.</li>
     <li><b>Use the other as a backup</b>: off until you turn it on, because it means the other service is also sent
         your show's location. When on, if adsb.fi or adsb.lol does not answer, Air Defender asks the other in the same
         check. It tries your chosen service again every minute and goes back to it when it
         answers. Your own receiver never falls back to an online service.</li>
-    <li><b>Test connection</b>: asks the service once, right away, using the location and limits on the page (saved or
-        not), and shows how many aircraft it sees, the nearest one, how many are inside your limits, or the exact
+    <li><b>Test connection</b>: asks the service once, right away, using the location and limits saved here, and shows how many aircraft it sees, the nearest one, how many are inside your limits, or the exact
         error.</li>
-    <li><b>Close heads if feed is down</b>: off (the default), if the service stops answering, heads stay as they are
+    <li><b>Close heads if the feed is down</b>: off (the default), if the service stops answering, heads stay as they are
         unless an aircraft was near when it stopped. On, heads close whenever it stops answering, until it answers
         again: stricter, but an internet outage keeps them closed.</li>
 </ul>

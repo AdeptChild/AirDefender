@@ -1,0 +1,168 @@
+{
+    "settingGroups": {
+        "airdefenderGeneral": {
+            "description": "Air Defender",
+            "settings": ["enabled", "nodeRole", "masterAddress"]
+        },
+        "airdefenderWhen": {
+            "description": "When to check",
+            "settings": ["checkWhen"]
+        },
+        "airdefenderWhere": {
+            "description": "Where the show is",
+            "settings": ["useFPPLocation", "latitude", "longitude", "showElevationFt"]
+        },
+        "airdefenderLimits": {
+            "description": "Safety limits",
+            "settings": ["distanceNM", "altitudeThresholdFt", "clearDelaySec", "fetchInterval"]
+        },
+        "airdefenderFeed": {
+            "description": "Flight data",
+            "settings": ["adsbSourceUrl", "receiverAddress", "feedFallback", "feedDownSafe"]
+        }
+    },
+    "settings": {
+        "enabled": {
+            "description": "Enable Air Defender",
+            "tip": "Off until you turn it on: nothing is sent anywhere and no shutters are touched until then.",
+            "type": "checkbox",
+            "default": "0"
+        },
+        "nodeRole": {
+            "description": "Role",
+            "tip": "<b>Player</b>: checks for aircraft. Use it on a single FPP, and on the one that runs the show (it also covers heads it sends to a Falcon over DDP/E1.31).<br><b>Remote</b>: for an FPP in Remote mode with heads on its own outputs. It asks the Player once a second and closes its heads when the Player does, or if it can't reach it.<br>Until you pick one, it follows FPP's own Player Mode.",
+            "type": "select",
+            "options": {
+                "Player": "master",
+                "Remote": "remote"
+            },
+            "children": {
+                "remote": ["masterAddress", "masterPassword"]
+            }
+        },
+        "masterAddress": {
+            "description": "Player FPP address",
+            "tip": "IP address or hostname of the Player. Leave it blank to find it from FPP's MultiSync list; fill it in if there is more than one Player FPP.",
+            "type": "text",
+            "size": 24,
+            "maxlength": 64,
+            "default": ""
+        },
+        "checkWhen": {
+            "description": "Check for aircraft during",
+            "tip": "<b>All scheduled shows</b>: during every scheduled show, from 2 minutes before it starts.<br><b>Only selected playlists</b>: only while one of the playlists ticked below plays, scheduled or started by hand, and from 2 minutes before a scheduled one. With none ticked, whenever any playlist plays.<br>To check at any other time, use Check now on the dashboard.",
+            "type": "select",
+            "options": {
+                "All scheduled shows": "scheduled",
+                "Only selected playlists": "playing"
+            },
+            "default": "scheduled",
+            "children": {
+                "playing": ["checkPlaylists"]
+            }
+        },
+        "useFPPLocation": {
+            "description": "Use FPP's location",
+            "tip": "Use the latitude and longitude set in FPP's settings. They can be miles off, so check the pin with Check it on a map. Turn this off to enter the show's location here instead.",
+            "type": "checkbox",
+            "default": "1"
+        },
+        "latitude": {
+            "description": "Latitude",
+            "tip": "The show's latitude in decimal degrees, for example 34.6851.",
+            "type": "text",
+            "size": 12,
+            "maxlength": 12,
+            "default": "",
+            "pii": true
+        },
+        "longitude": {
+            "description": "Longitude",
+            "tip": "The show's longitude in decimal degrees, for example -82.9532 (west is negative).",
+            "type": "text",
+            "size": 12,
+            "maxlength": 12,
+            "default": "",
+            "pii": true
+        },
+        "showElevationFt": {
+            "description": "Show elevation",
+            "tip": "Aircraft report their height above sea level. Enter your ground's elevation, or press Look it up, so the altitude limit counts from your show.",
+            "type": "number",
+            "min": -1500,
+            "max": 15000,
+            "default": "0",
+            "suffix": "ft above sea level"
+        },
+        "distanceNM": {
+            "description": "Distance",
+            "tip": "Heads close when an aircraft is inside this distance and below the altitude. 1 NM is about 1.85 km.",
+            "type": "number",
+            "min": 1,
+            "max": 50,
+            "default": "5",
+            "suffix": "NM"
+        },
+        "altitudeThresholdFt": {
+            "description": "Altitude",
+            "tip": "Heads close when an aircraft inside the distance is below this height above your show (with Show elevation set; otherwise above sea level). 1,000 ft is about 300 m.",
+            "type": "number",
+            "min": 0,
+            "max": 20000,
+            "step": 100,
+            "default": "3000",
+            "suffix": "ft"
+        },
+        "clearDelaySec": {
+            "description": "Hold after it leaves",
+            "tip": "Keeps the heads closed a little longer after the aircraft leaves, so one on the edge of the area doesn't flash them on and off.",
+            "type": "number",
+            "min": 0,
+            "max": 600,
+            "step": 5,
+            "default": "30",
+            "suffix": "s"
+        },
+        "fetchInterval": {
+            "description": "Check every",
+            "tip": "How often to ask for aircraft while checking. Every 10 s is about 1,800 requests in a 5-hour show night; a smaller distance may want a quicker check.",
+            "type": "number",
+            "min": 5,
+            "max": 120,
+            "default": "10",
+            "suffix": "s"
+        },
+        "adsbSourceUrl": {
+            "description": "Service",
+            "tip": "Free community services for personal, non-commercial use: data from adsb.fi and adsb.lol (ODbL). They are sent your show's location, rounded to about 1 km. Your own receiver sends nothing to the internet.",
+            "type": "select",
+            "default": "https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{radius}",
+            "children": {
+                "receiver": ["receiverAddress"],
+                "https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{radius}": ["feedFallback"],
+                "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}": ["feedFallback"]
+            }
+        },
+        "receiverAddress": {
+            "description": "Receiver address",
+            "tip": "The IP address or name of the Pi running your receiver (ADSB.im, PiAware, or readsb/dump1090 with tar1090) on your home network. Add a port if it uses one (192.168.1.50:8080), or give the full address of its aircraft.json. Test connection finds where it publishes its aircraft list.",
+            "type": "text",
+            "size": 24,
+            "maxlength": 128,
+            "default": "",
+            "pii": true
+        },
+        "feedFallback": {
+            "description": "Use the other as a backup",
+            "tip": "If adsb.fi or adsb.lol stops answering or limits requests, ask the other one in the same check, and go back to the chosen one when it answers. Off by default, because turning it on means the other service is sent your show's location too.",
+            "type": "checkbox",
+            "default": "0"
+        },
+        "feedDownSafe": {
+            "description": "Close heads if the feed is down",
+            "tip": "Off: if the service stops answering, heads stay as they are unless an aircraft was near. On: they close until it answers again. Stricter, but an internet outage keeps them closed.",
+            "type": "checkbox",
+            "default": "0"
+        }
+    }
+}

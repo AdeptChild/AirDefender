@@ -178,7 +178,7 @@ function airdefender_override_until(): ?int
     if ($until > 0) {
         // Ran out: close it out once, here or wherever it is noticed first.
         @unlink(airdefender_override_file());
-        airdefender_test_log("Check now override ended; back to the When to Check setting.");
+        airdefender_test_log("Check now override ended; back to the Check for aircraft during setting.");
     }
     return null;
 }
@@ -198,6 +198,6 @@ function airdefender_override_stop(): void
 {
     if (file_exists(airdefender_override_file())) {
         @unlink(airdefender_override_file());
-        airdefender_test_log("Check now override ended early; back to the When to Check setting.");
+        airdefender_test_log("Check now override ended early; back to the Check for aircraft during setting.");
     }
 }

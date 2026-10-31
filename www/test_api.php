@@ -20,6 +20,8 @@
  *   POST action=feed_test&url=&lat=&lon=&nm=&ft=&elev=&receiver=
  *                                        -> ask a flight-data service once (Settings'
  *                                           Test connection); only offered services
+ *   POST action=set_password&password=   -> save (or with '' remove) a Remote's copy
+ *                                           of the Player's UI password
  *
  *   GET ...&log=today|yesterday|week&what=events|all -> log lines for View log
  *
@@ -105,9 +107,8 @@ switch ($action) {
         require_once(dirname(__DIR__) . "/scripts/airdefender_feeds.php");
         require_once(dirname(__DIR__) . "/scripts/airdefender_receiver.php");
         $template = (string) ($_POST['url'] ?? '');
-        $saved = airdefender_read_kv_file(airdefender_config_file())['adsbSourceUrl'] ?? '';
-        // Only the services Settings offers, or the one already saved: never an arbitrary address.
-        if (!array_key_exists($template, airdefender_feed_options()) && $template !== airdefender_effective_feed($saved)[0]) {
+        // Only the services Settings offers: never an arbitrary address.
+        if (!array_key_exists($template, airdefender_feed_options())) {
             http_response_code(400);
             echo json_encode(['error' => 'Pick one of the listed services.']);
             exit;
@@ -154,6 +155,19 @@ switch ($action) {
             }
         }
         echo json_encode(['ok' => true, 'aircraft' => $airborne, 'inside' => $inside, 'nearest' => $nearest, 'ms' => $ms, 'foundAt' => $foundAt]);
+        exit;
+    case 'set_password':
+        // A Remote's copy of the Player's UI password ('' removes it). Kept in
+        // plugindata at 0600, not in FPP's config folder, so it is not saved
+        // with WriteSettingToFile like the other settings.
+        require_once(dirname(__DIR__) . "/scripts/airdefender_secret.php");
+        $password = (string) ($_POST['password'] ?? '');
+        if (!airdefender_set_master_password($password)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not save the password in ' . airdefender_plugindata_dir() . '. Check file permissions.']);
+            exit;
+        }
+        echo json_encode(['ok' => true, 'saved' => $password !== '']);
         exit;
     case 'status':
         $status = airdefender_test_status();

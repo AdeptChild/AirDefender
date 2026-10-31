@@ -284,7 +284,10 @@ function airdefender_poll_master(string $address, string $password = ''): array
     }
     // loopRunning: the Player's loop is alive (it may be waiting on a slow feed,
     // which is the feed's problem, not a reason to close).
-    if (empty($data['testActive']) && empty($data['loopRunning'])) {
+    // A Player still on 1.5.0 or earlier reports only how old its state is, written every second.
+    $running = array_key_exists('loopRunning', $data) ? !empty($data['loopRunning'])
+        : (isset($data['loopAge']) && $data['loopAge'] !== null && $data['loopAge'] <= 15);
+    if (empty($data['testActive']) && !$running) {
         return [null, "the Player's detection loop is not running"];
     }
     return [$data, null];
@@ -670,7 +673,7 @@ while (true) {
     } elseif ($lat === null || $lon === null) {
         $safe = false;
         $reason = 'no-location';
-        $event = 'No show location: set it in FPP settings or turn off Use FPP Location and enter one';
+        $event = "No show location: set it in FPP's settings, or turn off Use FPP's location in Air Defender's settings and enter one";
     } elseif (!$checking) {
         $safe = false;
         $reason = 'standby';
@@ -791,7 +794,11 @@ while (true) {
         'outputError' => $outputsOk ? null : $outputs->lastError,
         'pid' => getmypid(),
     ];
-    $reportKey = json_encode($report);
+    // The times of the last good answers change with every answer, so they
+    // don't count as a change: the heartbeat brings them up to date.
+    $keyed = $report;
+    unset($keyed['lastFetchOk'], $keyed['master']['lastOk']);
+    $reportKey = json_encode($keyed);
     if ($reportKey !== $lastReportKey || $now - $lastReportAt >= AIRDEFENDER_STATE_HEARTBEAT_SEC) {
         $report['lastUpdated'] = date('c', $now);
         airdefender_write_state($report);

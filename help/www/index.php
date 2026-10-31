@@ -22,23 +22,25 @@ whether you look or not.</p>
 <h3>Status banner</h3>
 <ul>
     <li><b>All clear</b> (green): no aircraft inside your limits; the show controls the shutters.</li>
-    <li><b>Safety active</b> (orange): the shutters are held closed, with the reason and when it started.</li>
+    <li><b>Safety active</b> (yellow): the shutters are held closed, with the reason and when it started.</li>
     <li><b>Test running</b> (blue): a test is closing the heads, with the time left.</li>
-    <li><b>Can't check the sky</b> (yellow): the flight-data service is not answering. See the reason, and the
-        <b>Close Heads If Feed Is Down</b> setting.</li>
-    <li><b>Standby</b> (grey-blue): no show is on, so Air Defender is not checking (see <b>When to Check</b> in
-        Settings). It shows the next scheduled show; checks start 2 minutes before it.</li>
+    <li><b>Can't check the sky</b> (red): the flight-data service is not answering. See the reason, and the
+        <b>Close heads if the feed is down</b> setting. The Sky card says when it last answered.</li>
+    <li><b>Standby</b> (grey): no show is on, so Air Defender is not checking (see <b>Check for aircraft during</b>
+        in Settings). It shows the next scheduled show; checks start 2 minutes before it.</li>
     <li><b>Disabled</b> (grey): Air Defender is switched off in Settings.</li>
-    <li><b>Not running</b> (red): the detection loop is not running. Restart FPPD (or reboot).</li>
+    <li><b>Not running</b> (red): the detection loop has stopped (or has not reported in for 2 minutes). Restart FPPD
+        (or reboot). A slow flight-data service does not cause this: it shows as a feed problem.</li>
 </ul>
-<p>The line under the title shows whether this FPP is the Player or a Remote, and which When to check choice is in use.</p>
+<p>The line at the top shows the version, whether this FPP is the Player or a Remote, and which <b>Check for aircraft
+during</b> choice is in use.</p>
 <p><b>Check now</b> (Player): checks for aircraft for 30 minutes to 4 hours even
 with no show on, for example while testing a sequence, then turns itself off. The banner shows the time left and an
 <b>End</b> button.</p>
 
 <h3>Sky (Detailed)</h3>
-<p>Your show is the blue dot in the middle, north is up, and the dashed orange ring is your distance limit.
-Orange dots are aircraft inside your limits (close enough and low enough); grey dots are aircraft that are too
+<p>Your show is the dot in the middle, north is up, and the dashed yellow ring is your distance limit.
+Yellow dots are aircraft inside your limits (close enough and low enough); grey dots are aircraft that are too
 high or too far. Hover over a dot for its callsign, distance and height (above your show once <b>Show elevation</b> is set in
 Settings). Aircraft on the ground are not shown.
 On a Remote, the Sky card says it follows its Player instead.</p>
@@ -54,7 +56,7 @@ the summary line counts them.</p>
     <li>For the <b>Hold after it leaves</b> time (30 seconds unless changed) after it leaves, so a plane on the
         edge of the area does not flash the lights.</li>
     <li>If the flight-data service stops answering while an aircraft was near, until it answers again. With
-        <b>Close heads if feed is down</b> on, whenever it stops answering.</li>
+        <b>Close heads if the feed is down</b> on, whenever it stops answering.</li>
     <li>On a Remote: whenever its Player is in Safety Mode, and whenever it cannot reach the Player for
         5 seconds.</li>
 </ul>

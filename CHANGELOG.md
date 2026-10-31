@@ -1,5 +1,32 @@
 # Air Defender changelog
 
+## 1.6.0 (2026-10-31)
+
+Changes from FPP's review for the plugin list.
+
+- **Pages look like FPP's own.** Settings is built from FPP's setting helpers, in tabs like FPP's settings page:
+  each setting saves as you change it (no Save button any more), with FPP's help icons. The dashboard uses FPP's
+  styles and Bootstrap in light and dark; only the radar has styles of its own. Messages pop up the way FPP's do.
+- **Started by fppd.** fppd starts the detection loop (and stops it) through the plugin's callbacks, also straight
+  after an install or update, so it never runs under the web server. No restart is needed after installing.
+- **Fix: a shutter could be held open over the show on FPP 10.0-10.2.** After fppd restarted during safety mode,
+  releasing the heads asked fppd to delete overlays it no longer had, which those versions turn into a value of 255.
+  Air Defender now only releases overlays set since fppd last started.
+- **FPP's settings through its API:** the location, time zone, Player Mode and playlists come from FPP's API instead
+  of its files, and the model list only from fppd (keeping the last good one when it can't answer). An FPP whose
+  location was never set counts as having none, instead of using FPP's default in Colorado.
+- **Location rounded:** the flight-data services get the show's location to about 1 km, with the search a mile
+  wider to make up for it. Distances are still worked out from the exact location.
+- **Less writing to the SD card:** the status file is written when something changes (and every 30 seconds), not
+  every second.
+- **A slow feed no longer looks like a stopped loop:** the dashboard says "Not running" only when the loop has
+  really stopped, and a Remote closes its heads only when the Player says so or stops answering.
+- **What it can't see:** the description, README, dashboard and help say plainly that Air Defender only sees aircraft
+  that broadcast ADS-B, a little late, and doesn't replace your own obligations for sky-pointing beams and lasers.
+- **The log is kept until Clear log** (the privacy block, help and README said 7 days, which FPP doesn't do).
+- Only the listed flight-data services are ever used. A Reinstall from FPP 10.4 keeps a Remote's saved Player
+  password. Removed code for settings from before 1.5.0.
+
 ## 1.5.0 (2026-10-28)
 
 - **View log** on the dashboard (beside Clear log): when the heads were closed and opened, and tests, for Today,

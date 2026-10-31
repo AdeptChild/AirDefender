@@ -85,6 +85,11 @@ class AirDefenderOutputs
         // clear, or a channel no longer configured while safe.
         foreach (array_keys($this->applied) as $ch) {
             if (!$safe || !array_key_exists($ch, $heads)) {
+                if (self::fppdRunId() !== $run) {
+                    // fppd restarted a moment ago: its overlays went with it.
+                    $this->applied = [];
+                    break;
+                }
                 if ($this->release($ch)) {
                     unset($this->applied[$ch]);
                 } else {
@@ -136,8 +141,9 @@ class AirDefenderOutputs
             if ($try === null) {
                 $pid = null;
                 foreach (glob('/proc/[0-9]*/comm') ?: [] as $f) {
-                    if (trim((string) @file_get_contents($f)) === 'fppd') {
-                        $pid = (int) basename(dirname($f));
+                    $candidate = (int) basename(dirname($f));
+                    if (trim((string) @file_get_contents($f)) === 'fppd' && self::alive($candidate)) {
+                        $pid = $candidate;
                         break;
                     }
                 }
@@ -150,11 +156,21 @@ class AirDefenderOutputs
             // Fields after the ")" that closes the command name; starttime is field 22.
             $rest = substr($stat, (int) strrpos($stat, ')') + 2);
             $fields = explode(' ', $rest);
-            if (trim((string) @file_get_contents("/proc/{$try}/comm")) === 'fppd' && isset($fields[19])) {
+            // A process that has died but not been reaped yet ("Z") is not running.
+            if (trim((string) @file_get_contents("/proc/{$try}/comm")) === 'fppd' && isset($fields[19])
+                && !in_array($fields[0], ['Z', 'X', 'x'], true)) {
                 return $boot . ':' . $try . ':' . $fields[19];
             }
         }
         return null;
+    }
+
+    /* Whether a process is running (not exited and waiting to be reaped). */
+    protected static function alive(int $pid): bool
+    {
+        $stat = (string) @file_get_contents("/proc/{$pid}/stat");
+        $state = substr($stat, (int) strrpos($stat, ')') + 2, 1);
+        return $state !== '' && !in_array($state, ['Z', 'X', 'x'], true);
     }
 
     protected function hold(int $channel, int $value): bool
